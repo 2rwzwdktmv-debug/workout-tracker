@@ -174,6 +174,23 @@
     color: var(--muted); margin: 14px 0 2px; padding-top: 10px; border-top: 1px dashed #3a4152;
   }
   .ex.hassec { border-top: none; padding-top: 0; }
+  .ghead {
+    display: flex; align-items: center; gap: 10px;
+    margin: 14px 0 2px; padding-top: 12px; border-top: 1px dashed #3a4152;
+  }
+  .ghead:first-child { border-top: none; padding-top: 0; margin-top: 2px; }
+  .ghead span {
+    flex: 1; min-width: 0; font-size: 11px; text-transform: uppercase;
+    letter-spacing: 1.4px; font-weight: 800; color: var(--muted);
+  }
+  .ghead.done span { color: var(--lime); }
+  .gcb {
+    width: 26px; height: 26px; border-radius: 99px; border: 2px solid #3a4152;
+    background: none; color: transparent; font-size: 14px;
+    display: flex; align-items: center; justify-content: center; padding: 0; flex-shrink: 0;
+  }
+  .ghead.done .gcb { background: var(--lime); border-color: var(--lime); color: var(--lime-ink); }
+  .ghead + .ex { border-top: none; padding-top: 0; }
   .exlast {
     border: 1px dashed #3a4152; background: none; color: var(--lime);
     border-radius: 99px; padding: 4px 10px; font-size: 12px; font-weight: 700;
@@ -252,6 +269,7 @@
 const CFG_KEY = "wt-config-v1";
 const CACHE_KEY = "wt-progress-cache-v1";
 const DIRTY_KEY = "wt-dirty-v1";
+const DATA_KEY = "wt-data-cache-v1";
 
 let PROGRAM = null, PLAN_TITLE = "Workout Tracker";
 let S = { checked: {}, resultsByItem: {}, results: {} };
@@ -373,7 +391,51 @@ async function boot() {
   if (rawCfg) try { cfg = JSON.parse(rawCfg); } catch (e) {}
   if (!cfg || !cfg.user || !cfg.repo || !cfg.token) { renderSetup(); return; }
   mode = "github";
+
+  // Schnellstart: sofort aus dem lokalen Cache rendern, GitHub im Hintergrund nachziehen
+  const cachedData = lsGet(DATA_KEY);
+  if (cachedData) {
+    try {
+      const data = JSON.parse(cachedData);
+      PROGRAM = data.program; PLAN_TITLE = data.title || PLAN_TITLE;
+      const cached = lsGet(CACHE_KEY);
+      if (cached) try { S = Object.assign(S, JSON.parse(cached)); } catch (e) {}
+      finishBoot();
+      refreshFromGitHub();
+      return;
+    } catch (e) { /* Cache defekt → normal laden */ }
+  }
   await loadFromGitHub();
+}
+
+async function refreshFromGitHub() {
+  try {
+    const dataFile = await ghGet("data.json");
+    if (dataFile && dataFile.text !== lsGet(DATA_KEY)) {
+      lsSet(DATA_KEY, dataFile.text);
+      const data = JSON.parse(dataFile.text);
+      PROGRAM = data.program; PLAN_TITLE = data.title || PLAN_TITLE;
+      finishBoot();
+    }
+    const progFile = await ghGet("progress.json");
+    const dirty = !!lsGet(DIRTY_KEY);
+    if (progFile) {
+      progressSha = progFile.sha;
+      if (dirty) { pushProgress(); return; }
+      const serverS = JSON.stringify(Object.assign({ checked: {}, resultsByItem: {}, results: {} }, JSON.parse(progFile.text)));
+      if (serverS !== JSON.stringify(S)) {
+        S = JSON.parse(serverS);
+        lsSet(CACHE_KEY, serverS);
+        render();
+      }
+      setSync("ok");
+    } else {
+      progressSha = null;
+      if (dirty) pushProgress();
+    }
+  } catch (e) {
+    setSync("err", String(e.message || e));
+  }
 }
 
 async function loadFromGitHub() {
@@ -381,6 +443,7 @@ async function loadFromGitHub() {
   try {
     const dataFile = await ghGet("data.json");
     if (!dataFile) throw new Error("data.json nicht im Repo gefunden");
+    lsSet(DATA_KEY, dataFile.text);
     const data = JSON.parse(dataFile.text);
     PROGRAM = data.program; PLAN_TITLE = data.title || PLAN_TITLE;
 
@@ -409,10 +472,13 @@ async function loadFromGitHub() {
   }
 }
 
+let ITEM_INDEX = {};
 function finishBoot() {
   FLAT = [];
+  ITEM_INDEX = {};
   PROGRAM.forEach((part, pi) => part.weeks.forEach((week, wi) => week.days.forEach((day, di) => {
     day.sessions.forEach(sess => sess.items.forEach(item => {
+      ITEM_INDEX[item.id] = item;
       if (!item.rest) FLAT.push({ item, pi, wi, di });
     }));
   })));
@@ -443,6 +509,31 @@ function prescription(ex) {
   const w = ex.pct.map(p => fmtW(mround25(base * p))).join("–") + " kg";
   const p = ex.pct.map(x => (x * 100).toLocaleString("de-DE")).join("–") + " % 1RM";
   return w + " · " + p;
+}
+function exGroups(item) {
+  const gs = [];
+  (item.exercises || []).forEach(ex => {
+    const acc = ex.k.startsWith("ex-");
+    const gk = acc ? "acc" : (ex.rm || ex.k);
+    const last = gs[gs.length - 1];
+    if (last && last.gk === gk) last.exs.push(ex);
+    else gs.push({ gk, acc, exs: [ex] });
+  });
+  gs.forEach((g, gi) => {
+    g.id = item.id + "/g" + gi + "-" + g.gk;
+    g.label = g.acc ? "Accessory Work" : g.exs[0].name.replace(/\s+\d+x.*$/i, "");
+  });
+  return gs;
+}
+function locOf(id) {
+  const baseId = id.split("/")[0];
+  const f = FLAT.find(x => x.item.id === baseId);
+  if (!f) return "";
+  const p = PROGRAM[f.pi];
+  return `${p.name} · ${p.weeks[f.wi].name} · ${p.weeks[f.wi].days[f.di].label}`;
+}
+function logEv(e, id, extra) {
+  (S.log = S.log || []).push(Object.assign({ t: new Date().toISOString(), e, id, loc: locOf(id) }, extra || {}));
 }
 function lastResult(key, selfId) {
   const arr = S.results[key] || [];
@@ -597,25 +688,35 @@ function renderDay(pi, wi, di) {
   main.innerHTML = html;
 }
 
+function renderExercise(item, ex) {
+  const rid = item.id + "/" + ex.k;
+  const val = S.resultsByItem[rid] || "";
+  const last = lastResult(ex.k, rid);
+  let h = `<div class="ex">
+    <div class="exrow">
+      <div class="exname">${esc(ex.name)}</div>
+      <input class="exw" type="text" placeholder="Gewicht" value="${esc(val)}"
+        onchange="setResult('${rid}','${ex.k}',this.value)">
+    </div>`;
+  const pre = prescription(ex);
+  if (pre) h += `<div class="expre">Vorgabe: ${esc(pre)}</div>`;
+  if (ex.note) h += `<div class="exnote">${esc(ex.note)}</div>`;
+  if (last && !val) h += `<button class="exlast" onclick="fillResult('${rid}','${ex.k}','${esc(last.value).replace(/'/g, "\\'")}')">Letztes Mal: ${esc(last.value)} · ${fmtDate(last.date)} — übernehmen</button>`;
+  return h + `</div>`;
+}
+
 function renderExercises(item) {
   if (!item.exercises || !item.exercises.length) return "";
-  return `<div class="exs">` + item.exercises.map(ex => {
-    const rid = item.id + "/" + ex.k;
-    const val = S.resultsByItem[rid] || "";
-    const last = lastResult(ex.k, rid);
-    let h = "";
-    if (ex.sec) h += `<div class="exsec">${esc(ex.sec)}</div>`;
-    h += `<div class="ex ${ex.sec ? "hassec" : ""}">
-      <div class="exrow">
-        <div class="exname">${esc(ex.name)}</div>
-        <input class="exw" type="text" placeholder="Gewicht" value="${esc(val)}"
-          onchange="setResult('${rid}','${ex.k}',this.value)">
-      </div>`;
-    const pre = prescription(ex);
-    if (pre) h += `<div class="expre">Vorgabe: ${esc(pre)}</div>`;
-    if (ex.note) h += `<div class="exnote">${esc(ex.note)}</div>`;
-    if (last && !val) h += `<button class="exlast" onclick="fillResult('${rid}','${ex.k}','${esc(last.value).replace(/'/g, "\\'")}')">Letztes Mal: ${esc(last.value)} · ${fmtDate(last.date)} — übernehmen</button>`;
-    return h + `</div>`;
+  const gs = exGroups(item);
+  if (gs.length < 2) {
+    return `<div class="exs">` + item.exercises.map(ex => renderExercise(item, ex)).join("") + `</div>`;
+  }
+  return `<div class="exs">` + gs.map(g => {
+    const done = !!S.checked[g.id];
+    return `<div class="ghead ${done ? "done" : ""}">
+        <span>${esc(g.label)}</span>
+        <button class="gcb" onclick="toggleGroup('${g.id}','${item.id}')" aria-label="Block abhaken">✓</button>
+      </div>` + g.exs.map(ex => renderExercise(item, ex)).join("");
   }).join("") + `</div>`;
 }
 
@@ -637,9 +738,30 @@ function renderResult(item) {
 }
 
 /* ---------- Actions ---------- */
+function setItemChecked(id, on, now) {
+  const item = ITEM_INDEX[id];
+  const gs = item && item.exercises ? exGroups(item) : [];
+  if (on) {
+    if (!S.checked[id]) { S.checked[id] = now; logEv("done", id); }
+    gs.forEach(g => { S.checked[g.id] = now; });
+  } else {
+    if (S.checked[id]) { delete S.checked[id]; logEv("undone", id); }
+    gs.forEach(g => delete S.checked[g.id]);
+  }
+}
 window.toggle = function (id) {
-  if (S.checked[id]) delete S.checked[id];
-  else S.checked[id] = new Date().toISOString();
+  setItemChecked(id, !S.checked[id], new Date().toISOString());
+  markDirty();
+  render();
+};
+window.toggleGroup = function (gid, itemId) {
+  const now = new Date().toISOString();
+  if (S.checked[gid]) { delete S.checked[gid]; logEv("undone", gid); }
+  else { S.checked[gid] = now; logEv("done", gid); }
+  const gs = exGroups(ITEM_INDEX[itemId]);
+  const all = gs.every(g => S.checked[g.id]);
+  if (all && !S.checked[itemId]) { S.checked[itemId] = now; logEv("done", itemId); }
+  if (!all && S.checked[itemId]) delete S.checked[itemId];
   markDirty();
   render();
 };
@@ -647,10 +769,8 @@ window.checkSession = function (pi, wi, di, si) {
   const sess = PROGRAM[pi].weeks[wi].days[di].sessions[si];
   const items = sess.items.filter(i => !i.rest);
   const allDone = items.every(i => S.checked[i.id]);
-  items.forEach(i => {
-    if (allDone) delete S.checked[i.id];
-    else if (!S.checked[i.id]) S.checked[i.id] = new Date().toISOString();
-  });
+  const now = new Date().toISOString();
+  items.forEach(i => setItemChecked(i.id, !allDone, now));
   markDirty();
   render();
 };
@@ -660,7 +780,7 @@ window.setResult = function (id, key, value) {
   const arr = (S.results[key] = S.results[key] || []);
   const idx = arr.findIndex(e => e.itemId === id);
   if (idx >= 0) arr.splice(idx, 1);
-  if (value) arr.push({ value, date: new Date().toISOString(), itemId: id });
+  if (value) { arr.push({ value, date: new Date().toISOString(), itemId: id }); logEv("weight", id, { k: key, value }); }
   markDirty();
   render();
 };
@@ -732,7 +852,11 @@ function renderSettings() {
 window.setRM = function (k, v) {
   v = parseFloat(String(v).trim().replace(",", "."));
   S.oneRM = S.oneRM || {};
+  const old = S.oneRM[k];
   if (v > 0) S.oneRM[k] = v; else delete S.oneRM[k];
+  if ((v > 0 ? v : null) !== (old ?? null)) {
+    (S.rmLog = S.rmLog || []).push({ t: new Date().toISOString(), k, value: v > 0 ? v : null });
+  }
   markDirty();
 };
 window.manualSync = async function () { lsSet(DIRTY_KEY, "1"); await pushProgress(); renderSettings(); };
@@ -759,8 +883,8 @@ window.doImport = function () {
   }
 };
 window.doReset = function () {
-  if (confirm("Wirklich ALLEN Fortschritt und alle Ergebnisse löschen? (1RM-Gewichte bleiben erhalten)")) {
-    S = { checked: {}, resultsByItem: {}, results: {}, oneRM: S.oneRM };
+  if (confirm("Wirklich ALLEN Fortschritt und alle Ergebnisse löschen? (1RM-Gewichte und Trainingslog bleiben erhalten)")) {
+    S = { checked: {}, resultsByItem: {}, results: {}, oneRM: S.oneRM, rmLog: S.rmLog, log: S.log };
     markDirty();
     location.hash = "";
     render();
