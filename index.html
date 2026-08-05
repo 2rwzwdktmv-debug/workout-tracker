@@ -506,9 +506,9 @@ function renderSetup(err) {
   main.innerHTML = `<div class="setup">
     <p class="hint">Verbinde den Tracker mit deinem privaten GitHub-Repo. Der Plan (data.json) wird von dort geladen, dein Fortschritt (progress.json) dort gespeichert.</p>
     <label>GitHub-Benutzername</label>
-    <input id="su" type="text" autocapitalize="none" autocorrect="off" value="${esc(c.user || "")}" placeholder="z. B. 2rwzwdktmv-debug">
+    <input id="su" type="text" autocapitalize="none" autocorrect="off" value="${esc(c.user || "")}" placeholder="Benutzername">
     <label>Daten-Repository</label>
-    <input id="sr" type="text" autocapitalize="none" autocorrect="off" value="${esc(c.repo || "workout-data")}" placeholder="workout-data">
+    <input id="sr" type="text" autocapitalize="none" autocorrect="off" value="${esc(c.repo || "")}" placeholder="Name des Daten-Repos">
     <label>Fine-grained Token</label>
     <input id="st" type="password" autocapitalize="none" autocorrect="off" value="${esc(c.token || "")}" placeholder="github_pat_…">
     <p class="hint">Token nur mit Zugriff auf das Daten-Repo und Permission „Contents: Read and write“. Wird ausschließlich lokal auf diesem Gerät gespeichert.</p>
