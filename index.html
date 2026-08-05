@@ -589,6 +589,7 @@ function renderDay(pi, wi, di) {
         </div>
         ${item.body ? `<div class="body">${esc(item.body)}</div>` : ""}
         ${renderExercises(item)}
+        ${item.after ? `<div class="body">${esc(item.after)}</div>` : ""}
         ${item.key ? renderResult(item) : ""}
       </div>`;
     });
