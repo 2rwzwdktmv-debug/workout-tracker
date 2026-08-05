@@ -6,137 +6,210 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="robots" content="noindex">
-<meta name="theme-color" content="#111114">
+<meta name="theme-color" content="#0a0c10">
 <title>Workout Tracker</title>
 <style>
   :root {
-    --bg: #f4f4f6; --card: #ffffff; --ink: #17171a; --muted: #6d6d76;
-    --line: #e3e3e8; --accent: #d62828; --accent-ink: #ffffff;
-    --ok: #2a9d54; --warn: #e09f3e; --chip: #ececf1; --input-bg: #f7f7fa;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #111114; --card: #1c1c21; --ink: #f2f2f4; --muted: #9a9aa4;
-      --line: #2c2c33; --accent: #e63946; --accent-ink: #ffffff;
-      --ok: #3fbf6f; --warn: #eab308; --chip: #26262d; --input-bg: #141418;
-    }
+    --bg: #0a0c10; --surface: #14171f; --surface2: #1b202b;
+    --ink: #f4f6f8; --muted: #8b93a3; --line: rgba(255,255,255,.07);
+    --lime: #d7f651; --lime-ink: #12150a;
+    --red: #ff4d5e; --amber: #f5c344;
+    --r-lg: 22px; --r-md: 16px; --r-sm: 12px;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body { margin: 0; padding: 0; }
+  html { -webkit-text-size-adjust: 100%; }
+  html, body { margin: 0; padding: 0; overflow-x: hidden; }
   body {
     background: var(--bg); color: var(--ink);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    font-size: 16px; line-height: 1.45;
-    padding-bottom: env(safe-area-inset-bottom);
+    font-family: ui-rounded, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 16px; line-height: 1.5;
   }
+  button { font: inherit; color: inherit; }
+
+  /* ---------- Header ---------- */
   header {
-    position: sticky; top: 0; z-index: 10;
-    background: color-mix(in srgb, var(--bg) 88%, transparent);
-    -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+    position: sticky; top: 0; z-index: 20;
+    background: color-mix(in srgb, var(--bg) 86%, transparent);
+    -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
     border-bottom: 1px solid var(--line);
-    padding: calc(10px + env(safe-area-inset-top)) 14px 10px;
-    display: flex; align-items: center; gap: 10px; min-height: 52px;
+    padding: calc(10px + env(safe-area-inset-top)) 16px 10px;
+    display: flex; align-items: center; gap: 10px; min-height: 54px;
   }
   header .back {
-    border: none; background: var(--chip); color: var(--ink);
-    border-radius: 10px; padding: 8px 12px; font-size: 15px; font-weight: 600;
+    border: none; background: var(--surface2); color: var(--ink);
+    border-radius: 99px; width: 36px; height: 36px; flex-shrink: 0;
+    font-size: 18px; font-weight: 700; line-height: 1;
   }
-  header h1 { font-size: 17px; margin: 0; flex: 1; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  #syncDot { font-size: 11px; font-weight: 700; padding: 4px 8px; border-radius: 99px; background: var(--chip); color: var(--muted); white-space: nowrap; }
-  #syncDot.ok { color: var(--ok); }
-  #syncDot.pending { color: var(--warn); }
-  #syncDot.err { color: var(--accent); }
-  header .gear { border: none; background: none; font-size: 20px; color: var(--muted); padding: 4px 6px; }
-  main { padding: 14px; max-width: 640px; margin: 0 auto; }
-  .hero { margin: 6px 0 16px; }
-  .hero .big { font-size: 28px; font-weight: 800; letter-spacing: -0.5px; }
-  .hero .sub { color: var(--muted); font-size: 14px; margin-top: 2px; }
-  .bar { height: 8px; background: var(--chip); border-radius: 99px; overflow: hidden; margin-top: 10px; }
-  .bar > div { height: 100%; background: var(--accent); border-radius: 99px; transition: width .3s; }
-  .continue {
-    display: block; width: 100%; margin: 14px 0 20px;
-    background: var(--accent); color: var(--accent-ink);
-    border: none; border-radius: 14px; padding: 15px; font-size: 17px; font-weight: 700;
+  header h1 {
+    font-size: 16px; margin: 0; flex: 1; min-width: 0; font-weight: 800;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: .2px;
   }
-  h2.section { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin: 22px 2px 8px; }
+  #syncDot {
+    font-size: 11px; font-weight: 700; padding: 5px 10px; border-radius: 99px;
+    background: var(--surface2); color: var(--muted); white-space: nowrap; flex-shrink: 0;
+  }
+  #syncDot.ok { color: var(--lime); }
+  #syncDot.pending { color: var(--amber); }
+  #syncDot.err { color: var(--red); }
+
+  main { padding: 16px 16px calc(96px + env(safe-area-inset-bottom)); max-width: 640px; margin: 0 auto; }
+
+  /* ---------- Hero ---------- */
+  .hero {
+    background: linear-gradient(145deg, var(--surface2), var(--surface));
+    border: 1px solid var(--line); border-radius: var(--r-lg);
+    padding: 20px; display: flex; align-items: center; gap: 18px; margin-bottom: 14px;
+  }
+  .hero .ringwrap { position: relative; width: 108px; height: 108px; flex-shrink: 0; }
+  .hero .ringwrap .mid {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+  }
+  .hero .mid b { font-size: 24px; font-weight: 800; letter-spacing: -.5px; }
+  .hero .mid span { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+  .hero .txt { min-width: 0; }
+  .hero .txt .k { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 1.4px; font-weight: 700; }
+  .hero .txt .v { font-size: 21px; font-weight: 800; margin: 2px 0 6px; letter-spacing: -.3px; }
+  .hero .txt .s { font-size: 13px; color: var(--muted); }
+  .ring { transform: rotate(-90deg); }
+  .ring .bgc { stroke: rgba(255,255,255,.08); }
+  .ring .fgc { stroke: var(--lime); stroke-linecap: round; transition: stroke-dashoffset .4s; }
+
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 6px; }
+  .stat {
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md);
+    padding: 13px 14px;
+  }
+  .stat b { font-size: 20px; font-weight: 800; display: block; letter-spacing: -.3px; }
+  .stat span { font-size: 12px; color: var(--muted); }
+
+  h2.section {
+    font-size: 12px; text-transform: uppercase; letter-spacing: 1.6px;
+    color: var(--muted); margin: 24px 2px 10px; font-weight: 800;
+  }
+  h2.section em { color: var(--lime); font-style: normal; }
+
+  /* ---------- Cards / Grid ---------- */
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .card {
-    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
-    padding: 12px; text-align: left; color: var(--ink); width: 100%;
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md);
+    padding: 14px; text-align: left; color: var(--ink); width: 100%;
   }
-  button.card { font: inherit; }
-  .card .t { font-weight: 700; font-size: 15px; }
-  .card .f { color: var(--muted); font-size: 13px; margin: 1px 0 8px; }
-  .card .pct { font-size: 12px; color: var(--muted); margin-top: 5px; }
-  .card.done { border-color: var(--ok); }
-  .card.done .t::after { content: " ✓"; color: var(--ok); }
+  .wk { display: flex; flex-direction: column; gap: 10px; }
+  .wk .top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .wk .t { font-weight: 800; font-size: 15px; }
+  .wk .f { color: var(--muted); font-size: 12px; margin-top: 1px; }
+  .wk .mini { position: relative; width: 40px; height: 40px; flex-shrink: 0; }
+  .wk .mini .mp { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 9.5px; font-weight: 800; color: var(--muted); }
+  .wk.done { border-color: color-mix(in srgb, var(--lime) 45%, transparent); }
+  .wk.done .mini .mp { color: var(--lime); }
+
   .dayrow { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
   .dayrow .info { flex: 1; min-width: 0; }
-  .dayrow .sess { color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .ring { font-size: 13px; font-weight: 700; color: var(--muted); flex-shrink: 0; }
-  .ring.done { color: var(--ok); }
-  .sesshead { display: flex; align-items: center; margin: 20px 2px 8px; gap: 8px; }
-  .sesshead h3 { font-size: 15px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--accent); margin: 0; flex: 1; }
-  .sesshead button { border: none; background: var(--chip); color: var(--muted); border-radius: 8px; padding: 5px 10px; font-size: 12px; font-weight: 600; }
-  .item { display: block; margin-bottom: 10px; padding: 13px; }
+  .dayrow .t { font-weight: 800; font-size: 15px; }
+  .dayrow .sess { color: var(--muted); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+  .dayrow .mini { position: relative; width: 40px; height: 40px; flex-shrink: 0; }
+  .dayrow .mini .mp { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 9.5px; font-weight: 800; color: var(--muted); }
+  .dayrow.done { border-color: color-mix(in srgb, var(--lime) 45%, transparent); }
+  .dayrow.done .mini .mp { color: var(--lime); }
+
+  /* ---------- Day view ---------- */
+  .sesshead { display: flex; align-items: center; margin: 22px 2px 10px; gap: 10px; }
+  .sesshead h3 {
+    font-size: 12px; text-transform: uppercase; letter-spacing: 1.4px;
+    color: var(--lime); margin: 0; flex: 1; min-width: 0; font-weight: 800;
+  }
+  .sesshead button {
+    border: 1px solid var(--line); background: var(--surface2); color: var(--muted);
+    border-radius: 99px; padding: 6px 12px; font-size: 12px; font-weight: 700; flex-shrink: 0;
+  }
+  .item { display: block; margin-bottom: 10px; padding: 14px; border-radius: var(--r-md); }
   .item .head { display: flex; gap: 12px; align-items: flex-start; }
   .cb {
-    flex-shrink: 0; width: 28px; height: 28px; border-radius: 9px;
-    border: 2px solid var(--muted); background: none; margin-top: 1px;
+    flex-shrink: 0; width: 30px; height: 30px; border-radius: 99px;
+    border: 2px solid #3a4152; background: none; margin-top: 1px;
     display: flex; align-items: center; justify-content: center;
-    font-size: 18px; color: transparent; padding: 0;
+    font-size: 16px; color: transparent; padding: 0;
   }
-  .item.checked .cb { background: var(--ok); border-color: var(--ok); color: #fff; }
+  .item.checked { opacity: .82; }
+  .item.checked .cb { background: var(--lime); border-color: var(--lime); color: var(--lime-ink); }
   .item.checked .tt { color: var(--muted); text-decoration: line-through; }
-  .item .tt { font-weight: 700; font-size: 15px; }
-  .item .st { font-weight: 600; font-size: 14px; margin-top: 1px; }
+  .item .tt { font-weight: 800; font-size: 15px; }
+  .item .st { font-weight: 600; font-size: 14px; margin-top: 1px; color: #c9cfda; }
   .item.checked .st { color: var(--muted); }
-  .item .body { color: var(--muted); font-size: 14px; white-space: pre-line; margin: 8px 0 0 40px; }
+  .item .body { color: var(--muted); font-size: 14px; white-space: pre-line; margin: 9px 0 0 42px; }
   .item.checked .body { display: none; }
-  .res { margin: 10px 0 0 40px; }
+  .res { margin: 11px 0 0 42px; }
   .res input {
-    width: 100%; font: inherit; font-size: 15px; color: var(--ink);
-    background: var(--input-bg); border: 1px solid var(--line); border-radius: 10px;
-    padding: 9px 11px;
+    width: 100%; font: inherit; font-size: 16px; color: var(--ink);
+    background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-sm);
+    padding: 10px 12px;
   }
-  .res .last { margin-top: 6px; }
+  .res input:focus { outline: none; border-color: color-mix(in srgb, var(--lime) 55%, transparent); }
+  .res .last { margin-top: 7px; }
   .res .last button {
-    border: 1px dashed var(--line); background: none; color: var(--accent);
-    border-radius: 8px; padding: 4px 9px; font-size: 13px; font-weight: 600;
+    border: 1px dashed #3a4152; background: none; color: var(--lime);
+    border-radius: 99px; padding: 5px 11px; font-size: 12.5px; font-weight: 700; text-align: left;
   }
-  .res details { margin-top: 5px; font-size: 12.5px; color: var(--muted); }
+  .res details { margin-top: 6px; font-size: 12.5px; color: var(--muted); }
   .res summary { cursor: pointer; }
-  .rest { text-align: center; padding: 30px 14px; color: var(--muted); }
-  .rest .z { font-size: 34px; }
+  .rest { text-align: center; padding: 34px 14px; color: var(--muted); }
+  .rest .z { font-size: 36px; }
   .flash { animation: flash 1.6s ease-out 1; }
-  @keyframes flash { 0% { box-shadow: 0 0 0 3px var(--accent); } 100% { box-shadow: 0 0 0 0 transparent; } }
-  .set label, .setup label { display: block; font-weight: 700; margin: 18px 0 6px; }
-  .set textarea, .setup input, .set input {
-    width: 100%; font-size: 15px; color: var(--ink);
-    background: var(--input-bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px;
+  @keyframes flash { 0% { box-shadow: 0 0 0 3px var(--lime); } 100% { box-shadow: 0 0 0 0 transparent; } }
+
+  /* ---------- Bottom Nav ---------- */
+  nav {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+    background: color-mix(in srgb, var(--bg) 82%, transparent);
+    -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+    border-top: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: space-around;
+    padding: 10px 20px calc(10px + env(safe-area-inset-bottom));
   }
-  .set textarea { height: 130px; font: 12px ui-monospace, monospace; }
+  nav button { border: none; background: none; color: var(--muted); display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 10.5px; font-weight: 700; letter-spacing: .3px; padding: 2px 10px; }
+  nav button svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  nav button.active { color: var(--ink); }
+  nav .go {
+    background: var(--lime); color: var(--lime-ink); border-radius: 99px;
+    width: 58px; height: 58px; margin-top: -26px; justify-content: center;
+    box-shadow: 0 8px 22px color-mix(in srgb, var(--lime) 35%, transparent);
+    font-size: 0;
+  }
+  nav .go svg { width: 24px; height: 24px; stroke-width: 2.4; }
+
+  /* ---------- Setup / Settings ---------- */
+  .set label, .setup label { display: block; font-weight: 800; margin: 18px 0 7px; font-size: 14px; }
+  .set textarea, .setup input, .set input {
+    width: 100%; font-size: 16px; color: var(--ink);
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 12px;
+  }
+  .set textarea { height: 130px; font-family: ui-monospace, monospace; }
   .set .row, .setup .row { display: flex; gap: 8px; margin-top: 14px; }
   .set .row button, .setup .row button {
-    flex: 1; border: none; border-radius: 10px; padding: 11px; font-size: 15px; font-weight: 600;
-    background: var(--chip); color: var(--ink);
+    flex: 1; border: none; border-radius: 99px; padding: 13px; font-size: 15px; font-weight: 800;
+    background: var(--surface2); color: var(--ink);
   }
-  .set .row button.primary, .setup .row button.primary { background: var(--accent); color: var(--accent-ink); }
-  .set .row button.danger { color: #fff; background: #b3261e; }
+  .set .row button.primary, .setup .row button.primary { background: var(--lime); color: var(--lime-ink); }
+  .set .row button.danger { color: #fff; background: #8f1d24; }
   .set p.hint, .setup p.hint { color: var(--muted); font-size: 13px; }
-  .setup .err { color: var(--accent); font-weight: 600; font-size: 14px; margin-top: 10px; min-height: 20px; }
-  .loading { text-align: center; color: var(--muted); padding: 60px 20px; }
-  .foot { text-align: center; color: var(--muted); font-size: 12px; margin: 26px 0 10px; }
+  .setup .err { color: var(--red); font-weight: 700; font-size: 14px; margin-top: 10px; min-height: 20px; }
+  .loading { text-align: center; color: var(--muted); padding: 70px 20px; }
+  .foot { text-align: center; color: var(--muted); font-size: 11.5px; margin: 26px 0 4px; }
 </style>
 </head>
 <body>
 <header>
-  <button class="back" id="backBtn" style="display:none">‹ Zurück</button>
+  <button class="back" id="backBtn" style="display:none" aria-label="Zurück">‹</button>
   <h1 id="title">Workout Tracker</h1>
   <span id="syncDot" style="display:none">●</span>
-  <button class="gear" id="gearBtn" title="Einstellungen">⚙︎</button>
 </header>
 <main id="main"><div class="loading">Lade…</div></main>
+<nav id="nav" style="display:none">
+  <button id="navHome"><svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>Übersicht</button>
+  <button class="go" id="navGo" aria-label="Weitermachen"><svg viewBox="0 0 24 24"><path d="M7 4.5 19 12 7 19.5z"/></svg></button>
+  <button id="navSet"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 13.5a7.8 7.8 0 0 0 0-3l2-1.5-2-3.4-2.4 1a7.8 7.8 0 0 0-2.6-1.5L14 2.5h-4l-.4 2.6A7.8 7.8 0 0 0 7 6.6l-2.4-1-2 3.4 2 1.5a7.8 7.8 0 0 0 0 3l-2 1.5 2 3.4 2.4-1a7.8 7.8 0 0 0 2.6 1.5l.4 2.6h4l.4-2.6a7.8 7.8 0 0 0 2.6-1.5l2.4 1 2-3.4z"/></svg>Einstellungen</button>
+</nav>
 
 <script>
 "use strict";
@@ -158,9 +231,9 @@ let S = { checked: {}, resultsByItem: {}, results: {} };
 let FLAT = [];
 let mode = null;              // "local" | "github"
 let cfg = null;               // {user, repo, token}
-let progressSha = null;       // SHA von progress.json für PUT
+let progressSha = null;
 let syncTimer = null;
-let syncState = "idle";       // idle | pending | syncing | ok | err
+let syncState = "idle";
 
 let storageOK = true;
 try { localStorage.setItem("__t", "1"); localStorage.removeItem("__t"); } catch (e) { storageOK = false; }
@@ -237,7 +310,6 @@ async function pushProgress() {
     setSync("ok");
   } catch (e) {
     if (e.status === 409 || e.status === 422) {
-      // Konflikt: SHA veraltet → neu holen, lokaler Stand gewinnt (dirty), erneut pushen
       try {
         const cur = await ghGet("progress.json");
         progressSha = cur ? cur.sha : null;
@@ -249,7 +321,7 @@ async function pushProgress() {
     }
     setSync("err", String(e.message || e));
     clearTimeout(syncTimer);
-    syncTimer = setTimeout(pushProgress, 30000); // später erneut versuchen
+    syncTimer = setTimeout(pushProgress, 30000);
   }
 }
 window.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") pushProgress(); });
@@ -257,7 +329,6 @@ window.addEventListener("online", () => pushProgress());
 
 /* ---------- Boot ---------- */
 async function boot() {
-  // 1) Lokaler Modus (Dev): data.json neben der Datei?
   try {
     const r = await fetch("./data.json", { cache: "no-store" });
     if (r.ok) {
@@ -271,7 +342,6 @@ async function boot() {
     }
   } catch (e) { /* kein lokales data.json */ }
 
-  // 2) GitHub-Modus
   const rawCfg = lsGet(CFG_KEY);
   if (rawCfg) try { cfg = JSON.parse(rawCfg); } catch (e) {}
   if (!cfg || !cfg.user || !cfg.repo || !cfg.token) { renderSetup(); return; }
@@ -293,7 +363,6 @@ async function loadFromGitHub() {
     if (progFile) {
       progressSha = progFile.sha;
       if (dirty && cached) {
-        // lokale, noch nicht gesyncte Änderungen gewinnen
         try { S = JSON.parse(cached); } catch (e) { S = JSON.parse(progFile.text); }
         pushProgress();
       } else {
@@ -305,7 +374,7 @@ async function loadFromGitHub() {
       progressSha = null;
       if (cached) try { S = JSON.parse(cached); } catch (e) {}
       lsSet(DIRTY_KEY, "1");
-      pushProgress(); // legt progress.json an
+      pushProgress();
     }
     finishBoot();
   } catch (e) {
@@ -320,6 +389,7 @@ function finishBoot() {
       if (!item.rest) FLAT.push({ item, pi, wi, di });
     }));
   })));
+  document.getElementById("nav").style.display = "";
   setSync(mode === "github" ? (lsGet(DIRTY_KEY) ? "pending" : "ok") : "idle");
   render();
 }
@@ -336,14 +406,29 @@ function lastResult(key, selfId) {
   for (let i = arr.length - 1; i >= 0; i--) if (arr[i].itemId !== selfId) return arr[i];
   return arr.length ? arr[arr.length - 1] : null;
 }
+function ring(p, size, stroke, cls) {
+  const r = (size - stroke) / 2, c = 2 * Math.PI * r;
+  return `<svg class="ring ${cls || ""}" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+    <circle class="bgc" cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke-width="${stroke}"/>
+    <circle class="fgc" cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke-width="${stroke}"
+      stroke-dasharray="${c}" stroke-dashoffset="${c * (1 - p / 100)}"/>
+  </svg>`;
+}
 
 /* ---------- Routing & Views ---------- */
 const main = document.getElementById("main");
 const titleEl = document.getElementById("title");
 const backBtn = document.getElementById("backBtn");
-document.getElementById("gearBtn").onclick = () => { if (PROGRAM) location.hash = "#settings"; };
 backBtn.onclick = () => { history.back(); };
+document.getElementById("navHome").onclick = () => { location.hash = ""; };
+document.getElementById("navGo").onclick = () => goContinue();
+document.getElementById("navSet").onclick = () => { location.hash = "#settings"; };
 window.addEventListener("hashchange", () => { if (PROGRAM) render(); });
+
+function setNav(active) {
+  document.getElementById("navHome").classList.toggle("active", active === "home");
+  document.getElementById("navSet").classList.toggle("active", active === "set");
+}
 
 function render() {
   const seg = location.hash.replace(/^#/, "").split("/").filter(Boolean);
@@ -357,30 +442,44 @@ function render() {
 function renderHome() {
   backBtn.style.display = "none";
   titleEl.textContent = PLAN_TITLE;
+  setNav("home");
   const total = FLAT.length, done = FLAT.filter(f => S.checked[f.item.id]).length;
+  const p = pct(done, total);
+  const nResults = Object.keys(S.resultsByItem).length;
+  const next = FLAT.find(f => !S.checked[f.item.id]);
+  const nextTxt = next
+    ? `${PROGRAM[next.pi].name} · ${PROGRAM[next.pi].weeks[next.wi].name} · ${PROGRAM[next.pi].weeks[next.wi].days[next.di].label}`
+    : "Alles erledigt! 🎉";
   let html = `
     <div class="hero">
-      <div class="big">${pct(done, total)}%</div>
-      <div class="sub">${done} von ${total} Parts erledigt</div>
-      <div class="bar"><div style="width:${pct(done, total)}%"></div></div>
+      <div class="ringwrap">${ring(p, 108, 10)}
+        <div class="mid"><b>${p}%</b><span>gesamt</span></div>
+      </div>
+      <div class="txt">
+        <div class="k">Als Nächstes</div>
+        <div class="v">${esc(nextTxt)}</div>
+        <div class="s">${done} von ${total} Parts erledigt</div>
+      </div>
     </div>
-    <button class="continue" id="contBtn">▶︎ Weitermachen</button>`;
+    <div class="stats">
+      <div class="stat"><b>${done}</b><span>Parts erledigt</span></div>
+      <div class="stat"><b>${nResults}</b><span>Ergebnisse geloggt</span></div>
+    </div>`;
   PROGRAM.forEach((part, pi) => {
-    html += `<h2 class="section">${esc(part.name)} of ${PROGRAM.length}</h2><div class="grid">`;
+    html += `<h2 class="section"><em>${esc(part.name)}</em> of ${PROGRAM.length}</h2><div class="grid">`;
     part.weeks.forEach((week, wi) => {
-      const items = weekItems(week), d = countDone(items), p = pct(d, items.length);
-      html += `<button class="card ${p === 100 ? "done" : ""}" onclick="location.hash='#w/${pi}/${wi}'">
-        <div class="t">${esc(week.name)}</div>
-        <div class="f">${esc(week.focus)}</div>
-        <div class="bar"><div style="width:${p}%"></div></div>
-        <div class="pct">${d}/${items.length}</div>
+      const items = weekItems(week), d = countDone(items), wp = pct(d, items.length);
+      html += `<button class="card wk ${wp === 100 ? "done" : ""}" onclick="location.hash='#w/${pi}/${wi}'">
+        <div class="top">
+          <div><div class="t">${esc(week.name)}</div><div class="f">${esc(week.focus)}</div></div>
+          <div class="mini">${ring(wp, 40, 4.5)}<div class="mp">${wp === 100 ? "✓" : wp + "%"}</div></div>
+        </div>
       </button>`;
     });
     html += `</div>`;
   });
   html += `<div class="foot">privater Tracker · ${mode === "github" ? "Sync: GitHub" : "lokaler Modus"}</div>`;
   main.innerHTML = html;
-  document.getElementById("contBtn").onclick = goContinue;
 }
 
 function goContinue() {
@@ -397,6 +496,7 @@ function renderWeek(pi, wi) {
   const part = PROGRAM[pi], week = part.weeks[wi];
   backBtn.style.display = "";
   titleEl.textContent = `${part.name} · ${week.name} — ${week.focus}`;
+  setNav("");
   let html = "";
   week.days.forEach((day, di) => {
     const items = dayItems(day);
@@ -409,7 +509,7 @@ function renderWeek(pi, wi) {
         <div class="t">${esc(day.label)}</div>
         <div class="sess">${esc(isRest ? "Full Rest 😴" : sessNames)}</div>
       </div>
-      <div class="ring ${p === 100 && !isRest ? "done" : ""}">${isRest ? "—" : d + "/" + items.length}</div>
+      <div class="mini">${isRest ? "" : ring(p, 40, 4.5)}<div class="mp">${isRest ? "—" : (p === 100 ? "✓" : d + "/" + items.length)}</div></div>
     </button>`;
   });
   main.innerHTML = html;
@@ -419,6 +519,7 @@ function renderDay(pi, wi, di) {
   const part = PROGRAM[pi], week = part.weeks[wi], day = week.days[di];
   backBtn.style.display = "";
   titleEl.textContent = `${part.name} · ${week.name} · ${day.label}`;
+  setNav("");
   let html = "";
   day.sessions.forEach((sess, si) => {
     const checkable = sess.items.filter(i => !i.rest);
@@ -430,7 +531,7 @@ function renderDay(pi, wi, di) {
     }
     sess.items.forEach(item => {
       if (item.rest) {
-        html += `<div class="card rest"><div class="z">😴</div><div class="t">${esc(item.title)}</div>
+        html += `<div class="card rest"><div class="z">😴</div><div class="tt" style="font-weight:800">${esc(item.title)}</div>
           <div style="margin-top:6px">${esc(item.body || "")}</div></div>`;
         return;
       }
@@ -498,7 +599,7 @@ window.setResult = function (id, key, value) {
 };
 window.fillResult = function (id, key, value) { window.setResult(id, key, value); };
 
-/* ---------- Setup (GitHub-Verbindung) ---------- */
+/* ---------- Setup ---------- */
 function renderSetup(err) {
   backBtn.style.display = "none";
   titleEl.textContent = "Einrichtung";
@@ -533,6 +634,7 @@ window.saveSetup = async function () {
 function renderSettings() {
   backBtn.style.display = "";
   titleEl.textContent = "Einstellungen";
+  setNav("set");
   const total = FLAT.length, done = FLAT.filter(f => S.checked[f.item.id]).length;
   const dirty = !!lsGet(DIRTY_KEY);
   main.innerHTML = `<div class="set">
