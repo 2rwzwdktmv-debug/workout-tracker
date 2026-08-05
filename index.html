@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#111114">
+<title>Workout Tracker</title>
+<style>
+  :root {
+    --bg: #f4f4f6; --card: #ffffff; --ink: #17171a; --muted: #6d6d76;
+    --line: #e3e3e8; --accent: #d62828; --accent-ink: #ffffff;
+    --ok: #2a9d54; --warn: #e09f3e; --chip: #ececf1; --input-bg: #f7f7fa;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #111114; --card: #1c1c21; --ink: #f2f2f4; --muted: #9a9aa4;
+      --line: #2c2c33; --accent: #e63946; --accent-ink: #ffffff;
+      --ok: #3fbf6f; --warn: #eab308; --chip: #26262d; --input-bg: #141418;
+    }
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 16px; line-height: 1.45;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  header {
+    position: sticky; top: 0; z-index: 10;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--line);
+    padding: calc(10px + env(safe-area-inset-top)) 14px 10px;
+    display: flex; align-items: center; gap: 10px; min-height: 52px;
+  }
+  header .back {
+    border: none; background: var(--chip); color: var(--ink);
+    border-radius: 10px; padding: 8px 12px; font-size: 15px; font-weight: 600;
+  }
+  header h1 { font-size: 17px; margin: 0; flex: 1; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #syncDot { font-size: 11px; font-weight: 700; padding: 4px 8px; border-radius: 99px; background: var(--chip); color: var(--muted); white-space: nowrap; }
+  #syncDot.ok { color: var(--ok); }
+  #syncDot.pending { color: var(--warn); }
+  #syncDot.err { color: var(--accent); }
+  header .gear { border: none; background: none; font-size: 20px; color: var(--muted); padding: 4px 6px; }
+  main { padding: 14px; max-width: 640px; margin: 0 auto; }
+  .hero { margin: 6px 0 16px; }
+  .hero .big { font-size: 28px; font-weight: 800; letter-spacing: -0.5px; }
+  .hero .sub { color: var(--muted); font-size: 14px; margin-top: 2px; }
+  .bar { height: 8px; background: var(--chip); border-radius: 99px; overflow: hidden; margin-top: 10px; }
+  .bar > div { height: 100%; background: var(--accent); border-radius: 99px; transition: width .3s; }
+  .continue {
+    display: block; width: 100%; margin: 14px 0 20px;
+    background: var(--accent); color: var(--accent-ink);
+    border: none; border-radius: 14px; padding: 15px; font-size: 17px; font-weight: 700;
+  }
+  h2.section { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin: 22px 2px 8px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 12px; text-align: left; color: var(--ink); width: 100%;
+  }
+  button.card { font: inherit; }
+  .card .t { font-weight: 700; font-size: 15px; }
+  .card .f { color: var(--muted); font-size: 13px; margin: 1px 0 8px; }
+  .card .pct { font-size: 12px; color: var(--muted); margin-top: 5px; }
+  .card.done { border-color: var(--ok); }
+  .card.done .t::after { content: " ✓"; color: var(--ok); }
+  .dayrow { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+  .dayrow .info { flex: 1; min-width: 0; }
+  .dayrow .sess { color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ring { font-size: 13px; font-weight: 700; color: var(--muted); flex-shrink: 0; }
+  .ring.done { color: var(--ok); }
+  .sesshead { display: flex; align-items: center; margin: 20px 2px 8px; gap: 8px; }
+  .sesshead h3 { font-size: 15px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--accent); margin: 0; flex: 1; }
+  .sesshead button { border: none; background: var(--chip); color: var(--muted); border-radius: 8px; padding: 5px 10px; font-size: 12px; font-weight: 600; }
+  .item { display: block; margin-bottom: 10px; padding: 13px; }
+  .item .head { display: flex; gap: 12px; align-items: flex-start; }
+  .cb {
+    flex-shrink: 0; width: 28px; height: 28px; border-radius: 9px;
+    border: 2px solid var(--muted); background: none; margin-top: 1px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; color: transparent; padding: 0;
+  }
+  .item.checked .cb { background: var(--ok); border-color: var(--ok); color: #fff; }
+  .item.checked .tt { color: var(--muted); text-decoration: line-through; }
+  .item .tt { font-weight: 700; font-size: 15px; }
+  .item .st { font-weight: 600; font-size: 14px; margin-top: 1px; }
+  .item.checked .st { color: var(--muted); }
+  .item .body { color: var(--muted); font-size: 14px; white-space: pre-line; margin: 8px 0 0 40px; }
+  .item.checked .body { display: none; }
+  .res { margin: 10px 0 0 40px; }
+  .res input {
+    width: 100%; font: inherit; font-size: 15px; color: var(--ink);
+    background: var(--input-bg); border: 1px solid var(--line); border-radius: 10px;
+    padding: 9px 11px;
+  }
+  .res .last { margin-top: 6px; }
+  .res .last button {
+    border: 1px dashed var(--line); background: none; color: var(--accent);
+    border-radius: 8px; padding: 4px 9px; font-size: 13px; font-weight: 600;
+  }
+  .res details { margin-top: 5px; font-size: 12.5px; color: var(--muted); }
+  .res summary { cursor: pointer; }
+  .rest { text-align: center; padding: 30px 14px; color: var(--muted); }
+  .rest .z { font-size: 34px; }
+  .flash { animation: flash 1.6s ease-out 1; }
+  @keyframes flash { 0% { box-shadow: 0 0 0 3px var(--accent); } 100% { box-shadow: 0 0 0 0 transparent; } }
+  .set label, .setup label { display: block; font-weight: 700; margin: 18px 0 6px; }
+  .set textarea, .setup input, .set input {
+    width: 100%; font-size: 15px; color: var(--ink);
+    background: var(--input-bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px;
+  }
+  .set textarea { height: 130px; font: 12px ui-monospace, monospace; }
+  .set .row, .setup .row { display: flex; gap: 8px; margin-top: 14px; }
+  .set .row button, .setup .row button {
+    flex: 1; border: none; border-radius: 10px; padding: 11px; font-size: 15px; font-weight: 600;
+    background: var(--chip); color: var(--ink);
+  }
+  .set .row button.primary, .setup .row button.primary { background: var(--accent); color: var(--accent-ink); }
+  .set .row button.danger { color: #fff; background: #b3261e; }
+  .set p.hint, .setup p.hint { color: var(--muted); font-size: 13px; }
+  .setup .err { color: var(--accent); font-weight: 600; font-size: 14px; margin-top: 10px; min-height: 20px; }
+  .loading { text-align: center; color: var(--muted); padding: 60px 20px; }
+  .foot { text-align: center; color: var(--muted); font-size: 12px; margin: 26px 0 10px; }
+</style>
+</head>
+<body>
+<header>
+  <button class="back" id="backBtn" style="display:none">‹ Zurück</button>
+  <h1 id="title">Workout Tracker</h1>
+  <span id="syncDot" style="display:none">●</span>
+  <button class="gear" id="gearBtn" title="Einstellungen">⚙︎</button>
+</header>
+<main id="main"><div class="loading">Lade…</div></main>
+
+<script>
+"use strict";
+/* ============================================================
+   Workout Tracker — generische App-Hülle (keine Plandaten!)
+   Datenquellen:
+   1) Lokaler Modus:  ./data.json neben dieser Datei (nur Dev)
+   2) GitHub-Modus:   privates Repo via Contents API
+      - data.json     (Plan, read-only)
+      - progress.json (Fortschritt, read/write)
+   ============================================================ */
+
+const CFG_KEY = "wt-config-v1";
+const CACHE_KEY = "wt-progress-cache-v1";
+const DIRTY_KEY = "wt-dirty-v1";
+
+let PROGRAM = null, PLAN_TITLE = "Workout Tracker";
+let S = { checked: {}, resultsByItem: {}, results: {} };
+let FLAT = [];
+let mode = null;              // "local" | "github"
+let cfg = null;               // {user, repo, token}
+let progressSha = null;       // SHA von progress.json für PUT
+let syncTimer = null;
+let syncState = "idle";       // idle | pending | syncing | ok | err
+
+let storageOK = true;
+try { localStorage.setItem("__t", "1"); localStorage.removeItem("__t"); } catch (e) { storageOK = false; }
+
+function lsGet(k) { if (!storageOK) return null; try { return localStorage.getItem(k); } catch (e) { return null; } }
+function lsSet(k, v) { if (!storageOK) return; try { localStorage.setItem(k, v); } catch (e) {} }
+function lsDel(k) { if (!storageOK) return; try { localStorage.removeItem(k); } catch (e) {} }
+
+/* ---------- GitHub Contents API ---------- */
+function ghUrl(path) { return `https://api.github.com/repos/${cfg.user}/${cfg.repo}/contents/${path}`; }
+function ghHeaders(extra) {
+  return Object.assign({
+    "Authorization": "Bearer " + cfg.token,
+    "Accept": "application/vnd.github+json",
+    "X-GitHub-Api-Version": "2022-11-28"
+  }, extra || {});
+}
+function b64decode(b64) {
+  const bin = atob(b64.replace(/\n/g, ""));
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new TextDecoder().decode(bytes);
+}
+function b64encode(str) {
+  const bytes = new TextEncoder().encode(str);
+  let bin = "";
+  for (let i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 8192));
+  return btoa(bin);
+}
+async function ghGet(path) {
+  const r = await fetch(ghUrl(path), { headers: ghHeaders() });
+  if (r.status === 404) return null;
+  if (!r.ok) throw new Error("GitHub " + r.status + (r.status === 401 ? " – Token ungültig?" : r.status === 403 ? " – keine Berechtigung / Rate-Limit" : ""));
+  const j = await r.json();
+  return { text: b64decode(j.content), sha: j.sha };
+}
+async function ghPut(path, text, sha, message) {
+  const body = { message: message || "update " + path, content: b64encode(text) };
+  if (sha) body.sha = sha;
+  const r = await fetch(ghUrl(path), { method: "PUT", headers: ghHeaders({ "Content-Type": "application/json" }), body: JSON.stringify(body) });
+  if (!r.ok) { const e = new Error("GitHub PUT " + r.status); e.status = r.status; throw e; }
+  const j = await r.json();
+  return j.content.sha;
+}
+
+/* ---------- Sync ---------- */
+function setSync(state, titleTxt) {
+  syncState = state;
+  const el = document.getElementById("syncDot");
+  if (mode !== "github") { el.style.display = "none"; return; }
+  el.style.display = "";
+  el.className = "";
+  if (state === "ok") { el.classList.add("ok"); el.textContent = "✓ synchron"; }
+  else if (state === "pending" || state === "syncing") { el.classList.add("pending"); el.textContent = state === "syncing" ? "↻ sync…" : "● ungesichert"; }
+  else if (state === "err") { el.classList.add("err"); el.textContent = "⚠︎ offline"; }
+  else { el.textContent = "●"; }
+  el.title = titleTxt || "";
+}
+function markDirty() {
+  lsSet(CACHE_KEY, JSON.stringify(S));
+  if (mode !== "github") return;
+  lsSet(DIRTY_KEY, "1");
+  setSync("pending");
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(pushProgress, 4000);
+}
+async function pushProgress() {
+  if (mode !== "github" || !lsGet(DIRTY_KEY)) return;
+  clearTimeout(syncTimer);
+  setSync("syncing");
+  try {
+    progressSha = await ghPut("progress.json", JSON.stringify(S, null, 1), progressSha, "progress update");
+    lsDel(DIRTY_KEY);
+    setSync("ok");
+  } catch (e) {
+    if (e.status === 409 || e.status === 422) {
+      // Konflikt: SHA veraltet → neu holen, lokaler Stand gewinnt (dirty), erneut pushen
+      try {
+        const cur = await ghGet("progress.json");
+        progressSha = cur ? cur.sha : null;
+        progressSha = await ghPut("progress.json", JSON.stringify(S, null, 1), progressSha, "progress update (merge)");
+        lsDel(DIRTY_KEY);
+        setSync("ok");
+        return;
+      } catch (e2) { /* fällt durch */ }
+    }
+    setSync("err", String(e.message || e));
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(pushProgress, 30000); // später erneut versuchen
+  }
+}
+window.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") pushProgress(); });
+window.addEventListener("online", () => pushProgress());
+
+/* ---------- Boot ---------- */
+async function boot() {
+  // 1) Lokaler Modus (Dev): data.json neben der Datei?
+  try {
+    const r = await fetch("./data.json", { cache: "no-store" });
+    if (r.ok) {
+      const data = await r.json();
+      PROGRAM = data.program; PLAN_TITLE = data.title || PLAN_TITLE;
+      mode = "local";
+      const cached = lsGet(CACHE_KEY);
+      if (cached) try { S = Object.assign(S, JSON.parse(cached)); } catch (e) {}
+      finishBoot();
+      return;
+    }
+  } catch (e) { /* kein lokales data.json */ }
+
+  // 2) GitHub-Modus
+  const rawCfg = lsGet(CFG_KEY);
+  if (rawCfg) try { cfg = JSON.parse(rawCfg); } catch (e) {}
+  if (!cfg || !cfg.user || !cfg.repo || !cfg.token) { renderSetup(); return; }
+  mode = "github";
+  await loadFromGitHub();
+}
+
+async function loadFromGitHub() {
+  document.getElementById("main").innerHTML = '<div class="loading">Lade Trainingsplan…</div>';
+  try {
+    const dataFile = await ghGet("data.json");
+    if (!dataFile) throw new Error("data.json nicht im Repo gefunden");
+    const data = JSON.parse(dataFile.text);
+    PROGRAM = data.program; PLAN_TITLE = data.title || PLAN_TITLE;
+
+    const progFile = await ghGet("progress.json");
+    const dirty = !!lsGet(DIRTY_KEY);
+    const cached = lsGet(CACHE_KEY);
+    if (progFile) {
+      progressSha = progFile.sha;
+      if (dirty && cached) {
+        // lokale, noch nicht gesyncte Änderungen gewinnen
+        try { S = JSON.parse(cached); } catch (e) { S = JSON.parse(progFile.text); }
+        pushProgress();
+      } else {
+        S = Object.assign({ checked: {}, resultsByItem: {}, results: {} }, JSON.parse(progFile.text));
+        lsSet(CACHE_KEY, JSON.stringify(S));
+        setSync("ok");
+      }
+    } else {
+      progressSha = null;
+      if (cached) try { S = JSON.parse(cached); } catch (e) {}
+      lsSet(DIRTY_KEY, "1");
+      pushProgress(); // legt progress.json an
+    }
+    finishBoot();
+  } catch (e) {
+    renderSetup("Laden fehlgeschlagen: " + (e.message || e));
+  }
+}
+
+function finishBoot() {
+  FLAT = [];
+  PROGRAM.forEach((part, pi) => part.weeks.forEach((week, wi) => week.days.forEach((day, di) => {
+    day.sessions.forEach(sess => sess.items.forEach(item => {
+      if (!item.rest) FLAT.push({ item, pi, wi, di });
+    }));
+  })));
+  setSync(mode === "github" ? (lsGet(DIRTY_KEY) ? "pending" : "ok") : "idle");
+  render();
+}
+
+/* ---------- Helpers ---------- */
+function dayItems(day) { return day.sessions.flatMap(s => s.items).filter(i => !i.rest); }
+function countDone(items) { return items.filter(i => S.checked[i.id]).length; }
+function weekItems(week) { return week.days.flatMap(dayItems); }
+function pct(done, total) { return total ? Math.round(done / total * 100) : 0; }
+function esc(s) { return (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+function fmtDate(iso) { const d = new Date(iso); return d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "2-digit" }); }
+function lastResult(key, selfId) {
+  const arr = S.results[key] || [];
+  for (let i = arr.length - 1; i >= 0; i--) if (arr[i].itemId !== selfId) return arr[i];
+  return arr.length ? arr[arr.length - 1] : null;
+}
+
+/* ---------- Routing & Views ---------- */
+const main = document.getElementById("main");
+const titleEl = document.getElementById("title");
+const backBtn = document.getElementById("backBtn");
+document.getElementById("gearBtn").onclick = () => { if (PROGRAM) location.hash = "#settings"; };
+backBtn.onclick = () => { history.back(); };
+window.addEventListener("hashchange", () => { if (PROGRAM) render(); });
+
+function render() {
+  const seg = location.hash.replace(/^#/, "").split("/").filter(Boolean);
+  window.scrollTo(0, 0);
+  if (seg[0] === "settings") return renderSettings();
+  if (seg[0] === "d") return renderDay(+seg[1], +seg[2], +seg[3]);
+  if (seg[0] === "w") return renderWeek(+seg[1], +seg[2]);
+  return renderHome();
+}
+
+function renderHome() {
+  backBtn.style.display = "none";
+  titleEl.textContent = PLAN_TITLE;
+  const total = FLAT.length, done = FLAT.filter(f => S.checked[f.item.id]).length;
+  let html = `
+    <div class="hero">
+      <div class="big">${pct(done, total)}%</div>
+      <div class="sub">${done} von ${total} Parts erledigt</div>
+      <div class="bar"><div style="width:${pct(done, total)}%"></div></div>
+    </div>
+    <button class="continue" id="contBtn">▶︎ Weitermachen</button>`;
+  PROGRAM.forEach((part, pi) => {
+    html += `<h2 class="section">${esc(part.name)} of ${PROGRAM.length}</h2><div class="grid">`;
+    part.weeks.forEach((week, wi) => {
+      const items = weekItems(week), d = countDone(items), p = pct(d, items.length);
+      html += `<button class="card ${p === 100 ? "done" : ""}" onclick="location.hash='#w/${pi}/${wi}'">
+        <div class="t">${esc(week.name)}</div>
+        <div class="f">${esc(week.focus)}</div>
+        <div class="bar"><div style="width:${p}%"></div></div>
+        <div class="pct">${d}/${items.length}</div>
+      </button>`;
+    });
+    html += `</div>`;
+  });
+  html += `<div class="foot">privater Tracker · ${mode === "github" ? "Sync: GitHub" : "lokaler Modus"}</div>`;
+  main.innerHTML = html;
+  document.getElementById("contBtn").onclick = goContinue;
+}
+
+function goContinue() {
+  const next = FLAT.find(f => !S.checked[f.item.id]);
+  if (!next) { alert("Alles erledigt! 🎉"); return; }
+  location.hash = `#d/${next.pi}/${next.wi}/${next.di}`;
+  setTimeout(() => {
+    const el = document.getElementById("it-" + next.item.id);
+    if (el) { el.scrollIntoView({ behavior: "smooth", block: "center" }); el.classList.add("flash"); }
+  }, 120);
+}
+
+function renderWeek(pi, wi) {
+  const part = PROGRAM[pi], week = part.weeks[wi];
+  backBtn.style.display = "";
+  titleEl.textContent = `${part.name} · ${week.name} — ${week.focus}`;
+  let html = "";
+  week.days.forEach((day, di) => {
+    const items = dayItems(day);
+    const isRest = items.length === 0;
+    const d = countDone(items), p = pct(d, items.length);
+    const sessNames = day.sessions.map(s => s.label).filter(Boolean).join(" · ")
+      || (day.sessions[0] && day.sessions[0].items[0] ? (day.sessions[0].items[0].sub || day.sessions[0].items[0].title) : "");
+    html += `<button class="card dayrow ${(!isRest && p === 100) ? "done" : ""}" onclick="location.hash='#d/${pi}/${wi}/${di}'">
+      <div class="info">
+        <div class="t">${esc(day.label)}</div>
+        <div class="sess">${esc(isRest ? "Full Rest 😴" : sessNames)}</div>
+      </div>
+      <div class="ring ${p === 100 && !isRest ? "done" : ""}">${isRest ? "—" : d + "/" + items.length}</div>
+    </button>`;
+  });
+  main.innerHTML = html;
+}
+
+function renderDay(pi, wi, di) {
+  const part = PROGRAM[pi], week = part.weeks[wi], day = week.days[di];
+  backBtn.style.display = "";
+  titleEl.textContent = `${part.name} · ${week.name} · ${day.label}`;
+  let html = "";
+  day.sessions.forEach((sess, si) => {
+    const checkable = sess.items.filter(i => !i.rest);
+    if (sess.label || day.sessions.length > 1) {
+      html += `<div class="sesshead"><h3>${esc(sess.label || "Session")}</h3>
+        ${checkable.length > 1 ? `<button onclick="checkSession(${pi},${wi},${di},${si})">alle ✓</button>` : ""}</div>`;
+    } else {
+      html += `<div style="margin-top:14px"></div>`;
+    }
+    sess.items.forEach(item => {
+      if (item.rest) {
+        html += `<div class="card rest"><div class="z">😴</div><div class="t">${esc(item.title)}</div>
+          <div style="margin-top:6px">${esc(item.body || "")}</div></div>`;
+        return;
+      }
+      const checked = !!S.checked[item.id];
+      html += `<div class="card item ${checked ? "checked" : ""}" id="it-${item.id}">
+        <div class="head">
+          <button class="cb" onclick="toggle('${item.id}')" aria-label="abhaken">✓</button>
+          <div style="min-width:0">
+            <div class="tt">${esc(item.title)}</div>
+            ${item.sub ? `<div class="st">${esc(item.sub)}</div>` : ""}
+          </div>
+        </div>
+        ${item.body ? `<div class="body">${esc(item.body)}</div>` : ""}
+        ${item.key ? renderResult(item) : ""}
+      </div>`;
+    });
+  });
+  main.innerHTML = html;
+}
+
+function renderResult(item) {
+  const val = S.resultsByItem[item.id] || "";
+  const last = lastResult(item.key, item.id);
+  const hist = (S.results[item.key] || []).slice(-4, -1).reverse();
+  let html = `<div class="res">
+    <input type="text" placeholder="${esc(item.hint || "Ergebnis")} eintragen…" value="${esc(val)}"
+      onchange="setResult('${item.id}','${item.key}',this.value)">`;
+  if (last && !val) {
+    html += `<div class="last"><button onclick="fillResult('${item.id}','${item.key}','${esc(last.value).replace(/'/g, "\\'")}')">
+      Letztes Mal: ${esc(last.value)} · ${fmtDate(last.date)} — übernehmen</button></div>`;
+  }
+  if (hist.length) {
+    html += `<details><summary>Verlauf</summary>${hist.map(e => `${fmtDate(e.date)}: ${esc(e.value)}`).join("<br>")}</details>`;
+  }
+  return html + `</div>`;
+}
+
+/* ---------- Actions ---------- */
+window.toggle = function (id) {
+  if (S.checked[id]) delete S.checked[id];
+  else S.checked[id] = new Date().toISOString();
+  markDirty();
+  render();
+};
+window.checkSession = function (pi, wi, di, si) {
+  const sess = PROGRAM[pi].weeks[wi].days[di].sessions[si];
+  const items = sess.items.filter(i => !i.rest);
+  const allDone = items.every(i => S.checked[i.id]);
+  items.forEach(i => {
+    if (allDone) delete S.checked[i.id];
+    else if (!S.checked[i.id]) S.checked[i.id] = new Date().toISOString();
+  });
+  markDirty();
+  render();
+};
+window.setResult = function (id, key, value) {
+  value = (value || "").trim();
+  if (value) S.resultsByItem[id] = value; else delete S.resultsByItem[id];
+  const arr = (S.results[key] = S.results[key] || []);
+  const idx = arr.findIndex(e => e.itemId === id);
+  if (idx >= 0) arr.splice(idx, 1);
+  if (value) arr.push({ value, date: new Date().toISOString(), itemId: id });
+  markDirty();
+  render();
+};
+window.fillResult = function (id, key, value) { window.setResult(id, key, value); };
+
+/* ---------- Setup (GitHub-Verbindung) ---------- */
+function renderSetup(err) {
+  backBtn.style.display = "none";
+  titleEl.textContent = "Einrichtung";
+  const c = cfg || {};
+  main.innerHTML = `<div class="setup">
+    <p class="hint">Verbinde den Tracker mit deinem privaten GitHub-Repo. Der Plan (data.json) wird von dort geladen, dein Fortschritt (progress.json) dort gespeichert.</p>
+    <label>GitHub-Benutzername</label>
+    <input id="su" type="text" autocapitalize="none" autocorrect="off" value="${esc(c.user || "")}" placeholder="z. B. 2rwzwdktmv-debug">
+    <label>Daten-Repository</label>
+    <input id="sr" type="text" autocapitalize="none" autocorrect="off" value="${esc(c.repo || "workout-data")}" placeholder="workout-data">
+    <label>Fine-grained Token</label>
+    <input id="st" type="password" autocapitalize="none" autocorrect="off" value="${esc(c.token || "")}" placeholder="github_pat_…">
+    <p class="hint">Token nur mit Zugriff auf das Daten-Repo und Permission „Contents: Read and write“. Wird ausschließlich lokal auf diesem Gerät gespeichert.</p>
+    <div class="row"><button class="primary" onclick="saveSetup()">Verbinden & laden</button></div>
+    <div class="err">${esc(err || "")}</div>
+  </div>`;
+}
+window.saveSetup = async function () {
+  cfg = {
+    user: document.getElementById("su").value.trim(),
+    repo: document.getElementById("sr").value.trim(),
+    token: document.getElementById("st").value.trim()
+  };
+  if (!cfg.user || !cfg.repo || !cfg.token) { renderSetup("Bitte alle Felder ausfüllen."); return; }
+  lsSet(CFG_KEY, JSON.stringify(cfg));
+  mode = "github";
+  location.hash = "";
+  await loadFromGitHub();
+};
+
+/* ---------- Settings ---------- */
+function renderSettings() {
+  backBtn.style.display = "";
+  titleEl.textContent = "Einstellungen";
+  const total = FLAT.length, done = FLAT.filter(f => S.checked[f.item.id]).length;
+  const dirty = !!lsGet(DIRTY_KEY);
+  main.innerHTML = `<div class="set">
+    <p class="hint">Fortschritt: ${done}/${total} Parts · Modus: ${mode === "github" ? `GitHub (${esc(cfg.user)}/${esc(cfg.repo)}) — ${dirty ? "ungesicherte Änderungen" : "synchron ✓"}` : "lokal (localStorage)"}</p>
+    ${mode === "github" ? `<div class="row">
+      <button class="primary" onclick="manualSync()">Jetzt syncen</button>
+      <button onclick="reconnect()">Verbindung ändern</button>
+    </div>` : ""}
+    <label>Backup (Export / Import)</label>
+    <p class="hint">Exportieren kopiert den kompletten Fortschritt als JSON. Zum Wiederherstellen JSON einfügen und „Importieren“ tippen.</p>
+    <textarea id="io" placeholder='{"checked":{...}}'></textarea>
+    <div class="row">
+      <button onclick="doExport()">Exportieren</button>
+      <button onclick="doImport()">Importieren</button>
+    </div>
+    <div class="row">
+      <button class="danger" onclick="doReset()">Alles zurücksetzen</button>
+    </div>
+  </div>`;
+}
+window.manualSync = async function () { lsSet(DIRTY_KEY, "1"); await pushProgress(); renderSettings(); };
+window.reconnect = function () { renderSetup(); };
+window.doExport = function () {
+  const json = JSON.stringify(S);
+  document.getElementById("io").value = json;
+  if (navigator.clipboard) navigator.clipboard.writeText(json).then(
+    () => alert("Fortschritt als JSON in die Zwischenablage kopiert."),
+    () => alert("JSON steht im Textfeld — bitte manuell kopieren."));
+  else alert("JSON steht im Textfeld — bitte manuell kopieren.");
+};
+window.doImport = function () {
+  try {
+    const obj = JSON.parse(document.getElementById("io").value);
+    if (!obj || typeof obj !== "object" || !("checked" in obj)) throw new Error("Format");
+    S = Object.assign({ checked: {}, resultsByItem: {}, results: {} }, obj);
+    markDirty();
+    alert("Import erfolgreich.");
+    location.hash = "";
+    render();
+  } catch (e) {
+    alert("Import fehlgeschlagen — bitte gültiges Export-JSON einfügen.");
+  }
+};
+window.doReset = function () {
+  if (confirm("Wirklich ALLEN Fortschritt und alle Ergebnisse löschen?")) {
+    S = { checked: {}, resultsByItem: {}, results: {} };
+    markDirty();
+    location.hash = "";
+    render();
+  }
+};
+
+boot();
+</script>
+</body>
+</html>
