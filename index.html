@@ -166,6 +166,11 @@
   }
   .exw:focus { outline: none; border-color: color-mix(in srgb, var(--lime) 55%, transparent); }
   .exnote { color: var(--muted); font-size: 12.5px; margin-top: 3px; }
+  .exsec {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 1.4px; font-weight: 800;
+    color: var(--muted); margin: 14px 0 2px; padding-top: 10px; border-top: 1px dashed #3a4152;
+  }
+  .ex.hassec { border-top: none; padding-top: 0; }
   .exlast {
     border: 1px dashed #3a4152; background: none; color: var(--lime);
     border-radius: 99px; padding: 4px 10px; font-size: 12px; font-weight: 700;
@@ -578,7 +583,9 @@ function renderExercises(item) {
     const rid = item.id + "/" + ex.k;
     const val = S.resultsByItem[rid] || "";
     const last = lastResult(ex.k, rid);
-    let h = `<div class="ex">
+    let h = "";
+    if (ex.sec) h += `<div class="exsec">${esc(ex.sec)}</div>`;
+    h += `<div class="ex ${ex.sec ? "hassec" : ""}">
       <div class="exrow">
         <div class="exname">${esc(ex.name)}</div>
         <input class="exw" type="text" placeholder="Gewicht" value="${esc(val)}"
