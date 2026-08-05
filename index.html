@@ -153,6 +153,25 @@
   }
   .res details { margin-top: 6px; font-size: 12.5px; color: var(--muted); }
   .res summary { cursor: pointer; }
+  /* ---------- Übungszeilen mit Gewichtseingabe ---------- */
+  .exs { margin: 10px 0 0 42px; display: flex; flex-direction: column; gap: 9px; }
+  .ex { border-top: 1px solid var(--line); padding-top: 9px; }
+  .ex:first-child { border-top: none; padding-top: 0; }
+  .exrow { display: flex; align-items: center; gap: 10px; }
+  .exname { flex: 1; min-width: 0; font-weight: 700; font-size: 14px; }
+  .exw {
+    width: 104px; flex-shrink: 0; font: inherit; font-size: 16px; color: var(--ink);
+    background: var(--bg); border: 1px solid var(--line); border-radius: 10px;
+    padding: 7px 10px; text-align: right;
+  }
+  .exw:focus { outline: none; border-color: color-mix(in srgb, var(--lime) 55%, transparent); }
+  .exnote { color: var(--muted); font-size: 12.5px; margin-top: 3px; }
+  .exlast {
+    border: 1px dashed #3a4152; background: none; color: var(--lime);
+    border-radius: 99px; padding: 4px 10px; font-size: 12px; font-weight: 700;
+    margin-top: 5px; text-align: left;
+  }
+  .item.checked .exnote { display: none; }
   .rest { text-align: center; padding: 34px 14px; color: var(--muted); }
   .rest .z { font-size: 36px; }
   .flash { animation: flash 1.6s ease-out 1; }
@@ -545,11 +564,30 @@ function renderDay(pi, wi, di) {
           </div>
         </div>
         ${item.body ? `<div class="body">${esc(item.body)}</div>` : ""}
+        ${renderExercises(item)}
         ${item.key ? renderResult(item) : ""}
       </div>`;
     });
   });
   main.innerHTML = html;
+}
+
+function renderExercises(item) {
+  if (!item.exercises || !item.exercises.length) return "";
+  return `<div class="exs">` + item.exercises.map(ex => {
+    const rid = item.id + "/" + ex.k;
+    const val = S.resultsByItem[rid] || "";
+    const last = lastResult(ex.k, rid);
+    let h = `<div class="ex">
+      <div class="exrow">
+        <div class="exname">${esc(ex.name)}</div>
+        <input class="exw" type="text" placeholder="Gewicht" value="${esc(val)}"
+          onchange="setResult('${rid}','${ex.k}',this.value)">
+      </div>`;
+    if (ex.note) h += `<div class="exnote">${esc(ex.note)}</div>`;
+    if (last && !val) h += `<button class="exlast" onclick="fillResult('${rid}','${ex.k}','${esc(last.value).replace(/'/g, "\\'")}')">Letztes Mal: ${esc(last.value)} · ${fmtDate(last.date)} — übernehmen</button>`;
+    return h + `</div>`;
+  }).join("") + `</div>`;
 }
 
 function renderResult(item) {
