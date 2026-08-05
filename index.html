@@ -138,6 +138,7 @@
   .item .st { font-weight: 600; font-size: 14px; margin-top: 1px; color: #c9cfda; }
   .item.checked .st { color: var(--muted); }
   .item .body { color: var(--muted); font-size: 14px; white-space: pre-line; margin: 9px 0 0 42px; }
+  .item .body .mv { color: #c9cfda; font-weight: 600; }
   .item.checked .body { display: none; }
   .res { margin: 11px 0 0 42px; }
   .res input {
@@ -493,6 +494,11 @@ function countDone(items) { return items.filter(i => S.checked[i.id]).length; }
 function weekItems(week) { return week.days.flatMap(dayItems); }
 function pct(done, total) { return total ? Math.round(done / total * 100) : 0; }
 function esc(s) { return (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+function fmtBody(s) {
+  return esc(s).split("\n").map(line =>
+    /^- /.test(line.trim()) ? `<span class="mv">${line}</span>` : line
+  ).join("\n");
+}
 function fmtDate(iso) { const d = new Date(iso); return d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "2-digit" }); }
 const RM_KEYS = [
   ["squat", "Front Squat (Squat-1RM)"],
@@ -678,9 +684,9 @@ function renderDay(pi, wi, di) {
             ${item.sub ? `<div class="st">${esc(item.sub)}</div>` : ""}
           </div>
         </div>
-        ${item.body ? `<div class="body">${esc(item.body)}</div>` : ""}
+        ${item.body ? `<div class="body">${fmtBody(item.body)}</div>` : ""}
         ${renderExercises(item)}
-        ${item.after ? `<div class="body">${esc(item.after)}</div>` : ""}
+        ${item.after ? `<div class="body">${fmtBody(item.after)}</div>` : ""}
         ${item.key ? renderResult(item) : ""}
       </div>`;
     });
