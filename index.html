@@ -166,6 +166,9 @@
   }
   .exw:focus { outline: none; border-color: color-mix(in srgb, var(--lime) 55%, transparent); }
   .exnote { color: var(--muted); font-size: 12.5px; margin-top: 3px; }
+  .expre { color: var(--lime); font-size: 12.5px; font-weight: 700; margin-top: 3px; opacity: .9; }
+  .rmgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px; }
+  .rmcell span { display: block; font-size: 12px; color: var(--muted); font-weight: 700; margin-bottom: 4px; }
   .exsec {
     font-size: 11px; text-transform: uppercase; letter-spacing: 1.4px; font-weight: 800;
     color: var(--muted); margin: 14px 0 2px; padding-top: 10px; border-top: 1px dashed #3a4152;
@@ -425,6 +428,22 @@ function weekItems(week) { return week.days.flatMap(dayItems); }
 function pct(done, total) { return total ? Math.round(done / total * 100) : 0; }
 function esc(s) { return (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
 function fmtDate(iso) { const d = new Date(iso); return d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "2-digit" }); }
+const RM_KEYS = [
+  ["squat", "Front Squat (Squat-1RM)"],
+  ["bench", "Bench Press"],
+  ["deadlift", "Deadlift"],
+  ["ohp", "Push Press (OHP)"]
+];
+function mround25(x) { return Math.round(x / 2.5) * 2.5; }
+function fmtW(x) { return (Math.round(x * 10) / 10).toLocaleString("de-DE"); }
+function prescription(ex) {
+  if (!ex.rm || !ex.pct) return null;
+  const base = parseFloat((S.oneRM || {})[ex.rm]);
+  if (!base || base <= 0) return null;
+  const w = ex.pct.map(p => fmtW(mround25(base * p))).join("–") + " kg";
+  const p = ex.pct.map(x => (x * 100).toLocaleString("de-DE")).join("–") + " % 1RM";
+  return w + " · " + p;
+}
 function lastResult(key, selfId) {
   const arr = S.results[key] || [];
   for (let i = arr.length - 1; i >= 0; i--) if (arr[i].itemId !== selfId) return arr[i];
@@ -591,6 +610,8 @@ function renderExercises(item) {
         <input class="exw" type="text" placeholder="Gewicht" value="${esc(val)}"
           onchange="setResult('${rid}','${ex.k}',this.value)">
       </div>`;
+    const pre = prescription(ex);
+    if (pre) h += `<div class="expre">Vorgabe: ${esc(pre)}</div>`;
     if (ex.note) h += `<div class="exnote">${esc(ex.note)}</div>`;
     if (last && !val) h += `<button class="exlast" onclick="fillResult('${rid}','${ex.k}','${esc(last.value).replace(/'/g, "\\'")}')">Letztes Mal: ${esc(last.value)} · ${fmtDate(last.date)} — übernehmen</button>`;
     return h + `</div>`;
@@ -688,6 +709,13 @@ function renderSettings() {
       <button class="primary" onclick="manualSync()">Jetzt syncen</button>
       <button onclick="reconnect()">Verbindung ändern</button>
     </div>` : ""}
+    <label>1RM-Gewichte (kg)</label>
+    <p class="hint">Basis für die Gewichts-Vorgaben der schweren Grundübungen (auf 2,5 kg gerundet). Wird mit synchronisiert.</p>
+    <div class="rmgrid">
+      ${RM_KEYS.map(([k, lbl]) => `<div class="rmcell"><span>${lbl}</span>
+        <input type="text" inputmode="decimal" value="${esc(String((S.oneRM || {})[k] ?? "")).replace(".", ",")}"
+          placeholder="kg" onchange="setRM('${k}', this.value)"></div>`).join("")}
+    </div>
     <label>Backup (Export / Import)</label>
     <p class="hint">Exportieren kopiert den kompletten Fortschritt als JSON. Zum Wiederherstellen JSON einfügen und „Importieren“ tippen.</p>
     <textarea id="io" placeholder='{"checked":{...}}'></textarea>
@@ -700,6 +728,12 @@ function renderSettings() {
     </div>
   </div>`;
 }
+window.setRM = function (k, v) {
+  v = parseFloat(String(v).trim().replace(",", "."));
+  S.oneRM = S.oneRM || {};
+  if (v > 0) S.oneRM[k] = v; else delete S.oneRM[k];
+  markDirty();
+};
 window.manualSync = async function () { lsSet(DIRTY_KEY, "1"); await pushProgress(); renderSettings(); };
 window.reconnect = function () { renderSetup(); };
 window.doExport = function () {
@@ -724,8 +758,8 @@ window.doImport = function () {
   }
 };
 window.doReset = function () {
-  if (confirm("Wirklich ALLEN Fortschritt und alle Ergebnisse löschen?")) {
-    S = { checked: {}, resultsByItem: {}, results: {} };
+  if (confirm("Wirklich ALLEN Fortschritt und alle Ergebnisse löschen? (1RM-Gewichte bleiben erhalten)")) {
+    S = { checked: {}, resultsByItem: {}, results: {}, oneRM: S.oneRM };
     markDirty();
     location.hash = "";
     render();
