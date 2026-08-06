@@ -240,6 +240,38 @@
   .set p.hint, .setup p.hint { color: var(--muted); font-size: 13px; }
   .setup .err { color: var(--red); font-weight: 700; font-size: 14px; margin-top: 10px; min-height: 20px; }
   .loading { text-align: center; color: var(--muted); padding: 70px 20px; }
+  /* ---------- Einstellungen: Bereiche ---------- */
+  .setsec {
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md);
+    margin-bottom: 10px; padding: 0 14px;
+  }
+  .setsec summary { list-style: none; cursor: pointer; font-weight: 800; font-size: 15px; padding: 15px 0; display: flex; align-items: center; }
+  .setsec summary::-webkit-details-marker { display: none; }
+  .setsec summary::after { content: "›"; margin-left: auto; color: var(--muted); font-size: 18px; transform: rotate(90deg); transition: transform .15s; }
+  .setsec[open] summary::after { transform: rotate(-90deg); }
+  .setsec .secbody { padding-bottom: 15px; }
+  .setsec .secbody p.hint:first-child { margin-top: 0; }
+  /* ---------- Analyse ---------- */
+  .motto {
+    background: linear-gradient(145deg, var(--surface2), var(--surface));
+    border: 1px solid var(--line); border-radius: var(--r-lg);
+    padding: 16px 18px; font-size: 16px; font-weight: 800; margin-bottom: 12px;
+  }
+  .chartcard { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md); padding: 14px; margin-top: 4px; }
+  .chartcard h3 { margin: 0 0 10px; font-size: 11px; text-transform: uppercase; letter-spacing: 1.4px; color: var(--muted); font-weight: 800; }
+  .liftgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .lift { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md); padding: 12px; }
+  .lift .ln { font-size: 12px; color: var(--muted); font-weight: 700; }
+  .lift .lv { font-size: 21px; font-weight: 800; margin: 2px 0 4px; letter-spacing: -.3px; }
+  .lift .spark { display: block; margin-top: 8px; max-width: 100%; }
+  .sparkempty { color: var(--muted); font-size: 11.5px; margin-top: 10px; border-top: 1px dashed #3a4152; padding-top: 8px; }
+  .chip { display: inline-block; font-size: 11.5px; font-weight: 800; border-radius: 99px; padding: 2.5px 9px; }
+  .chip.up { color: var(--lime); background: rgba(215, 246, 81, .13); }
+  .chip.down { color: var(--red); background: rgba(255, 77, 94, .13); }
+  .chip.flat { color: var(--muted); background: var(--surface2); }
+  .ts { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid var(--line); font-size: 13.5px; }
+  .ts:first-of-type { border-top: none; }
+  .ts span:first-child { color: var(--muted); min-width: 0; }
   .foot { text-align: center; color: var(--muted); font-size: 11.5px; margin: 26px 0 4px; }
 </style>
 </head>
@@ -253,6 +285,7 @@
 <nav id="nav" style="display:none">
   <button id="navHome"><svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>Übersicht</button>
   <button class="go" id="navGo" aria-label="Weitermachen"><svg viewBox="0 0 24 24"><path d="M7 4.5 19 12 7 19.5z"/></svg></button>
+  <button id="navStats"><svg viewBox="0 0 24 24"><path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/></svg>Analyse</button>
   <button id="navSet"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 13.5a7.8 7.8 0 0 0 0-3l2-1.5-2-3.4-2.4 1a7.8 7.8 0 0 0-2.6-1.5L14 2.5h-4l-.4 2.6A7.8 7.8 0 0 0 7 6.6l-2.4-1-2 3.4 2 1.5a7.8 7.8 0 0 0 0 3l-2 1.5 2 3.4 2.4-1a7.8 7.8 0 0 0 2.6 1.5l.4 2.6h4l.4-2.6a7.8 7.8 0 0 0 2.6-1.5l2.4 1 2-3.4z"/></svg>Einstellungen</button>
 </nav>
 
@@ -562,11 +595,13 @@ const backBtn = document.getElementById("backBtn");
 backBtn.onclick = () => { history.back(); };
 document.getElementById("navHome").onclick = () => { location.hash = ""; };
 document.getElementById("navGo").onclick = () => goContinue();
+document.getElementById("navStats").onclick = () => { location.hash = "#stats"; };
 document.getElementById("navSet").onclick = () => { location.hash = "#settings"; };
 window.addEventListener("hashchange", () => { if (PROGRAM) render(); });
 
 function setNav(active) {
   document.getElementById("navHome").classList.toggle("active", active === "home");
+  document.getElementById("navStats").classList.toggle("active", active === "stats");
   document.getElementById("navSet").classList.toggle("active", active === "set");
 }
 
@@ -574,6 +609,7 @@ function render() {
   const seg = location.hash.replace(/^#/, "").split("/").filter(Boolean);
   window.scrollTo(0, 0);
   if (seg[0] === "settings") return renderSettings();
+  if (seg[0] === "stats") return renderStats();
   if (seg[0] === "d") return renderDay(+seg[1], +seg[2], +seg[3]);
   if (seg[0] === "w") return renderWeek(+seg[1], +seg[2]);
   return renderHome();
@@ -831,30 +867,177 @@ function renderSettings() {
   const total = FLAT.length, done = FLAT.filter(f => S.checked[f.item.id]).length;
   const dirty = !!lsGet(DIRTY_KEY);
   main.innerHTML = `<div class="set">
-    <p class="hint">Fortschritt: ${done}/${total} Parts · Modus: ${mode === "github" ? `GitHub (${esc(cfg.user)}/${esc(cfg.repo)}) — ${dirty ? "ungesicherte Änderungen" : "synchron ✓"}` : "lokal (localStorage)"}</p>
-    ${mode === "github" ? `<div class="row">
-      <button class="primary" onclick="manualSync()">Jetzt syncen</button>
-      <button onclick="reconnect()">Verbindung ändern</button>
-    </div>` : ""}
-    <label>1RM-Gewichte (kg)</label>
-    <p class="hint">Basis für die Gewichts-Vorgaben der schweren Grundübungen (auf 2,5 kg gerundet). Wird mit synchronisiert.</p>
-    <div class="rmgrid">
-      ${RM_KEYS.map(([k, lbl]) => `<div class="rmcell"><span>${lbl}</span>
-        <input type="text" inputmode="decimal" value="${esc(String((S.oneRM || {})[k] ?? "")).replace(".", ",")}"
-          placeholder="kg" onchange="setRM('${k}', this.value)"></div>`).join("")}
-    </div>
-    <label>Backup (Export / Import)</label>
-    <p class="hint">Exportieren kopiert den kompletten Fortschritt als JSON. Zum Wiederherstellen JSON einfügen und „Importieren“ tippen.</p>
-    <textarea id="io" placeholder='{"checked":{...}}'></textarea>
-    <div class="row">
-      <button onclick="doExport()">Exportieren</button>
-      <button onclick="doImport()">Importieren</button>
-    </div>
-    <div class="row">
-      <button class="danger" onclick="doReset()">Alles zurücksetzen</button>
-    </div>
+    <details class="setsec" open>
+      <summary>🔄 Sync & Verbindung</summary>
+      <div class="secbody">
+        <p class="hint">Fortschritt: ${done}/${total} Parts · Modus: ${mode === "github" ? `GitHub (${esc(cfg.user)}/${esc(cfg.repo)}) — ${dirty ? "ungesicherte Änderungen ●" : "synchron ✓"}` : "lokal (localStorage)"}</p>
+        ${mode === "github" ? `<div class="row">
+          <button class="primary" onclick="manualSync()">Jetzt syncen</button>
+          <button onclick="reconnect()">Verbindung ändern</button>
+        </div>` : ""}
+      </div>
+    </details>
+    <details class="setsec">
+      <summary>🏋️ 1RM-Gewichte</summary>
+      <div class="secbody">
+        <p class="hint">Basis für die Gewichts-Vorgaben der schweren Grundübungen (auf 2,5 kg gerundet). Jede Änderung wird mit Datum im Verlauf gespeichert und synchronisiert.</p>
+        <div class="rmgrid">
+          ${RM_KEYS.map(([k, lbl]) => `<div class="rmcell"><span>${lbl}</span>
+            <input type="text" inputmode="decimal" value="${esc(String((S.oneRM || {})[k] ?? "")).replace(".", ",")}"
+              placeholder="kg" onchange="setRM('${k}', this.value)"></div>`).join("")}
+        </div>
+      </div>
+    </details>
+    <details class="setsec">
+      <summary>💾 Backup</summary>
+      <div class="secbody">
+        <p class="hint">Exportieren kopiert den kompletten Fortschritt als JSON. Zum Wiederherstellen JSON einfügen und „Importieren“ tippen.</p>
+        <textarea id="io" placeholder='{"checked":{...}}'></textarea>
+        <div class="row">
+          <button onclick="doExport()">Exportieren</button>
+          <button onclick="doImport()">Importieren</button>
+        </div>
+      </div>
+    </details>
+    <details class="setsec">
+      <summary>⚠️ Zurücksetzen</summary>
+      <div class="secbody">
+        <p class="hint">Löscht Häkchen und eingetragene Ergebnisse. 1RM-Gewichte und Trainingslog bleiben erhalten.</p>
+        <div class="row">
+          <button class="danger" onclick="doReset()">Alles zurücksetzen</button>
+        </div>
+      </div>
+    </details>
   </div>`;
 }
+/* ---------- Analyse ---------- */
+function parseW(v) { const m = String(v).replace(",", ".").match(/-?\d+(\.\d+)?/); return m ? parseFloat(m[0]) : null; }
+function trainingDates() {
+  const set = new Set();
+  Object.values(S.checked).forEach(t => { if (typeof t === "string") set.add(t.slice(0, 10)); });
+  (S.log || []).forEach(e => { if (e.e === "done" && e.t) set.add(e.t.slice(0, 10)); });
+  return [...set].sort();
+}
+function spark(pts) {
+  if (!pts || pts.length < 2) return `<div class="sparkempty">noch zu wenig Daten</div>`;
+  const W = 120, H = 34, pad = 4;
+  const min = Math.min(...pts), max = Math.max(...pts), span = (max - min) || 1;
+  const x = i => pad + i * (W - 2 * pad) / (pts.length - 1);
+  const y = v => H - pad - (v - min) * (H - 2 * pad) / span;
+  const line = pts.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
+  return `<svg class="spark" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">
+    <polyline points="${line}" fill="none" stroke="var(--lime)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="${x(pts.length - 1).toFixed(1)}" cy="${y(pts[pts.length - 1]).toFixed(1)}" r="3.2" fill="var(--lime)"/>
+  </svg>`;
+}
+function weekBars(weeks) {
+  const W = 348, H = 112, slot = W / weeks.length, bw = Math.min(20, slot - 6);
+  const base = 86, top = 16;
+  const max = Math.max(...weeks.map(w => w.count), 1);
+  let s = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block">`;
+  weeks.forEach((w, i) => {
+    const h = w.count === 0 ? 2 : (w.count / max) * (base - top);
+    const x = i * slot + (slot - bw) / 2, y = base - h;
+    s += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw}" height="${h.toFixed(1)}" rx="3"
+      fill="${w.count === 0 ? "rgba(255,255,255,.08)" : "var(--lime)"}"><title>${w.count} Trainingstage</title></rect>`;
+    if (w.count > 0) s += `<text x="${(x + bw / 2).toFixed(1)}" y="${(y - 5).toFixed(1)}" text-anchor="middle" font-size="10" font-weight="700" fill="#c9cfda">${w.count}</text>`;
+    if (i % 4 === 0 || i === weeks.length - 1) {
+      const d = w.start;
+      s += `<text x="${(x + bw / 2).toFixed(1)}" y="${H - 8}" text-anchor="middle" font-size="9.5" fill="#8b93a3">${d.getDate()}.${d.getMonth() + 1}.</text>`;
+    }
+  });
+  s += `<line x1="0" y1="${base + 1}" x2="${W}" y2="${base + 1}" stroke="rgba(255,255,255,.12)"/>`;
+  return s + `</svg>`;
+}
+function renderStats() {
+  backBtn.style.display = "none";
+  titleEl.textContent = "Analyse";
+  setNav("stats");
+  const dates = trainingDates();
+  const total = FLAT.length, done = FLAT.filter(f => S.checked[f.item.id]).length;
+  const p = pct(done, total);
+
+  // Wochen-Buckets (Mo–So), letzte 12 Wochen
+  const monday = new Date(); monday.setHours(12, 0, 0, 0);
+  monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+  const weeks = [];
+  for (let i = 11; i >= 0; i--) {
+    const start = new Date(monday); start.setDate(start.getDate() - i * 7);
+    const end = new Date(start); end.setDate(end.getDate() + 7);
+    const a = start.toISOString().slice(0, 10), b = end.toISOString().slice(0, 10);
+    weeks.push({ start, count: dates.filter(d => d >= a && d < b).length });
+  }
+  const thisWeek = weeks[11].count;
+  let streak = 0;
+  for (let i = 11; i >= 0; i--) {
+    if (weeks[i].count > 0) streak++;
+    else if (i === 11) continue;
+    else break;
+  }
+  const nWeights = (S.log || []).filter(e => e.e === "weight").length;
+
+  let motto;
+  if (streak >= 3) motto = `🔥 ${streak} Wochen am Stück im Training — Maschine!`;
+  else if (thisWeek >= 3) motto = `💪 Schon ${thisWeek} Trainingstage diese Woche!`;
+  else if (dates.length > 0) motto = `${dates.length} Trainingstage absolviert — dranbleiben!`;
+  else motto = `Zeit, die Maschine anzuwerfen 🚀`;
+
+  let html = `
+    <div class="motto">${esc(motto)}</div>
+    <div class="stats">
+      <div class="stat"><b>${dates.length}</b><span>Trainingstage gesamt</span></div>
+      <div class="stat"><b>${streak}</b><span>Wochen-Streak</span></div>
+      <div class="stat"><b>${thisWeek}</b><span>Tage diese Woche</span></div>
+      <div class="stat"><b>${p}%</b><span>Programm geschafft</span></div>
+    </div>
+    <div class="chartcard">
+      <h3>Trainingstage pro Woche · letzte 12 Wochen</h3>
+      ${weekBars(weeks)}
+    </div>`;
+
+  // Kraftentwicklung 1RM
+  const rmlog = S.rmLog || [];
+  const liftCards = RM_KEYS.map(([k, label]) => {
+    const cur = (S.oneRM || {})[k];
+    const entries = rmlog.filter(e => e.k === k && e.value != null).map(e => e.value);
+    if (cur == null && !entries.length) return "";
+    const pts = entries.slice();
+    if (cur != null && (!pts.length || pts[pts.length - 1] !== cur)) pts.push(cur);
+    const first = pts[0], delta = (cur ?? first) - first;
+    const chip = delta > 0 ? `<span class="chip up">+${fmtW(delta)} kg</span>`
+      : delta < 0 ? `<span class="chip down">−${fmtW(Math.abs(delta))} kg</span>`
+      : `<span class="chip flat">±0</span>`;
+    return `<div class="lift">
+      <div class="ln">${esc(label.replace(/\s*\(.*/, ""))}</div>
+      <div class="lv">${cur != null ? fmtW(cur) + " kg" : "—"}</div>
+      ${chip}
+      ${spark(pts)}
+    </div>`;
+  }).join("");
+  if (liftCards) html += `<h2 class="section">Kraftentwicklung · <em>1RM</em></h2><div class="liftgrid">${liftCards}</div>`;
+
+  // Top-Set-Trends aus tatsächlich eingetragenen Gewichten
+  const keyLabel = {};
+  PROGRAM.forEach(pp => pp.weeks.forEach(w => w.days.forEach(d => d.sessions.forEach(s => s.items.forEach(i =>
+    (i.exercises || []).forEach(ex => { if (ex.rm && !keyLabel[ex.k]) keyLabel[ex.k] = ex.name; }))))));
+  const rows = Object.keys(keyLabel).map(k => {
+    const ws = (S.results[k] || []).map(h => parseW(h.value)).filter(n => n != null);
+    if (!ws.length) return "";
+    const first = ws[0], last = ws[ws.length - 1], d = last - first;
+    const trend = ws.length < 2 ? "" : d > 0 ? ` <span class="chip up">+${fmtW(d)}</span>` : d < 0 ? ` <span class="chip down">−${fmtW(Math.abs(d))}</span>` : ` <span class="chip flat">±0</span>`;
+    const val = ws.length < 2 ? `${fmtW(last)} kg` : `${fmtW(first)} → ${fmtW(last)} kg`;
+    return `<div class="ts"><span>${esc(keyLabel[k])}</span><span>${val}${trend}</span></div>`;
+  }).filter(Boolean).join("");
+  if (rows) html += `<div class="chartcard" style="margin-top:16px"><h3>Deine Arbeitsgewichte · erstes → letztes Training</h3>${rows}</div>`;
+
+  html += `<div class="stats" style="margin-top:16px">
+      <div class="stat"><b>${done}</b><span>Parts erledigt</span></div>
+      <div class="stat"><b>${nWeights}</b><span>Gewichte geloggt</span></div>
+    </div>
+    <div class="foot">Datenquellen: Trainingslog, 1RM-Verlauf, Gewichts-Einträge</div>`;
+  main.innerHTML = html;
+}
+
 window.setRM = function (k, v) {
   v = parseFloat(String(v).trim().replace(",", "."));
   S.oneRM = S.oneRM || {};
