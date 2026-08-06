@@ -572,7 +572,7 @@ function locOf(id) {
   return `${p.name} · ${p.weeks[f.wi].name} · ${p.weeks[f.wi].days[f.di].label}`;
 }
 function logEv(e, id, extra) {
-  (S.log = S.log || []).push(Object.assign({ t: new Date().toISOString(), e, id, loc: locOf(id) }, extra || {}));
+  (S.log = S.log || []).push(Object.assign({ t: new Date().toISOString(), e, id, loc: locOf(id), run: S.run || 1 }, extra || {}));
 }
 function lastResult(key, selfId) {
   const arr = S.results[key] || [];
@@ -820,9 +820,10 @@ window.setResult = function (id, key, value) {
   value = (value || "").trim();
   if (value) S.resultsByItem[id] = value; else delete S.resultsByItem[id];
   const arr = (S.results[key] = S.results[key] || []);
-  const idx = arr.findIndex(e => e.itemId === id);
+  // Nur den Eintrag des AKTUELLEN Durchlaufs ersetzen — Historie früherer Durchläufe bleibt
+  const idx = arr.findIndex(e => e.itemId === id && (e.run || 1) === (S.run || 1));
   if (idx >= 0) arr.splice(idx, 1);
-  if (value) { arr.push({ value, date: new Date().toISOString(), itemId: id }); logEv("weight", id, { k: key, value }); }
+  if (value) { arr.push({ value, date: new Date().toISOString(), itemId: id, run: S.run || 1 }); logEv("weight", id, { k: key, value }); }
   markDirty();
   render();
 };
@@ -900,9 +901,18 @@ function renderSettings() {
       </div>
     </details>
     <details class="setsec">
+      <summary>🔁 Neuer Durchlauf</summary>
+      <div class="secbody">
+        <p class="hint">Aktuell: Durchlauf ${S.run || 1}${(S.runs || []).length ? ` · ${S.runs.length} abgeschlossen` : ""}. Archiviert den aktuellen Stand und setzt Häkchen &amp; Eingabefelder zurück — jederzeit möglich, auch mitten im Programm. Gewichts-Historie und 1RM bleiben erhalten; die Analyse vergleicht dann die Durchläufe.</p>
+        <div class="row">
+          <button class="primary" onclick="startNewRun()">Durchlauf ${S.run || 1} abschließen &amp; neu starten</button>
+        </div>
+      </div>
+    </details>
+    <details class="setsec">
       <summary>⚠️ Zurücksetzen</summary>
       <div class="secbody">
-        <p class="hint">Löscht Häkchen und eingetragene Ergebnisse. 1RM-Gewichte und Trainingslog bleiben erhalten.</p>
+        <p class="hint">Löscht Häkchen und eingetragene Ergebnisse unwiderruflich. 1RM-Gewichte, Trainingslog und archivierte Durchläufe bleiben erhalten. Für einen Neustart mit Vergleich nutze stattdessen „Neuer Durchlauf".</p>
         <div class="row">
           <button class="danger" onclick="doReset()">Alles zurücksetzen</button>
         </div>
@@ -981,9 +991,20 @@ function renderStats() {
   else if (thisWeek >= 3) motto = `💪 Schon ${thisWeek} Trainingstage diese Woche!`;
   else if (dates.length > 0) motto = `${dates.length} Trainingstage absolviert — dranbleiben!`;
   else motto = `Zeit, die Maschine anzuwerfen 🚀`;
+  if ((S.run || 1) > 1) motto = `Durchlauf ${S.run} · ` + motto;
 
   let html = `
-    <div class="motto">${esc(motto)}</div>
+    <div class="motto">${esc(motto)}</div>`;
+
+  // Durchläufe im Vergleich
+  const runs = S.runs || [];
+  if (runs.length) {
+    html += `<div class="chartcard" style="margin-bottom:12px"><h3>🔁 Deine Durchläufe</h3>`
+      + runs.map(r => `<div class="ts"><span>Durchlauf ${r.no} · ${fmtDate(r.startedAt)} – ${fmtDate(r.endedAt)}</span><span>${r.done}/${r.total} Parts</span></div>`).join("")
+      + `<div class="ts"><span>Durchlauf ${S.run || 1} · läuft</span><span>${done}/${total} Parts (${p}%)</span></div></div>`;
+  }
+
+  html += `
     <div class="stats">
       <div class="stat"><b>${dates.length}</b><span>Trainingstage gesamt</span></div>
       <div class="stat"><b>${streak}</b><span>Wochen-Streak</span></div>
@@ -1021,14 +1042,28 @@ function renderStats() {
   PROGRAM.forEach(pp => pp.weeks.forEach(w => w.days.forEach(d => d.sessions.forEach(s => s.items.forEach(i =>
     (i.exercises || []).forEach(ex => { if (ex.rm && !keyLabel[ex.k]) keyLabel[ex.k] = ex.name; }))))));
   const rows = Object.keys(keyLabel).map(k => {
-    const ws = (S.results[k] || []).map(h => parseW(h.value)).filter(n => n != null);
-    if (!ws.length) return "";
-    const first = ws[0], last = ws[ws.length - 1], d = last - first;
-    const trend = ws.length < 2 ? "" : d > 0 ? ` <span class="chip up">+${fmtW(d)}</span>` : d < 0 ? ` <span class="chip down">−${fmtW(Math.abs(d))}</span>` : ` <span class="chip flat">±0</span>`;
-    const val = ws.length < 2 ? `${fmtW(last)} kg` : `${fmtW(first)} → ${fmtW(last)} kg`;
+    const byRun = {};
+    (S.results[k] || []).forEach(h => {
+      const n = parseW(h.value);
+      if (n != null) (byRun[h.run || 1] = byRun[h.run || 1] || []).push(n);
+    });
+    const runNos = Object.keys(byRun).map(Number).sort((a, b) => a - b);
+    if (!runNos.length) return "";
+    let val, d;
+    if (runNos.length > 1) {
+      // Vergleich über Durchläufe: letzter Wert je Durchlauf
+      const lasts = runNos.map(r => byRun[r][byRun[r].length - 1]);
+      val = runNos.map((r, i) => `R${r}: ${fmtW(lasts[i])}`).join(" · ") + " kg";
+      d = lasts[lasts.length - 1] - lasts[0];
+    } else {
+      const ws = byRun[runNos[0]];
+      val = ws.length < 2 ? `${fmtW(ws[0])} kg` : `${fmtW(ws[0])} → ${fmtW(ws[ws.length - 1])} kg`;
+      d = ws.length < 2 ? 0 : ws[ws.length - 1] - ws[0];
+    }
+    const trend = d > 0 ? ` <span class="chip up">+${fmtW(d)}</span>` : d < 0 ? ` <span class="chip down">−${fmtW(Math.abs(d))}</span>` : (runNos.length > 1 || (byRun[runNos[0]] || []).length > 1) ? ` <span class="chip flat">±0</span>` : "";
     return `<div class="ts"><span>${esc(keyLabel[k])}</span><span>${val}${trend}</span></div>`;
   }).filter(Boolean).join("");
-  if (rows) html += `<div class="chartcard" style="margin-top:16px"><h3>Deine Arbeitsgewichte · erstes → letztes Training</h3>${rows}</div>`;
+  if (rows) html += `<div class="chartcard" style="margin-top:16px"><h3>Deine Arbeitsgewichte${(S.runs || []).length ? " · Vergleich der Durchläufe" : " · erstes → letztes Training"}</h3>${rows}</div>`;
 
   html += `<div class="stats" style="margin-top:16px">
       <div class="stat"><b>${done}</b><span>Parts erledigt</span></div>
@@ -1071,9 +1106,32 @@ window.doImport = function () {
     alert("Import fehlgeschlagen — bitte gültiges Export-JSON einfügen.");
   }
 };
+window.startNewRun = function () {
+  const runNo = S.run || 1;
+  const done = FLAT.filter(f => S.checked[f.item.id]).length;
+  if (!confirm(`Durchlauf ${runNo} abschließen (${done}/${FLAT.length} Parts) und mit Durchlauf ${runNo + 1} von vorne starten?\n\nGewichts-Historie, 1RM und Trainingslog bleiben erhalten — die Analyse zeigt künftig den Vergleich.`)) return;
+  const now = new Date().toISOString();
+  const times = Object.values(S.checked).filter(t => typeof t === "string").sort();
+  (S.runs = S.runs || []).push({
+    no: runNo,
+    startedAt: times[0] || now,
+    endedAt: now,
+    done,
+    total: FLAT.length,
+    checked: S.checked,
+    resultsByItem: S.resultsByItem
+  });
+  S.run = runNo + 1;
+  S.checked = {};
+  S.resultsByItem = {};
+  logEv("run-start", "run-" + S.run);
+  markDirty();
+  location.hash = "";
+  render();
+};
 window.doReset = function () {
-  if (confirm("Wirklich ALLEN Fortschritt und alle Ergebnisse löschen? (1RM-Gewichte und Trainingslog bleiben erhalten)")) {
-    S = { checked: {}, resultsByItem: {}, results: {}, oneRM: S.oneRM, rmLog: S.rmLog, log: S.log };
+  if (confirm("Wirklich ALLEN Fortschritt und alle Ergebnisse löschen? (1RM-Gewichte, Trainingslog und Durchläufe bleiben erhalten)")) {
+    S = { checked: {}, resultsByItem: {}, results: {}, oneRM: S.oneRM, rmLog: S.rmLog, log: S.log, runs: S.runs, run: S.run };
     markDirty();
     location.hash = "";
     render();
