@@ -217,18 +217,34 @@
        und der Home-Indicator-Abstand nicht wie eine Lücke wirkt */
     background: var(--surface);
     border-top: 1px solid var(--line);
-    display: flex; align-items: center; justify-content: space-around;
+    /* Raster: 2 Tabs · freie Mittelspalte für den runden Button · 2 Tabs.
+       minmax(0,…) verhindert, dass ein breites Label die Spalten verschiebt. */
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 68px minmax(0, 1fr) minmax(0, 1fr);
+    align-items: center; justify-items: center;
     /* max() statt Addition: kein doppelter Abstand, wenn iOS die Safe Area schon einrechnet */
-    padding: 10px 20px max(10px, env(safe-area-inset-bottom));
+    padding: 10px 6px max(10px, env(safe-area-inset-bottom));
   }
-  nav button { border: none; background: none; color: var(--muted); display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 10.5px; font-weight: 700; letter-spacing: .3px; padding: 2px 10px; }
+  nav button { border: none; background: none; color: var(--muted); display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 9.5px; font-weight: 700; letter-spacing: .2px; padding: 2px 2px; white-space: nowrap; }
+  #navHome { grid-column: 1; }
+  #navWeek { grid-column: 2; }
+  #navStats { grid-column: 4; }
+  #navSet { grid-column: 5; }
+  @media (max-width: 370px) {
+    nav { grid-template-columns: minmax(0,1fr) minmax(0,1fr) 62px minmax(0,1fr) minmax(0,1fr); padding-left: 2px; padding-right: 2px; }
+    nav button { font-size: 8.5px; letter-spacing: 0; padding: 2px 0; }
+    nav button svg { width: 20px; height: 20px; }
+  }
   nav button svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   nav button.active { color: var(--ink); }
   nav .go {
+    /* exakt auf die Bildschirmmitte gesetzt — unabhängig von den Label-Breiten */
+    position: absolute; left: 50%; transform: translateX(-50%); top: -20px;
     background: var(--lime); color: var(--lime-ink); border-radius: 99px;
-    width: 58px; height: 58px; margin-top: -26px; justify-content: center;
+    width: 58px; height: 58px; justify-content: center;
     box-shadow: 0 8px 22px color-mix(in srgb, var(--lime) 35%, transparent);
-    font-size: 0;
+    font-size: 0; padding: 0;
   }
   nav .go svg { width: 24px; height: 24px; stroke-width: 2.4; }
 
@@ -293,6 +309,7 @@
 <main id="main"><div class="loading">Lade…</div></main>
 <nav id="nav" style="display:none">
   <button id="navHome"><svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>Übersicht</button>
+  <button id="navWeek"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/></svg>Woche</button>
   <button class="go" id="navGo" aria-label="Weitermachen"><svg viewBox="0 0 24 24"><path d="M7 4.5 19 12 7 19.5z"/></svg></button>
   <button id="navStats"><svg viewBox="0 0 24 24"><path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/></svg>Analyse</button>
   <button id="navSet"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 13.5a7.8 7.8 0 0 0 0-3l2-1.5-2-3.4-2.4 1a7.8 7.8 0 0 0-2.6-1.5L14 2.5h-4l-.4 2.6A7.8 7.8 0 0 0 7 6.6l-2.4-1-2 3.4 2 1.5a7.8 7.8 0 0 0 0 3l-2 1.5 2 3.4 2.4-1a7.8 7.8 0 0 0 2.6 1.5l.4 2.6h4l.4-2.6a7.8 7.8 0 0 0 2.6-1.5l2.4 1 2-3.4z"/></svg>Einstellungen</button>
@@ -603,6 +620,10 @@ const titleEl = document.getElementById("title");
 const backBtn = document.getElementById("backBtn");
 backBtn.onclick = () => { history.back(); };
 document.getElementById("navHome").onclick = () => { location.hash = ""; };
+document.getElementById("navWeek").onclick = () => {
+  const cur = FLAT.find(f => !S.checked[f.item.id]) || FLAT[FLAT.length - 1];
+  if (cur) location.hash = `#w/${cur.pi}/${cur.wi}`;
+};
 document.getElementById("navGo").onclick = () => goContinue();
 document.getElementById("navStats").onclick = () => { location.hash = "#stats"; };
 document.getElementById("navSet").onclick = () => { location.hash = "#settings"; };
@@ -611,6 +632,7 @@ window.addEventListener("hashchange", () => { navScroll = true; if (PROGRAM) ren
 
 function setNav(active) {
   document.getElementById("navHome").classList.toggle("active", active === "home");
+  document.getElementById("navWeek").classList.toggle("active", active === "week");
   document.getElementById("navStats").classList.toggle("active", active === "stats");
   document.getElementById("navSet").classList.toggle("active", active === "set");
 }
@@ -685,7 +707,7 @@ function renderWeek(pi, wi) {
   const part = PROGRAM[pi], week = part.weeks[wi];
   backBtn.style.display = "";
   titleEl.textContent = `${part.name} · ${week.name} — ${week.focus}`;
-  setNav("");
+  setNav("week");
   let html = "";
   week.days.forEach((day, di) => {
     const items = dayItems(day);
@@ -708,7 +730,7 @@ function renderDay(pi, wi, di) {
   const part = PROGRAM[pi], week = part.weeks[wi], day = week.days[di];
   backBtn.style.display = "";
   titleEl.textContent = `${part.name} · ${week.name} · ${day.label}`;
-  setNav("");
+  setNav("week");
   let html = "";
   day.sessions.forEach((sess, si) => {
     const checkable = sess.items.filter(i => !i.rest);
