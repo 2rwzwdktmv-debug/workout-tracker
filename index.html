@@ -213,10 +213,13 @@
   /* ---------- Bottom Nav ---------- */
   nav {
     flex-shrink: 0; z-index: 20;
-    background: var(--bg);
+    /* eigene Flächenfarbe: so ist sichtbar, dass die Leiste bis zur Bildschirmkante reicht
+       und der Home-Indicator-Abstand nicht wie eine Lücke wirkt */
+    background: var(--surface);
     border-top: 1px solid var(--line);
     display: flex; align-items: center; justify-content: space-around;
-    padding: 10px 20px calc(10px + env(safe-area-inset-bottom));
+    /* max() statt Addition: kein doppelter Abstand, wenn iOS die Safe Area schon einrechnet */
+    padding: 10px 20px max(10px, env(safe-area-inset-bottom));
   }
   nav button { border: none; background: none; color: var(--muted); display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 10.5px; font-weight: 700; letter-spacing: .3px; padding: 2px 10px; }
   nav button svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
@@ -920,6 +923,12 @@ function renderSettings() {
       </div>
     </details>
     <details class="setsec">
+      <summary>🩺 Diagnose (Anzeige)</summary>
+      <div class="secbody">
+        <p class="hint" id="diag">…</p>
+      </div>
+    </details>
+    <details class="setsec">
       <summary>⚠️ Zurücksetzen</summary>
       <div class="secbody">
         <p class="hint">Löscht Häkchen und eingetragene Ergebnisse unwiderruflich. 1RM-Gewichte, Trainingslog und archivierte Durchläufe bleiben erhalten. Für einen Neustart mit Vergleich nutze stattdessen „Neuer Durchlauf".</p>
@@ -929,6 +938,7 @@ function renderSettings() {
       </div>
     </details>
   </div>`;
+  fillDiag();
 }
 /* ---------- Analyse ---------- */
 function parseW(v) { const m = String(v).replace(",", ".").match(/-?\d+(\.\d+)?/); return m ? parseFloat(m[0]) : null; }
@@ -1093,6 +1103,21 @@ window.setRM = function (k, v) {
   }
   markDirty();
 };
+function fillDiag() {
+  const el = document.getElementById("diag");
+  if (!el) return;
+  const nav = document.querySelector("nav");
+  const probe = document.createElement("div");
+  probe.style.cssText = "position:fixed;bottom:0;height:env(safe-area-inset-bottom);width:0";
+  document.body.appendChild(probe);
+  const safe = Math.round(probe.getBoundingClientRect().height);
+  probe.remove();
+  const b = nav.getBoundingClientRect();
+  const standalone = (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true;
+  el.textContent = `Modus: ${standalone ? "Homescreen-App" : "Browser"} · Fenster: ${Math.round(window.innerWidth)}×${Math.round(window.innerHeight)} px`
+    + ` · Bildschirm: ${screen.width}×${screen.height} · Safe-Area unten: ${safe} px`
+    + ` · Leiste endet bei: ${Math.round(b.bottom)} px (Lücke: ${Math.round(window.innerHeight - b.bottom)} px)`;
+}
 window.manualSync = async function () { lsSet(DIRTY_KEY, "1"); await pushProgress(); renderSettings(); };
 window.reconnect = function () { renderSetup(); };
 window.doExport = function () {
