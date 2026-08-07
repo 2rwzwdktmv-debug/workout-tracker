@@ -58,8 +58,8 @@
 
   main {
     width: 100%; max-width: 640px; margin: 0 auto;
-    /* unten Platz für die fixierte Nav-Leiste */
-    padding: 16px 16px calc(104px + env(safe-area-inset-bottom));
+    /* unten genau so viel Platz, wie die fixierte Nav-Leiste hoch ist */
+    padding: 16px 16px calc(66px + max(10px, env(safe-area-inset-bottom)));
   }
 
   /* ---------- Hero ---------- */
@@ -222,7 +222,8 @@
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 68px minmax(0, 1fr) minmax(0, 1fr);
     align-items: center; justify-items: center;
-    padding: 10px 6px calc(10px + env(safe-area-inset-bottom));
+    /* unten NUR die Home-Indicator-Zone (kein zusätzlicher Eigenabstand) */
+    padding: 10px 6px max(10px, env(safe-area-inset-bottom));
   }
   nav button { border: none; background: none; color: var(--muted); display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 9.5px; font-weight: 700; letter-spacing: .2px; padding: 2px 2px; white-space: nowrap; }
   #navHome { grid-column: 1; }
