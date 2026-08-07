@@ -17,23 +17,24 @@
     --r-lg: 22px; --r-md: 16px; --r-sm: 12px;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html { -webkit-text-size-adjust: 100%; height: 100%; background: var(--bg); }
+  html { -webkit-text-size-adjust: 100%; background: var(--bg); }
   html, body { margin: 0; padding: 0; }
   body {
     background: var(--bg); color: var(--ink);
     font-family: ui-rounded, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     font-size: 16px; line-height: 1.5;
-    /* App-Layout exakt am Viewport verankert (iOS-Standalone-fest):
-       Header oben, scrollender Inhalt, Nav bündig am unteren Rand */
-    position: fixed; top: 0; right: 0; bottom: 0; left: 0;
-    display: flex; flex-direction: column; overflow: hidden;
+    /* Normales Dokument mit fixierter Nav (funktioniert auf langen Seiten zuverlässig).
+       min-height sorgt dafür, dass auch KURZE Seiten die volle Höhe haben — nur dann
+       liegt der untere Rand des Layout-Viewports wirklich am Bildschirmrand. */
+    min-height: 100vh; min-height: 100dvh;
   }
   button { font: inherit; color: inherit; }
 
   /* ---------- Header ---------- */
   header {
-    flex-shrink: 0; z-index: 20;
-    background: var(--bg);
+    position: sticky; top: 0; z-index: 20;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
     border-bottom: 1px solid var(--line);
     padding: calc(10px + env(safe-area-inset-top)) 16px 10px;
     display: flex; align-items: center; gap: 10px; min-height: 54px;
@@ -56,9 +57,9 @@
   #syncDot.err { color: var(--red); }
 
   main {
-    flex: 1 1 auto; overflow-y: auto; -webkit-overflow-scrolling: touch;
     width: 100%; max-width: 640px; margin: 0 auto;
-    padding: 16px 16px 28px;
+    /* unten Platz für die fixierte Nav-Leiste */
+    padding: 16px 16px calc(104px + env(safe-area-inset-bottom));
   }
 
   /* ---------- Hero ---------- */
@@ -212,19 +213,16 @@
 
   /* ---------- Bottom Nav ---------- */
   nav {
-    flex-shrink: 0; z-index: 20;
-    /* eigene Flächenfarbe: so ist sichtbar, dass die Leiste bis zur Bildschirmkante reicht
-       und der Home-Indicator-Abstand nicht wie eine Lücke wirkt */
-    background: var(--surface);
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+    background: color-mix(in srgb, var(--bg) 82%, transparent);
+    -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
     border-top: 1px solid var(--line);
     /* Raster: 2 Tabs · freie Mittelspalte für den runden Button · 2 Tabs.
        minmax(0,…) verhindert, dass ein breites Label die Spalten verschiebt. */
-    position: relative;
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 68px minmax(0, 1fr) minmax(0, 1fr);
     align-items: center; justify-items: center;
-    /* max() statt Addition: kein doppelter Abstand, wenn iOS die Safe Area schon einrechnet */
-    padding: 10px 6px max(10px, env(safe-area-inset-bottom));
+    padding: 10px 6px calc(10px + env(safe-area-inset-bottom));
   }
   nav button { border: none; background: none; color: var(--muted); display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 9.5px; font-weight: 700; letter-spacing: .2px; padding: 2px 2px; white-space: nowrap; }
   #navHome { grid-column: 1; }
@@ -639,15 +637,15 @@ function setNav(active) {
 
 function render() {
   const seg = location.hash.replace(/^#/, "").split("/").filter(Boolean);
-  const st = main.scrollTop;
+  const st = window.scrollY;
   if (seg[0] === "settings") renderSettings();
   else if (seg[0] === "stats") renderStats();
   else if (seg[0] === "d") renderDay(+seg[1], +seg[2], +seg[3]);
   else if (seg[0] === "w") renderWeek(+seg[1], +seg[2]);
   else renderHome();
   // Scroll-Position nur bei echter Navigation zurücksetzen, nicht beim Abhaken
-  if (navScroll) { main.scrollTop = 0; navScroll = false; }
-  else main.scrollTop = st;
+  if (navScroll) { window.scrollTo(0, 0); navScroll = false; }
+  else window.scrollTo(0, st);
 }
 
 function renderHome() {
@@ -1137,7 +1135,8 @@ function fillDiag() {
   const b = nav.getBoundingClientRect();
   const standalone = (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true;
   el.textContent = `Modus: ${standalone ? "Homescreen-App" : "Browser"} · Fenster: ${Math.round(window.innerWidth)}×${Math.round(window.innerHeight)} px`
-    + ` · Bildschirm: ${screen.width}×${screen.height} · Safe-Area unten: ${safe} px`
+    + ` · Bildschirm: ${screen.width}×${screen.height} · Seite: ${document.documentElement.scrollHeight} px`
+    + ` · Safe-Area unten: ${safe} px`
     + ` · Leiste endet bei: ${Math.round(b.bottom)} px (Lücke: ${Math.round(window.innerHeight - b.bottom)} px)`;
 }
 window.manualSync = async function () { lsSet(DIRTY_KEY, "1"); await pushProgress(); renderSettings(); };
