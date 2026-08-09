@@ -211,6 +211,69 @@
   .flash { animation: flash 1.6s ease-out 1; }
   @keyframes flash { 0% { box-shadow: 0 0 0 3px var(--lime); } 100% { box-shadow: 0 0 0 0 transparent; } }
 
+  /* ---------- Tagesplanung ---------- */
+  .today {
+    background: linear-gradient(145deg, var(--surface2), var(--surface));
+    border: 1px solid var(--line); border-radius: var(--r-lg);
+    padding: 16px 18px; margin-bottom: 14px;
+  }
+  .today .k { font-size: 11px; letter-spacing: 1.4px; text-transform: uppercase; color: var(--lime); font-weight: 800; }
+  .today.quiet .k { color: var(--muted); }
+  .today .v { font-size: 19px; font-weight: 800; margin: 4px 0 2px; letter-spacing: -.3px; }
+  .today .s { font-size: 13px; color: var(--muted); }
+  .today .cta {
+    display: block; width: 100%; margin-top: 14px; border: none; border-radius: 99px;
+    background: var(--lime); color: var(--lime-ink); font-size: 15px; font-weight: 800; padding: 12px;
+  }
+  .today .cta.ghost { background: var(--surface2); color: var(--ink); border: 1px solid var(--line); font-size: 13.5px; padding: 10px; }
+  .pd {
+    display: flex; align-items: center; gap: 12px;
+    border-bottom: 1px solid var(--line); padding: 11px 2px;
+  }
+  .pd:last-of-type { border-bottom: none; }
+  .pd .dt { width: 38px; flex-shrink: 0; }
+  .pd .dt .wd { font-size: 11px; color: var(--muted); font-weight: 700; line-height: 1.2; }
+  .pd .dt .dn { font-size: 15px; font-weight: 800; line-height: 1.2; }
+  .pd .inf { flex: 1; min-width: 0; }
+  .pd .inf .t { font-size: 14px; font-weight: 800; }
+  .pd .inf .s { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pd .tag {
+    font-size: 10.5px; font-weight: 800; color: var(--muted); background: var(--surface2);
+    border-radius: 99px; padding: 3px 9px; flex-shrink: 0;
+  }
+  .pd .dots { color: var(--muted); font-size: 17px; font-weight: 800; padding: 4px 6px; flex-shrink: 0; }
+  .pd.muted .dt .dn { color: var(--muted); font-weight: 700; }
+  .pd.muted .inf .t { color: var(--muted); font-weight: 700; }
+  .pd.off .inf .t { text-decoration: line-through; }
+  .pd.sel { background: var(--surface2); border-radius: var(--r-sm); border-bottom-color: transparent; }
+  .planfoot { text-align: center; color: var(--muted); font-size: 11.5px; margin-top: 14px; }
+  .planhint {
+    border-left: 2px solid var(--lime); background: var(--surface);
+    border-radius: 0; padding: 9px 12px; margin-top: 12px; font-size: 12px; color: var(--muted);
+  }
+  .swapbar {
+    background: var(--surface2); border: 1px dashed var(--lime); border-radius: var(--r-md);
+    padding: 11px 13px; margin-bottom: 12px; font-size: 13px; font-weight: 700;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .swapbar span { min-width: 0; }
+  .swapbar button { margin-left: auto; border: none; background: none; color: var(--muted); font-weight: 800; font-size: 13px; flex-shrink: 0; }
+  .sheetwrap { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,.55); display: flex; align-items: flex-end; }
+  .sheet {
+    background: var(--surface); width: 100%; max-width: 640px; margin: 0 auto;
+    border-radius: var(--r-lg) var(--r-lg) 0 0; border-top: 1px solid var(--line);
+    padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
+  }
+  .sheet h4 { margin: 0 0 3px; font-size: 15px; font-weight: 800; }
+  .sheet p { margin: 0 0 14px; font-size: 12.5px; color: var(--muted); }
+  .sheet button {
+    display: block; width: 100%; border: 1px solid var(--line); background: var(--surface2);
+    color: var(--ink); border-radius: var(--r-md); padding: 13px; font-size: 15px; font-weight: 800;
+    margin-bottom: 8px; text-align: left;
+  }
+  .sheet button small { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-top: 3px; }
+  .sheet button.cancel { text-align: center; background: none; border: none; color: var(--muted); margin: 4px 0 0; }
+
   /* ---------- Bottom Nav ---------- */
   nav {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
@@ -542,6 +605,7 @@ function finishBoot() {
     }));
   })));
   document.getElementById("nav").style.display = "";
+  prunePlan();
   setSync(mode === "github" ? (lsGet(DIRTY_KEY) ? "pending" : "ok") : "idle");
   render();
 }
@@ -613,6 +677,124 @@ function ring(p, size, stroke, cls) {
   </svg>`;
 }
 
+/* ---------- Tagesplanung ----------
+   Grundsatz: Es wird KEIN Termin gespeichert. Gespeichert sind nur die Ausnahmen
+   (off / force / dropped / swaps); welche Einheit an welchem Tag liegt, wird bei
+   jedem Rendern neu berechnet. Dadurch rutscht alles von selbst nach, wenn ein
+   Training ausfällt — es gibt nichts zu reparieren.                            */
+const WD = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
+const MAX_STREAK = 6;                       // nie mehr als 6 Trainingstage am Stück
+
+function planState() {
+  if (!S.plan || typeof S.plan !== "object") S.plan = {};
+  const P = S.plan;
+  if (!Array.isArray(P.off)) P.off = [];        // "YYYY-MM-DD" — geht nicht
+  if (!Array.isArray(P.force)) P.force = [];    // "YYYY-MM-DD" — Ruhetag überstimmt
+  if (!Array.isArray(P.dropped)) P.dropped = [];// "pi.wi.di"   — gestrichene Einheit
+  if (!Array.isArray(P.swaps)) P.swaps = [];    // [["pi.wi.di","pi.wi.di"], …]
+  return P;
+}
+function dkey(d) {
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0")
+    + "-" + String(d.getDate()).padStart(2, "0");
+}
+function today0() { const d = new Date(); d.setHours(12, 0, 0, 0); return d; }
+function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
+function fmtDay(d) { return d.toLocaleDateString("de-DE", { day: "numeric", month: "short" }); }
+/* Trainingstage als LOKALE Datumsschlüssel (nicht UTC — sonst kippt ein
+   Abendtraining auf den Folgetag). */
+function trainedDayKeys() {
+  const set = new Set();
+  Object.values(S.checked).forEach(t => { if (typeof t === "string") set.add(dkey(new Date(t))); });
+  (S.log || []).forEach(e => { if (e.e === "done" && e.t) set.add(dkey(new Date(e.t))); });
+  return set;
+}
+function planDays() {
+  const out = [];
+  PROGRAM.forEach((part, pi) => part.weeks.forEach((week, wi) => week.days.forEach((day, di) => {
+    const items = dayItems(day);
+    if (!items.length) return;                  // reine Rest-Tage des Plans
+    out.push({ pi, wi, di, key: pi + "." + wi + "." + di, part, week, day, items });
+  })));
+  return out;
+}
+function dayTitle(d) { return d.week.name + " · " + d.day.label; }
+function daySub(d) {
+  const names = d.day.sessions.map(s => s.label).filter(Boolean);
+  if (names.length) return names.join(" · ");
+  const it = d.day.sessions[0] && d.day.sessions[0].items[0];
+  return it ? (it.sub || it.title) : "";
+}
+function dayDone(d) { return d.items.every(i => S.checked[i.id]); }
+/* Offene Einheiten in Reihenfolge, Streichungen raus, Tausche angewendet. */
+function planQueue() {
+  const P = planState();
+  const dropped = new Set(P.dropped);
+  const q = planDays().filter(d => !dropped.has(d.key) && !dayDone(d));
+  P.swaps.forEach(pair => {
+    const ia = q.findIndex(d => d.key === pair[0]), ib = q.findIndex(d => d.key === pair[1]);
+    if (ia >= 0 && ib >= 0) { const t = q[ia]; q[ia] = q[ib]; q[ib] = t; }
+  });
+  return q;
+}
+/* Erledigte/gestrichene Tage aus den Tauschen werfen, vergangene Ausnahmen kappen. */
+function prunePlan() {
+  const P = planState(), t = dkey(today0());
+  P.off = P.off.filter(k => k >= t);
+  P.force = P.force.filter(k => k >= t);
+  const byKey = {};
+  planDays().forEach(d => { byKey[d.key] = d; });
+  const dropped = new Set(P.dropped);
+  P.swaps = P.swaps.filter(pair =>
+    pair.every(k => byKey[k] && !dropped.has(k) && !dayDone(byKey[k])));
+}
+/* Die eigentliche Projektion: n Kalendertage ab heute. */
+function projectPlan(n) {
+  const P = planState();
+  const off = new Set(P.off), force = new Set(P.force);
+  const trained = trainedDayKeys();
+  const q = planQueue();
+  const out = [];
+  // Wie viele Trainingstage liegen unmittelbar vor heute? (für die Ruhetagsregel)
+  let streak = 0, back = addDays(today0(), -1);
+  while (trained.has(dkey(back)) && streak < 14) { streak++; back = addDays(back, -1); }
+  let qi = 0, d = today0();
+  for (let i = 0; i < n; i++) {
+    const k = dkey(d);
+    if (i === 0 && trained.has(k)) { out.push({ date: new Date(d), k, kind: "donetoday" }); streak++; }
+    else if (off.has(k)) { out.push({ date: new Date(d), k, kind: "off" }); streak = 0; }
+    else if (streak >= MAX_STREAK && !force.has(k)) { out.push({ date: new Date(d), k, kind: "rest" }); streak = 0; }
+    else if (qi < q.length) { out.push({ date: new Date(d), k, kind: "train", d: q[qi++] }); streak++; }
+    else out.push({ date: new Date(d), k, kind: "empty" });
+    d = addDays(d, 1);
+  }
+  return out;
+}
+/* Trainingstage pro Kalendertag: anfangs die Planannahme (6 von 7), sobald genug
+   echte Daten da sind der tatsächliche Schnitt der letzten 4 Wochen. */
+function planRate() {
+  const from = dkey(addDays(today0(), -28));
+  let n = 0;
+  trainedDayKeys().forEach(k => { if (k >= from) n++; });
+  return n >= 8 ? { r: n / 28, real: true } : { r: MAX_STREAK / 7, real: false };
+}
+/* Voraussichtliches Ende: aus der Projektion (kennt Ausfalltage und Ruhetage
+   exakt). Sobald ein echter Schnitt vorliegt und der schlechter ist als die
+   Projektion, gewinnt der Schnitt — lieber ehrlich als optimistisch. */
+function planEnd() {
+  const q = planQueue();
+  if (!q.length) return null;
+  const rate = planRate();
+  const byRate = addDays(today0(), Math.ceil(q.length / rate.r));
+  let last = null, seen = 0;
+  const days = projectPlan(Math.min(500, q.length * 3 + 30));
+  for (let i = 0; i < days.length; i++) {
+    if (days[i].kind === "train") { seen++; last = days[i].date; if (seen >= q.length) break; }
+  }
+  if (!last || (rate.real && byRate > last)) return { date: byRate, real: rate.real };
+  return { date: last, real: rate.real };
+}
+
 /* ---------- Routing & Views ---------- */
 const main = document.getElementById("main");
 const titleEl = document.getElementById("title");
@@ -649,6 +831,96 @@ function render() {
   else window.scrollTo(0, st);
 }
 
+let swapFrom = null;                          // läuft gerade ein Tausch?
+
+function renderPlan() {
+  const q = planQueue();
+  if (!q.length) {
+    return `<div class="today quiet">
+      <div class="k">Programm durch</div>
+      <div class="v">Alle Einheiten erledigt 🎉</div>
+      <div class="s">Der Plan ist ausdrücklich kein Ganzjahresprogramm — erst eine Weile
+        gezielt an den Schwächen arbeiten, dann zurückkommen. Einen neuen Durchlauf
+        startest du in den Einstellungen.</div>
+    </div>`;
+  }
+  const days = projectPlan(7);
+  const first = days[0];
+  let html = "";
+
+  if (swapFrom) {
+    const src = planDays().find(d => d.key === swapFrom);
+    html += `<div class="swapbar"><span>${esc(src ? dayTitle(src) : "Einheit")} tauschen — zweiten Tag wählen</span>
+      <button onclick="planSwapCancel()">abbrechen</button></div>`;
+  }
+
+  if (first.kind === "train") {
+    html += `<div class="today">
+      <div class="k">Heute · ${WD[first.date.getDay()]} ${esc(fmtDay(first.date))}</div>
+      <div class="v">${esc(dayTitle(first.d))}</div>
+      <div class="s">${esc(daySub(first.d))}</div>
+      <button class="cta" onclick="location.hash='#d/${first.d.pi}/${first.d.wi}/${first.d.di}'">Training starten</button>
+    </div>`;
+  } else if (first.kind === "donetoday") {
+    const nx = days.find(x => x.kind === "train");
+    html += `<div class="today quiet">
+      <div class="k">Heute</div>
+      <div class="v">Erledigt ✓</div>
+      <div class="s">${nx ? "Als Nächstes: " + esc(dayTitle(nx.d)) : "Weiter geht's demnächst."}</div>
+    </div>`;
+  } else if (first.kind === "off") {
+    html += `<div class="today quiet">
+      <div class="k">Heute · ${WD[first.date.getDay()]} ${esc(fmtDay(first.date))}</div>
+      <div class="v">Geht nicht</div>
+      <div class="s">Als Ausfalltag markiert — alles rutscht nach hinten.</div>
+      <button class="cta ghost" onclick="planOffToggle('${first.k}')">Doch, geht</button>
+    </div>`;
+  } else if (first.kind === "rest") {
+    html += `<div class="today quiet">
+      <div class="k">Heute · ${WD[first.date.getDay()]} ${esc(fmtDay(first.date))}</div>
+      <div class="v">Ruhetag</div>
+      <div class="s">${MAX_STREAK} Trainingstage am Stück sind genug.</div>
+      <button class="cta ghost" onclick="planForce('${first.k}')">Trotzdem trainieren</button>
+    </div>`;
+  }
+
+  html += `<h2 class="section">Danach</h2>`;
+  days.slice(1).forEach(e => {
+    const wd = `<div class="dt"><div class="wd">${WD[e.date.getDay()]}</div><div class="dn">${e.date.getDate()}.</div></div>`;
+    if (e.kind === "train") {
+      const sel = swapFrom === e.d.key;
+      const click = swapFrom ? `planSwapWith('${e.d.key}')` : `location.hash='#d/${e.d.pi}/${e.d.wi}/${e.d.di}'`;
+      const nSess = e.d.day.sessions.filter(s => s.items.some(i => !i.rest)).length;
+      html += `<div class="pd ${sel ? "sel" : ""}" onclick="${click}">${wd}
+        <div class="inf"><div class="t">${esc(dayTitle(e.d))}</div><div class="s">${esc(daySub(e.d))}</div></div>
+        ${nSess > 1 ? `<span class="tag">${nSess}×</span>` : ""}
+        <span class="dots" onclick="event.stopPropagation();planSheet('${e.k}')">⋯</span>
+      </div>`;
+    } else if (e.kind === "off") {
+      html += `<div class="pd muted off" onclick="planOffToggle('${e.k}')">${wd}
+        <div class="inf"><div class="t">Geht nicht</div><div class="s">antippen zum Zurücknehmen</div></div>
+        <span class="dots">↺</span></div>`;
+    } else if (e.kind === "rest") {
+      html += `<div class="pd muted" onclick="planForce('${e.k}')">${wd}
+        <div class="inf"><div class="t">Ruhetag</div><div class="s">${MAX_STREAK} Tage am Stück wären zu viel</div></div>
+      </div>`;
+    } else {
+      html += `<div class="pd muted">${wd}
+        <div class="inf"><div class="t">frei</div><div class="s">Programm durch</div></div></div>`;
+    }
+  });
+
+  // Ruhetag entfällt, wenn ohnehin eine Lücke im Fenster liegt — kurz erklären.
+  if (days.some(e => e.kind === "off") && !days.some(e => e.kind === "rest")) {
+    html += `<div class="planhint">Kein extra Ruhetag nötig — die Lücke zählt bereits als Pause.</div>`;
+  }
+
+  const end = planEnd();
+  html += `<div class="planfoot">Ende vorauss. ${esc(end.date.toLocaleDateString("de-DE", { day: "numeric", month: "short" }))}
+    · noch ${q.length} Einheiten${end.real ? " · bei deinem Schnitt" : ""}</div>`;
+  return html;
+}
+
 function renderHome() {
   backBtn.style.display = "none";
   titleEl.textContent = PLAN_TITLE;
@@ -657,17 +929,17 @@ function renderHome() {
   const p = pct(done, total);
   const nResults = Object.keys(S.resultsByItem).length;
   const next = FLAT.find(f => !S.checked[f.item.id]);
-  const nextTxt = next
-    ? `${PROGRAM[next.pi].name} · ${PROGRAM[next.pi].weeks[next.wi].name} · ${PROGRAM[next.pi].weeks[next.wi].days[next.di].label}`
+  const posTxt = next
+    ? `${PROGRAM[next.pi].name} · ${PROGRAM[next.pi].weeks[next.wi].name}`
     : "Alles erledigt! 🎉";
-  let html = `
-    <div class="hero">
+  let html = renderPlan() + `
+    <div class="hero" style="margin-top:22px">
       <div class="ringwrap">${ring(p, 108, 10)}
         <div class="mid"><b>${p}%</b><span>gesamt</span></div>
       </div>
       <div class="txt">
-        <div class="k">Als Nächstes</div>
-        <div class="v">${esc(nextTxt)}</div>
+        <div class="k">Aktuell</div>
+        <div class="v">${esc(posTxt)}</div>
         <div class="s">${done} von ${total} Parts erledigt</div>
       </div>
     </div>
@@ -693,8 +965,12 @@ function renderHome() {
 }
 
 function goContinue() {
-  const next = FLAT.find(f => !S.checked[f.item.id]);
-  if (!next) { alert("Alles erledigt! 🎉"); return; }
+  // folgt der Planung (Tausche/Streichungen), nicht stur der Plan-Reihenfolge
+  const q = planQueue();
+  const day = q[0];
+  if (!day) { alert("Alles erledigt! 🎉"); return; }
+  const item = day.items.find(i => !S.checked[i.id]) || day.items[0];
+  const next = { pi: day.pi, wi: day.wi, di: day.di, item };
   location.hash = `#d/${next.pi}/${next.wi}/${next.di}`;
   setTimeout(() => {
     const el = document.getElementById("it-" + next.item.id);
@@ -714,12 +990,13 @@ function renderWeek(pi, wi) {
     const d = countDone(items), p = pct(d, items.length);
     const sessNames = day.sessions.map(s => s.label).filter(Boolean).join(" · ")
       || (day.sessions[0] && day.sessions[0].items[0] ? (day.sessions[0].items[0].sub || day.sessions[0].items[0].title) : "");
+    const dropped = planState().dropped.indexOf(pi + "." + wi + "." + di) >= 0;
     html += `<button class="card dayrow ${(!isRest && p === 100) ? "done" : ""}" onclick="location.hash='#d/${pi}/${wi}/${di}'">
       <div class="info">
         <div class="t">${esc(day.label)}</div>
-        <div class="sess">${esc(isRest ? "Full Rest 😴" : sessNames)}</div>
+        <div class="sess">${dropped ? "gestrichen" : esc(isRest ? "Full Rest 😴" : sessNames)}</div>
       </div>
-      <div class="mini">${isRest ? "" : ring(p, 40, 4.5)}<div class="mp">${isRest ? "—" : (p === 100 ? "✓" : d + "/" + items.length)}</div></div>
+      <div class="mini">${(isRest || dropped) ? "" : ring(p, 40, 4.5)}<div class="mp">${dropped ? "✕" : (isRest ? "—" : (p === 100 ? "✓" : d + "/" + items.length))}</div></div>
     </button>`;
   });
   main.innerHTML = html;
@@ -1045,6 +1322,19 @@ function renderStats() {
       + `<div class="ts"><span>Durchlauf ${S.run || 1} · läuft</span><span>${done}/${total} Parts (${p}%)</span></div></div>`;
   }
 
+  // Gestrichene Einheiten — damit der Durchlauf-Vergleich nicht lügt
+  const dropped = planState().dropped;
+  if (dropped.length) {
+    const byKey = {};
+    planDays().forEach(d => { byKey[d.key] = d; });
+    html += `<div class="chartcard" style="margin-bottom:12px"><h3>✕ Gestrichen · ${dropped.length}</h3>`
+      + dropped.map(k => byKey[k]
+        ? `<div class="ts"><span>${esc(byKey[k].part.name)} · ${esc(dayTitle(byKey[k]))}</span>
+             <span><button class="exlast" style="margin:0" onclick="planUndrop('${k}')">zurückholen</button></span></div>`
+        : "").join("")
+      + `</div>`;
+  }
+
   html += `
     <div class="stats">
       <div class="stat"><b>${dates.length}</b><span>Trainingstage gesamt</span></div>
@@ -1140,6 +1430,61 @@ function fillDiag() {
     + ` · Safe-Area unten: ${safe} px`
     + ` · Leiste endet bei: ${Math.round(b.bottom)} px (Lücke: ${Math.round(window.innerHeight - b.bottom)} px)`;
 }
+/* ---------- Tagesplanung: Aktionen ---------- */
+window.planSheet = function (dateKey) {
+  const e = projectPlan(7).find(x => x.k === dateKey);
+  if (!e || e.kind !== "train") return;
+  const wrap = document.createElement("div");
+  wrap.className = "sheetwrap";
+  wrap.onclick = ev => { if (ev.target === wrap) closeSheet(); };
+  wrap.innerHTML = `<div class="sheet">
+    <h4>${WD[e.date.getDay()]} ${esc(fmtDay(e.date))}</h4>
+    <p>${esc(dayTitle(e.d))} — ${esc(daySub(e.d))}</p>
+    <button onclick="planOffToggle('${e.k}')">Geht nicht<small>Der Tag fällt aus, alles rutscht nach hinten.</small></button>
+    <button onclick="planSwapStart('${e.d.key}')">Tauschen<small>Danach den zweiten Tag antippen.</small></button>
+    <button onclick="planDrop('${e.d.key}')">Einheit streichen<small>Fällt dauerhaft weg, erscheint in der Analyse als gestrichen.</small></button>
+    <button class="cancel" onclick="closeSheet()">Abbrechen</button>
+  </div>`;
+  document.body.appendChild(wrap);
+};
+window.closeSheet = function () { const w = document.querySelector(".sheetwrap"); if (w) w.remove(); };
+window.planOffToggle = function (k) {
+  const P = planState(), i = P.off.indexOf(k);
+  if (i >= 0) P.off.splice(i, 1);
+  else {
+    P.off.push(k); P.off.sort();
+    const j = P.force.indexOf(k); if (j >= 0) P.force.splice(j, 1);
+  }
+  closeSheet(); markDirty(); render();
+};
+window.planForce = function (k) {
+  const P = planState();
+  if (P.force.indexOf(k) < 0) P.force.push(k);
+  const j = P.off.indexOf(k); if (j >= 0) P.off.splice(j, 1);
+  closeSheet(); markDirty(); render();
+};
+window.planSwapStart = function (dayKey) { swapFrom = dayKey; closeSheet(); render(); };
+window.planSwapCancel = function () { swapFrom = null; render(); };
+window.planSwapWith = function (dayKey) {
+  if (!swapFrom || dayKey === swapFrom) { swapFrom = null; render(); return; }
+  planState().swaps.push([swapFrom, dayKey]);
+  swapFrom = null; markDirty(); render();
+};
+window.planDrop = function (dayKey) {
+  const d = planDays().find(x => x.key === dayKey);
+  if (!d) return;
+  closeSheet();
+  if (!confirm(`„${dayTitle(d)}" streichen?\n\nDie Einheit fällt dauerhaft weg. In der Analyse erscheint sie als gestrichen — zurückholen kannst du sie dort jederzeit.`)) return;
+  planState().dropped.push(dayKey);
+  logEv("drop", d.items[0].id);
+  markDirty(); render();
+};
+window.planUndrop = function (dayKey) {
+  const P = planState(), i = P.dropped.indexOf(dayKey);
+  if (i >= 0) P.dropped.splice(i, 1);
+  markDirty(); render();
+};
+
 window.manualSync = async function () { lsSet(DIRTY_KEY, "1"); await pushProgress(); renderSettings(); };
 window.reconnect = function () { renderSetup(); };
 window.doExport = function () {
@@ -1181,6 +1526,7 @@ window.startNewRun = function () {
   S.run = runNo + 1;
   S.checked = {};
   S.resultsByItem = {};
+  S.plan = { off: [], force: [], dropped: [], swaps: [] };   // Planung gehört zum Durchlauf
   logEv("run-start", "run-" + S.run);
   markDirty();
   location.hash = "";
