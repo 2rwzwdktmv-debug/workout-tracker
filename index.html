@@ -217,8 +217,11 @@
     border: 1px solid var(--line); border-radius: var(--r-lg);
     padding: 16px 18px; margin-bottom: 14px;
   }
+  .today .thead { display: flex; align-items: flex-start; gap: 8px; margin-right: -6px; }
+  .today .thead .k { flex: 1; min-width: 0; padding-top: 2px; }
   .today .k { font-size: 11px; letter-spacing: 1.4px; text-transform: uppercase; color: var(--lime); font-weight: 800; }
   .today.quiet .k { color: var(--muted); }
+  .today.sel { border-color: var(--lime); }
   .today .v { font-size: 19px; font-weight: 800; margin: 4px 0 2px; letter-spacing: -.3px; }
   .today .s { font-size: 13px; color: var(--muted); }
   .today .cta {
@@ -241,7 +244,7 @@
     font-size: 10.5px; font-weight: 800; color: var(--muted); background: var(--surface2);
     border-radius: 99px; padding: 3px 9px; flex-shrink: 0;
   }
-  .pd .dots { color: var(--muted); font-size: 17px; font-weight: 800; padding: 4px 6px; flex-shrink: 0; }
+  .dots { color: var(--muted); font-size: 17px; font-weight: 800; padding: 4px 8px; flex-shrink: 0; }
   .pd.muted .dt .dn { color: var(--muted); font-weight: 700; }
   .pd.muted .inf .t { color: var(--muted); font-weight: 700; }
   .pd.off .inf .t { text-decoration: line-through; }
@@ -855,11 +858,17 @@ function renderPlan() {
   }
 
   if (first.kind === "train") {
-    html += `<div class="today">
-      <div class="k">Heute · ${WD[first.date.getDay()]} ${esc(fmtDay(first.date))}</div>
+    const istQuelle = swapFrom === first.d.key;
+    html += `<div class="today ${istQuelle ? "sel" : ""}">
+      <div class="thead">
+        <div class="k">Heute · ${WD[first.date.getDay()]} ${esc(fmtDay(first.date))}</div>
+        <span class="dots" onclick="planSheet('${first.k}')">⋯</span>
+      </div>
       <div class="v">${esc(dayTitle(first.d))}</div>
       <div class="s">${esc(daySub(first.d))}</div>
-      <button class="cta" onclick="location.hash='#d/${first.d.pi}/${first.d.wi}/${first.d.di}'">Training starten</button>
+      ${(swapFrom && !istQuelle)
+        ? `<button class="cta" onclick="planSwapWith('${first.d.key}')">Hierher tauschen</button>`
+        : `<button class="cta" onclick="location.hash='#d/${first.d.pi}/${first.d.wi}/${first.d.di}'">Training starten</button>`}
     </div>`;
   } else if (first.kind === "donetoday") {
     const nx = days.find(x => x.kind === "train");
