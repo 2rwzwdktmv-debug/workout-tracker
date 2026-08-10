@@ -1259,7 +1259,10 @@ function renderTrack(id) {
       html += `<div class="tnote">Diese Woche schon ${part.perWeek}× gemacht — heute aussetzen.</div>`;
     } else {
       html += `<h2 class="section">${esc(part.name)} eintragen</h2>`;
-      if (part.warmup) html += `<div class="tnote">Vorher: ${esc(part.warmup)}</div>`;
+      const pre = [];
+      if (part.warmup) pre.push(`Vorher: ${esc(part.warmup)}`);
+      if (part.rest) pre.push(`Pause: ${esc(part.rest)}`);
+      if (pre.length) html += `<div class="tnote">${pre.join("<br>")}</div>`;
       if (pr) {
         const sug = trSuggest(id, part);
         for (let i = 0; i < pr.sets; i++) {
