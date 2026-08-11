@@ -206,6 +206,17 @@
     margin-top: 5px; text-align: left;
   }
   .item.checked .exnote { display: none; }
+  /* eigene Ergänzungen — klar vom Originaltext des Plans getrennt */
+  .own {
+    margin: 10px 0 0 42px; padding: 9px 12px; font-size: 13.5px; color: #c9cfda;
+    background: color-mix(in srgb, var(--lime) 7%, var(--bg));
+    border-left: 2px solid var(--lime); border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  }
+  .own b {
+    display: block; font-size: 10.5px; letter-spacing: 1.2px; text-transform: uppercase;
+    color: var(--lime); font-weight: 800; margin-bottom: 3px;
+  }
+  .item.checked .own { display: none; }
   .rest { text-align: center; padding: 34px 14px; color: var(--muted); }
   .rest .z { font-size: 36px; }
   .flash { animation: flash 1.6s ease-out 1; }
@@ -1379,6 +1390,7 @@ function renderDay(pi, wi, di) {
           </div>
         </div>
         ${item.body ? `<div class="body">${fmtBody(item.body)}</div>` : ""}
+        ${item.own ? `<div class="own"><b>Meine Regel</b>${esc(item.own)}</div>` : ""}
         ${renderExercises(item)}
         ${item.after ? `<div class="body">${fmtBody(item.after)}</div>` : ""}
         ${item.key ? renderResult(item) : ""}
