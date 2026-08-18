@@ -861,9 +861,14 @@ function projectPlan(n) {
    echte Daten da sind der tatsächliche Schnitt der letzten 4 Wochen. */
 function planRate() {
   const from = dkey(addDays(today0(), -28));
-  let n = 0;
-  trainedDayKeys().forEach(k => { if (k >= from) n++; });
-  return n >= 8 ? { r: n / 28, real: true } : { r: MAX_STREAK / 7, real: false };
+  const win = Array.from(trainedDayKeys()).filter(k => k >= from).sort();
+  if (win.length < 8) return { r: MAX_STREAK / 7, real: false };
+  // Durch den TATSÄCHLICH beobachteten Zeitraum teilen, nicht stur durch 28 —
+  // wer erst seit zwei Wochen trainiert, hat sonst den halben Schnitt und ein
+  // absurd fernes Enddatum. Unter zwei Wochen Historie bleibt die Planannahme.
+  const span = dayGap(win[0], dkey(today0())) + 1;
+  if (span < 14) return { r: MAX_STREAK / 7, real: false };
+  return { r: win.length / span, real: true };
 }
 /* Voraussichtliches Ende: aus der Projektion (kennt Ausfalltage und Ruhetage
    exakt). Sobald ein echter Schnitt vorliegt und der schlechter ist als die
