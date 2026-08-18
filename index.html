@@ -817,6 +817,18 @@ function prunePlan() {
   P.swaps = P.swaps.filter(pair =>
     pair.every(k => byKey[k] && !dropped.has(k) && !dayDone(byKey[k])));
 }
+/* An welchem Plan-Tag wurde an diesem Datum gearbeitet? (für "heute erledigt") */
+function dayWorkedOn(dateK) {
+  const ids = Object.keys(S.checked).filter(id =>
+    typeof S.checked[id] === "string" && dkey(new Date(S.checked[id])) === dateK);
+  if (!ids.length) return null;
+  let best = null, bestN = 0;
+  planDays().forEach(pd => {
+    const n = pd.items.filter(i => ids.indexOf(i.id) >= 0).length;
+    if (n > bestN) { bestN = n; best = pd; }
+  });
+  return best;
+}
 /* Die eigentliche Projektion: n Kalendertage ab heute. */
 function projectPlan(n) {
   const P = planState();
@@ -830,7 +842,13 @@ function projectPlan(n) {
   let qi = 0, d = today0();
   for (let i = 0; i < n; i++) {
     const k = dkey(d);
-    if (i === 0 && trained.has(k)) { out.push({ date: new Date(d), k, kind: "donetoday" }); streak++; }
+    // Heute gilt erst als abgeschlossen, wenn die Einheit nicht mehr offen ist.
+    // Ein einzelnes Häkchen macht den Tag noch nicht fertig — sonst verschwindet
+    // die laufende Einheit (und ihre Zusatzarbeit) beim ersten Abhaken.
+    const headOpen = i === 0 && q.length && q[0].items.some(it => S.checked[it.id]);
+    if (i === 0 && trained.has(k) && !headOpen) {
+      out.push({ date: new Date(d), k, kind: "donetoday", d: dayWorkedOn(k) }); streak++;
+    }
     else if (off.has(k)) { out.push({ date: new Date(d), k, kind: "off" }); streak = 0; }
     else if (streak >= MAX_STREAK && !force.has(k)) { out.push({ date: new Date(d), k, kind: "rest" }); streak = 0; }
     else if (qi < q.length) { out.push({ date: new Date(d), k, kind: "train", d: q[qi++] }); streak++; }
@@ -922,23 +940,29 @@ function planExtras(days) {
     const lastLog = st.log.map(l => l.d).sort().pop() || null;
     const byWeek = {};
     days.forEach(e => {
-      if (e.kind !== "train" && e.kind !== "rest") return;
+      if (e.kind !== "train" && e.kind !== "rest" && e.kind !== "donetoday") return;
       const wk = weekKeyOf(e.date);
       (byWeek[wk] = byWeek[wk] || []).push(e);
     });
     Object.keys(byWeek).forEach(wk => {
+      // Schon protokollierte Einheiten im Fenster immer zeigen (als ✓), auch wenn
+      // die Wochenkappe damit erschöpft ist — sonst verliert man die Bestätigung.
+      byWeek[wk].forEach(e => { if (trLoggedOn(tr.id, e.k)) put(e.k, tr.id); });
       let left = perWeek - trDoneInWeek(tr.id, byWeek[wk][0].k);
       if (left <= 0) return;
-      const trainDays = byWeek[wk].filter(e => e.kind === "train");
+      // "heute erledigt" ist ein Trainingstag — die Zusatzarbeit gehört weiter dorthin
+      const trainDays = byWeek[wk].filter(e => e.kind === "train" || e.kind === "donetoday");
+      const anchorOf = e => e.d ? dayAnchor(e.d) : { lower: false, upper: false };
       let pool;
       if (sc.mode === "anchor") {
-        pool = trainDays.filter(e => dayAnchor(e.d)[sc.anchor]);
+        pool = trainDays.filter(e => anchorOf(e)[sc.anchor]);
       } else {
         // Anker zuerst (dort ist die Platzierungsregel erfüllt), dann die ruhigsten Tage
-        const score = e => (sc.prefer && dayAnchor(e.d)[sc.prefer] ? 0 : 10)
-          + sessCount(e.d) + ((out[e.k] || []).length ? 3 : 0);
+        const score = e => (sc.prefer && anchorOf(e)[sc.prefer] ? 0 : 10)
+          + (e.d ? sessCount(e.d) : 1) + ((out[e.k] || []).length ? 3 : 0);
         pool = trainDays.slice().sort((a, b) => score(a) - score(b) || (a.k < b.k ? -1 : 1));
       }
+      pool = pool.filter(e => !trLoggedOn(tr.id, e.k));
       const chosen = [];
       const fits = k => [lastLog].concat(chosen).filter(Boolean).every(o => dayGap(o, k) > minGap);
       pool.forEach(e => { if (chosen.length < left && fits(e.k)) chosen.push(e.k); });
@@ -1087,6 +1111,14 @@ function renderPlan() {
       <button onclick="planSwapCancel()">abbrechen</button></div>`;
   }
 
+  // Zusatzarbeit hängt nicht an der Plan-Einheit — sie gehört auf die Karte,
+  // egal ob heute noch offen, schon erledigt, Ruhetag oder Ausfalltag ist.
+  const xBtns = (extras[first.k] || []).map(id => {
+    const tr = trackDef(id); if (!tr) return "";
+    const done = trLoggedOn(id, first.k);
+    return `<button class="cta xcta ${done ? "done" : ""}" onclick="location.hash='#t/${id}'">＋ ${esc(tr.name)} · Stufe ${trStep(id, tr.parts[0].id)}${done ? " ✓" : ""}</button>`;
+  }).join("");
+
   if (first.kind === "train") {
     const istQuelle = swapFrom === first.d.key;
     html += `<div class="today ${istQuelle ? "sel" : ""}">
@@ -1099,18 +1131,16 @@ function renderPlan() {
       ${(swapFrom && !istQuelle)
         ? `<button class="cta" onclick="planSwapWith('${first.d.key}')">Hierher tauschen</button>`
         : `<button class="cta" onclick="location.hash='#d/${first.d.pi}/${first.d.wi}/${first.d.di}'">Training starten</button>`}
-      ${(extras[first.k] || []).map(id => {
-        const tr = trackDef(id); if (!tr) return "";
-        const done = trLoggedOn(id, first.k);
-        return `<button class="cta xcta ${done ? "done" : ""}" onclick="location.hash='#t/${id}'">＋ ${esc(tr.name)} · Stufe ${trStep(id, tr.parts[0].id)}${done ? " ✓" : ""}</button>`;
-      }).join("")}
+      ${xBtns}
     </div>`;
   } else if (first.kind === "donetoday") {
     const nx = days.find(x => x.kind === "train");
     html += `<div class="today quiet">
-      <div class="k">Heute</div>
-      <div class="v">Erledigt ✓</div>
+      <div class="k">Heute · ${WD[first.date.getDay()]} ${esc(fmtDay(first.date))}</div>
+      <div class="v">${first.d ? esc(dayTitle(first.d)) + " ✓" : "Erledigt ✓"}</div>
       <div class="s">${nx ? "Als Nächstes: " + esc(dayTitle(nx.d)) : "Weiter geht's demnächst."}</div>
+      ${first.d ? `<button class="cta ghost" onclick="location.hash='#d/${first.d.pi}/${first.d.wi}/${first.d.di}'">Einheit ansehen</button>` : ""}
+      ${xBtns}
     </div>`;
   } else if (first.kind === "off") {
     html += `<div class="today quiet">
@@ -1118,6 +1148,7 @@ function renderPlan() {
       <div class="v">Geht nicht</div>
       <div class="s">Als Ausfalltag markiert — alles rutscht nach hinten.</div>
       <button class="cta ghost" onclick="planOffToggle('${first.k}')">Doch, geht</button>
+      ${xBtns}
     </div>`;
   } else if (first.kind === "rest") {
     html += `<div class="today quiet">
@@ -1125,6 +1156,7 @@ function renderPlan() {
       <div class="v">Ruhetag</div>
       <div class="s">${MAX_STREAK} Trainingstage am Stück sind genug.</div>
       <button class="cta ghost" onclick="planForce('${first.k}')">Trotzdem trainieren</button>
+      ${xBtns}
     </div>`;
   }
 
