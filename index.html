@@ -1042,10 +1042,7 @@ const titleEl = document.getElementById("title");
 const backBtn = document.getElementById("backBtn");
 backBtn.onclick = () => { history.back(); };
 document.getElementById("navHome").onclick = () => { location.hash = ""; };
-document.getElementById("navWeek").onclick = () => {
-  const cur = FLAT.find(f => !S.checked[f.item.id]) || FLAT[FLAT.length - 1];
-  if (cur) location.hash = `#w/${cur.pi}/${cur.wi}`;
-};
+document.getElementById("navWeek").onclick = () => { location.hash = "#weeks"; };
 document.getElementById("navGo").onclick = () => goContinue();
 document.getElementById("navStats").onclick = () => { location.hash = "#stats"; };
 document.getElementById("navSet").onclick = () => { location.hash = "#settings"; };
@@ -1064,6 +1061,7 @@ function render() {
   const st = window.scrollY;
   if (seg[0] === "settings") renderSettings();
   else if (seg[0] === "stats") renderStats();
+  else if (seg[0] === "weeks") renderWeeks();
   else if (seg[0] === "t") renderTrack(seg[1]);
   else if (seg[0] === "d") renderDay(+seg[1], +seg[2], +seg[3]);
   else if (seg[0] === "w") renderWeek(+seg[1], +seg[2]);
@@ -1215,8 +1213,8 @@ function renderHome() {
   const posTxt = next
     ? `${PROGRAM[next.pi].name} · ${PROGRAM[next.pi].weeks[next.wi].name}`
     : "Alles erledigt! 🎉";
-  let html = renderPlan() + `
-    <div class="hero" style="margin-top:22px">
+  let html = `
+    <div class="hero">
       <div class="ringwrap">${ring(p, 108, 10)}
         <div class="mid"><b>${p}%</b><span>gesamt</span></div>
       </div>
@@ -1229,9 +1227,20 @@ function renderHome() {
     <div class="stats">
       <div class="stat"><b>${done}</b><span>Parts erledigt</span></div>
       <div class="stat"><b>${nResults}</b><span>Ergebnisse geloggt</span></div>
-    </div>`;
+    </div>
+    <div style="margin-top:22px"></div>` + renderPlan();
+  html += `<div class="foot">privater Tracker · ${mode === "github" ? "Sync: GitHub" : "lokaler Modus"}</div>`;
+  main.innerHTML = html;
+}
+
+/* Woche-Tab: Übersicht aller Parts mit ihren Wochen. Von hier in die Tagesliste. */
+function renderWeeks() {
+  backBtn.style.display = "none";
+  titleEl.textContent = PLAN_TITLE;
+  setNav("week");
+  let html = "";
   PROGRAM.forEach((part, pi) => {
-    html += `<h2 class="section"><em>${esc(part.name)}</em> of ${PROGRAM.length}</h2><div class="grid">`;
+    html += `<h2 class="section" style="margin-top:${pi ? 24 : 6}px"><em>${esc(part.name)}</em> of ${PROGRAM.length}</h2><div class="grid">`;
     part.weeks.forEach((week, wi) => {
       const items = weekItems(week), d = countDone(items), wp = pct(d, items.length);
       html += `<button class="card wk ${wp === 100 ? "done" : ""}" onclick="location.hash='#w/${pi}/${wi}'">
@@ -1243,7 +1252,6 @@ function renderHome() {
     });
     html += `</div>`;
   });
-  html += `<div class="foot">privater Tracker · ${mode === "github" ? "Sync: GitHub" : "lokaler Modus"}</div>`;
   main.innerHTML = html;
 }
 
