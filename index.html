@@ -857,34 +857,19 @@ function projectPlan(n) {
   }
   return out;
 }
-/* Trainingstage pro Kalendertag: anfangs die Planannahme (6 von 7), sobald genug
-   echte Daten da sind der tatsächliche Schnitt der letzten 4 Wochen. */
-function planRate() {
-  const from = dkey(addDays(today0(), -28));
-  const win = Array.from(trainedDayKeys()).filter(k => k >= from).sort();
-  if (win.length < 8) return { r: MAX_STREAK / 7, real: false };
-  // Durch den TATSÄCHLICH beobachteten Zeitraum teilen, nicht stur durch 28 —
-  // wer erst seit zwei Wochen trainiert, hat sonst den halben Schnitt und ein
-  // absurd fernes Enddatum. Unter zwei Wochen Historie bleibt die Planannahme.
-  const span = dayGap(win[0], dkey(today0())) + 1;
-  if (span < 14) return { r: MAX_STREAK / 7, real: false };
-  return { r: win.length / span, real: true };
-}
-/* Voraussichtliches Ende: aus der Projektion (kennt Ausfalltage und Ruhetage
-   exakt). Sobald ein echter Schnitt vorliegt und der schlechter ist als die
-   Projektion, gewinnt der Schnitt — lieber ehrlich als optimistisch. */
+/* Voraussichtliches Ende: reine Projektion. Ein Plan-Tag pro verfügbarem
+   Kalendertag, Ruhetagsregel und markierte Ausfalltage berücksichtigt.
+   Absichtlich KEIN Durchschnitt: Wer einen Tag auslässt, verschiebt das Ende
+   genau dann um einen Tag — vorher wird nichts hineingerechnet.              */
 function planEnd() {
   const q = planQueue();
   if (!q.length) return null;
-  const rate = planRate();
-  const byRate = addDays(today0(), Math.ceil(q.length / rate.r));
-  let last = null, seen = 0;
-  const days = projectPlan(Math.min(500, q.length * 3 + 30));
+  const days = projectPlan(Math.min(600, q.length * 3 + 60));
+  let seen = 0, last = null;
   for (let i = 0; i < days.length; i++) {
     if (days[i].kind === "train") { seen++; last = days[i].date; if (seen >= q.length) break; }
   }
-  if (!last || (rate.real && byRate > last)) return { date: byRate, real: rate.real };
-  return { date: last, real: rate.real };
+  return last ? { date: last } : null;
 }
 
 /* ---------- Stufenleitern (Zusatzarbeit) ----------
@@ -1202,8 +1187,9 @@ function renderPlan() {
   if (trSum) html += `<div class="planfoot" style="margin-top:12px">Diese Woche · ${trSum}</div>`;
 
   const end = planEnd();
-  html += `<div class="planfoot" style="margin-top:6px">Ende vorauss. ${esc(end.date.toLocaleDateString("de-DE", { day: "numeric", month: "short" }))}
-    · noch ${q.length} Einheiten${end.real ? " · bei deinem Schnitt" : ""}</div>`;
+  html += `<div class="planfoot" style="margin-top:6px">${end
+    ? "Ende vorauss. " + esc(end.date.toLocaleDateString("de-DE", { day: "numeric", month: "short" })) + " · "
+    : ""}noch ${q.length} Einheiten</div>`;
   return html;
 }
 
