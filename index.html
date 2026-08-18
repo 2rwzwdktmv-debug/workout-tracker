@@ -175,6 +175,18 @@
   }
   .exw:focus { outline: none; border-color: color-mix(in srgb, var(--lime) 55%, transparent); }
   .exnote { color: var(--muted); font-size: 12.5px; margin-top: 3px; }
+  .exset { display: flex; align-items: center; gap: 8px; margin-top: 7px; }
+  .exset .sl { font-size: 11.5px; color: var(--muted); font-weight: 700; flex: 1; min-width: 0; }
+  .exset .su { font-size: 12px; color: var(--muted); flex-shrink: 0; }
+  .exn {
+    width: 68px; flex-shrink: 0; font: inherit; font-size: 16px; color: var(--ink); text-align: right;
+    background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 7px 9px;
+  }
+  .exn:focus { outline: none; border-color: color-mix(in srgb, var(--lime) 55%, transparent); }
+  .exok { font-size: 15px; font-weight: 800; flex-shrink: 0; }
+  .exok.yes { color: var(--lime); }
+  .exok.no { color: var(--amber); }
+  @media (max-width: 370px) { .exn { width: 60px; } .exset .sl { font-size: 11px; } }
   .expre { color: var(--lime); font-size: 12.5px; font-weight: 700; margin-top: 3px; opacity: .9; }
   .rmgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px; }
   .rmcell span { display: block; font-size: 12px; color: var(--muted); font-weight: 700; margin-bottom: 4px; }
@@ -1431,16 +1443,65 @@ function renderDay(pi, wi, di) {
   main.innerHTML = html;
 }
 
+/* "85x6" -> {w:85, r:6}. Toleriert Komma und Leerzeichen; null wenn unlesbar. */
+function parseSet(v) {
+  const m = String(v || "").replace(",", ".").match(/(\d+(?:\.\d+)?)\s*[x\u00d7]\s*(\d+)/i);
+  return m ? { w: parseFloat(m[1]), r: parseInt(m[2], 10) } : null;
+}
+/* Sollwiederholungen aus dem Übungsnamen ("Bench Press 2x8" -> 8) */
+function targetReps(ex) {
+  const m = String(ex.name || "").match(/(\d+)\s*[x\u00d7]\s*(\d+)/i);
+  return m ? parseInt(m[2], 10) : null;
+}
+/* Rampe = mehrere Prozentwerte -> der SCHWERSTE Satz zählt, sonst der schwächste */
+function isRamp(ex) { return (ex.pct || []).length > 1; }
+function isRmEx(ex) { return !!(ex.rm && ex.pct && ex.pct.length); }
+/* 1RM-Stand zu einem Zeitpunkt — damit alte Einträge gegen die Vorgabe von
+   DAMALS bewertet werden und nicht rückwirkend als verfehlt gelten. */
+function rmAt(k, iso) {
+  let v = null;
+  (S.rmLog || []).forEach(e => { if (e.k === k && e.value != null && (!iso || e.t <= iso)) v = e.value; });
+  return v != null ? v : parseFloat((S.oneRM || {})[k]);
+}
+/* Wann wurde dieser Eintrag gespeichert? */
+function resultDate(exKey, rid) {
+  const e = (S.results[exKey] || []).find(x => x.itemId === rid && (x.run || 1) === (S.run || 1));
+  return e ? e.date : null;
+}
+/* Vorgegebenes Spitzengewicht dieser Übung (optional zum Zeitpunkt iso) */
+function targetWeight(ex, iso) {
+  const base = iso ? rmAt(ex.rm, iso) : parseFloat((S.oneRM || {})[ex.rm]);
+  if (!base || !ex.pct || !ex.pct.length) return null;
+  return mround25(base * Math.max.apply(null, ex.pct));
+}
+
 function renderExercise(item, ex) {
   const rid = item.id + "/" + ex.k;
   const val = S.resultsByItem[rid] || "";
   const last = lastResult(ex.k, rid);
-  let h = `<div class="ex">
-    <div class="exrow">
+  let h = `<div class="ex">`;
+  if (isRmEx(ex)) {
+    const cur = parseSet(val);
+    const tw = targetWeight(ex, resultDate(ex.k, rid)), tr = targetReps(ex);
+    const geschafft = cur && tw != null && cur.w >= tw && (tr == null || cur.r >= tr);
+    h += `<div class="exrow"><div class="exname">${esc(ex.name)}</div>
+      ${cur ? `<span class="exok ${geschafft ? "yes" : "no"}">${geschafft ? "✓" : "–"}</span>` : ""}</div>
+      <div class="exset">
+        <span class="sl">${isRamp(ex) ? "Schwerster" : "Schwächster"} Satz</span>
+        <input class="exn" type="number" inputmode="decimal" step="2.5" placeholder="kg"
+          id="exw-${rid}" value="${cur ? cur.w : ""}" onchange="setExSet('${rid}','${ex.k}')">
+        <span class="su">kg ×</span>
+        <input class="exn" type="number" inputmode="numeric" placeholder="Wdh."
+          id="exr-${rid}" value="${cur ? cur.r : ""}" onchange="setExSet('${rid}','${ex.k}')">
+      </div>`;
+    if (val && !cur) h += `<div class="exnote">bisher eingetragen: ${esc(val)}</div>`;
+  } else {
+    h += `<div class="exrow">
       <div class="exname">${esc(ex.name)}</div>
       <input class="exw" type="text" placeholder="Gewicht" value="${esc(val)}"
         onchange="setResult('${rid}','${ex.k}',this.value)">
     </div>`;
+  }
   const pre = prescription(ex);
   if (pre) h += `<div class="expre">Vorgabe: ${esc(pre)}</div>`;
   if (ex.note) h += `<div class="exnote">${esc(ex.note)}</div>`;
@@ -1805,6 +1866,113 @@ function renderStats() {
     <div class="foot">Datenquellen: Trainingslog, 1RM-Verlauf, Gewichts-Einträge</div>`;
   main.innerHTML = html;
 }
+
+/* ---------- Steigerung der schweren Lifts ----------
+   Eine Einheit = alle Übungen desselben Lifts an EINEM Plan-Tag. Erst wenn
+   jede davon Gewicht und Wiederholungen erreicht, wird eine Steigerung
+   angeboten. Der 1RM-Sprung wird rückwärts aus der 2,5-kg-Rundung gerechnet:
+   der kleinste Wert, der JEDE Übung der Gruppe um eine Rasterstufe hebt.     */
+function liftGroup(itemId, rmKey) {
+  const base = String(itemId).split("/")[0];
+  const f = FLAT.find(x => x.item.id === base);
+  if (!f) return [];
+  const day = PROGRAM[f.pi].weeks[f.wi].days[f.di];
+  const out = [];
+  day.sessions.forEach(s => s.items.forEach(it => (it.exercises || []).forEach(ex => {
+    if (ex.rm === rmKey && isRmEx(ex)) out.push({ item: it, ex: ex });
+  })));
+  return out;
+}
+function exAchieved(it, ex) {
+  const rid = it.id + "/" + ex.k;
+  const cur = parseSet(S.resultsByItem[rid]);
+  const tw = targetWeight(ex, resultDate(ex.k, rid)), tr = targetReps(ex);
+  if (!cur || tw == null) return null;                 // nichts eingetragen -> unbekannt
+  return cur.w >= tw && (tr == null || cur.r >= tr);
+}
+/* Kleinster 1RM (0,5-kg-Schritte), der jede Übung der Gruppe um >=2,5 kg hebt */
+function nextRM(group, dir) {
+  const k = group[0].ex.rm;
+  const base = parseFloat((S.oneRM || {})[k]);
+  if (!base) return null;
+  const soll = group.map(g => mround25(base * Math.max.apply(null, g.ex.pct)));
+  const step = dir < 0 ? -0.5 : 0.5;
+  let r = base;
+  for (let i = 0; i < 200; i++) {
+    r = Math.round((r + step) * 2) / 2;
+    if (r <= 0) return null;
+    const ok = group.every((g, j) => {
+      const w = mround25(r * Math.max.apply(null, g.ex.pct));
+      return dir < 0 ? w <= soll[j] - 2.5 : w >= soll[j] + 2.5;
+    });
+    if (ok) return r;
+  }
+  return null;
+}
+/* Wie oft wurde dieser Lift zuletzt hintereinander verfehlt? (abgeleitet, kein Zustand) */
+function missStreak(rmKey) {
+  const tage = [];
+  PROGRAM.forEach((part, pi) => part.weeks.forEach((week, wi) => week.days.forEach((day, di) => {
+    const exs = [];
+    day.sessions.forEach(s => s.items.forEach(it => (it.exercises || []).forEach(ex => {
+      if (ex.rm === rmKey && isRmEx(ex)) exs.push({ item: it, ex: ex });
+    })));
+    if (exs.length) tage.push(exs);
+  })));
+  // Für die Senkung zählt nur der SCHWERSTE Satz des Tages. Eine verfehlte
+  // Wiederholung im Rückwärtssatz sagt nichts über den 1RM aus — nach oben
+  // muss dagegen die ganze Gruppe sitzen (asymmetrisch, absichtlich).
+  let streak = 0;
+  for (let i = tage.length - 1; i >= 0; i--) {
+    const top = tage[i].slice().sort((a, b) =>
+      Math.max.apply(null, b.ex.pct) - Math.max.apply(null, a.ex.pct))[0];
+    const res = exAchieved(top.item, top.ex);
+    if (res === null) continue;                        // Tag noch nicht bearbeitet
+    if (res === false) streak++; else break;
+  }
+  return streak;
+}
+window.setExSet = function (rid, key) {
+  const w = parseFloat(String((document.getElementById("exw-" + rid) || {}).value || "").replace(",", "."));
+  const r = parseInt(String((document.getElementById("exr-" + rid) || {}).value || ""), 10);
+  const val = (isFinite(w) && w > 0 && isFinite(r) && r > 0) ? fmtW(w) + "x" + r : "";
+  setResult(rid, key, val.replace(",", "."));          // Speicherformat bleibt "85x6"
+  if (!val) return;
+
+  const base = String(rid).split("/")[0];
+  const f = FLAT.find(x => x.item.id === base);
+  const ex = (ITEM_INDEX[base] && (ITEM_INDEX[base].exercises || []).find(e => e.k === key)) || null;
+  if (!f || !ex || !isRmEx(ex)) return;
+
+  const group = liftGroup(base, ex.rm);
+  const res = group.map(g => exAchieved(g.item, g.ex));
+  const label = (RM_KEYS.find(x => x[0] === ex.rm) || [ex.rm, ex.rm])[1].replace(/\s*\(.*/, "");
+
+  if (res.every(x => x === true)) {
+    const rn = nextRM(group, +1);
+    if (rn == null) return;
+    const alt = S.oneRM[ex.rm];
+    const zeilen = group.map(g => {
+      const top = Math.max.apply(null, g.ex.pct);
+      return `${g.ex.name}: ${fmtW(mround25(alt * top))} → ${fmtW(mround25(rn * top))} kg`;
+    }).join("\n");
+    if (confirm(`${label} komplett geschafft.\n\n1RM von ${fmtW(alt)} auf ${fmtW(rn)} kg anheben?\n\nNächstes Mal:\n${zeilen}`)) {
+      setRM(ex.rm, rn);
+      render();
+    }
+    return;
+  }
+  // Gegenrichtung: zweimal hintereinander verfehlt -> Senken anbieten
+  if (res.some(x => x === false) && res.every(x => x !== null) && missStreak(ex.rm) >= 2) {
+    const rn = nextRM(group, -1);
+    if (rn == null) return;
+    const alt = S.oneRM[ex.rm];
+    if (confirm(`${label} zum zweiten Mal hintereinander verfehlt.\n\n1RM von ${fmtW(alt)} auf ${fmtW(rn)} kg senken, damit die Vorgaben wieder treffbar sind?`)) {
+      setRM(ex.rm, rn);
+      render();
+    }
+  }
+};
 
 window.setRM = function (k, v) {
   v = parseFloat(String(v).trim().replace(",", "."));
