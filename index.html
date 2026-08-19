@@ -1487,7 +1487,7 @@ function renderExercise(item, ex) {
     h += `<div class="exrow"><div class="exname">${esc(ex.name)}</div>
       ${cur ? `<span class="exok ${geschafft ? "yes" : "no"}">${geschafft ? "✓" : "–"}</span>` : ""}</div>
       <div class="exset">
-        <span class="sl">${isRamp(ex) ? "Schwerster" : "Schwächster"} Satz</span>
+        <span class="sl">Schwächster Satz</span>
         <input class="exn" type="number" inputmode="decimal" step="2.5" placeholder="kg"
           id="exw-${rid}" value="${cur ? cur.w : ""}" onchange="setExSet('${rid}','${ex.k}')">
         <span class="su">kg ×</span>
@@ -1578,7 +1578,7 @@ window.checkSession = function (pi, wi, di, si) {
   markDirty();
   render();
 };
-window.setResult = function (id, key, value) {
+window.setResult = function (id, key, value, quiet) {
   value = (value || "").trim();
   if (value) S.resultsByItem[id] = value; else delete S.resultsByItem[id];
   const arr = (S.results[key] = S.results[key] || []);
@@ -1587,7 +1587,7 @@ window.setResult = function (id, key, value) {
   if (idx >= 0) arr.splice(idx, 1);
   if (value) { arr.push({ value, date: new Date().toISOString(), itemId: id, run: S.run || 1 }); logEv("weight", id, { k: key, value }); }
   markDirty();
-  render();
+  if (!quiet) render();
 };
 window.fillResult = function (id, key, value) { window.setResult(id, key, value); };
 
@@ -1895,17 +1895,20 @@ function nextRM(group, dir) {
   const k = group[0].ex.rm;
   const base = parseFloat((S.oneRM || {})[k]);
   if (!base) return null;
-  const soll = group.map(g => mround25(base * Math.max.apply(null, g.ex.pct)));
+  // Maßstab ist die SCHWERSTE Übung der Gruppe. Leichtere Sätze dürfen bei
+  // einem Rundungsschritt stehenbleiben — der 1RM soll klein und stetig
+  // wachsen, nicht in Sprüngen, die jede Vorgabe gleichzeitig mitziehen.
+  const ref = group.slice().sort((a, b) =>
+    Math.max.apply(null, b.ex.pct) - Math.max.apply(null, a.ex.pct))[0];
+  const top = Math.max.apply(null, ref.ex.pct);
+  const soll = mround25(base * top);
   const step = dir < 0 ? -0.5 : 0.5;
   let r = base;
-  for (let i = 0; i < 200; i++) {
+  for (let i = 0; i < 400; i++) {
     r = Math.round((r + step) * 2) / 2;
     if (r <= 0) return null;
-    const ok = group.every((g, j) => {
-      const w = mround25(r * Math.max.apply(null, g.ex.pct));
-      return dir < 0 ? w <= soll[j] - 2.5 : w >= soll[j] + 2.5;
-    });
-    if (ok) return r;
+    const w = mround25(r * top);
+    if (dir < 0 ? w <= soll - 2.5 : w >= soll + 2.5) return r;
   }
   return null;
 }
@@ -1933,16 +1936,30 @@ function missStreak(rmKey) {
   return streak;
 }
 window.setExSet = function (rid, key) {
-  const w = parseFloat(String((document.getElementById("exw-" + rid) || {}).value || "").replace(",", "."));
-  const r = parseInt(String((document.getElementById("exr-" + rid) || {}).value || ""), 10);
-  const val = (isFinite(w) && w > 0 && isFinite(r) && r > 0) ? fmtW(w) + "x" + r : "";
-  setResult(rid, key, val.replace(",", "."));          // Speicherformat bleibt "85x6"
-  if (!val) return;
+  const wEl = document.getElementById("exw-" + rid), rEl = document.getElementById("exr-" + rid);
+  const w = parseFloat(String(wEl ? wEl.value : "").replace(",", ".").trim());
+  const r = parseInt(String(rEl ? rEl.value : "").trim(), 10);
+  const hasW = isFinite(w) && w > 0, hasR = isFinite(r) && r > 0;
+  const alt = parseSet(S.resultsByItem[rid]);
+
+  // Teil-Eingaben dürfen NICHT löschen — sonst ist der Wert weg, sobald man
+  // aus dem ersten Feld klickt, bevor das zweite gefüllt ist.
+  const altW = (alt && alt.w) || parseW(S.resultsByItem[rid]) || null;
+  let val;
+  if (hasW && hasR) val = w + "x" + r;          // vollständig
+  else if (hasW) val = String(w);               // nur Gewicht -> merken, nicht löschen
+  else if (hasR && altW) val = altW + "x" + r;  // nur Wdh. -> bekanntes Gewicht behalten
+  else if (hasR) return;                        // Wdh. ohne jedes Gewicht: nichts zu speichern
+  else val = "";                                // beide leer -> löschen
+
+  const komplett = hasW && hasR;
+  const leer = !hasW && !hasR;
+  setResult(rid, key, val, !(komplett || leer));    // bei Teil-Eingabe nicht neu rendern
+  if (!komplett) return;
 
   const base = String(rid).split("/")[0];
-  const f = FLAT.find(x => x.item.id === base);
   const ex = (ITEM_INDEX[base] && (ITEM_INDEX[base].exercises || []).find(e => e.k === key)) || null;
-  if (!f || !ex || !isRmEx(ex)) return;
+  if (!ex || !isRmEx(ex)) return;
 
   const group = liftGroup(base, ex.rm);
   const res = group.map(g => exAchieved(g.item, g.ex));
@@ -1951,23 +1968,23 @@ window.setExSet = function (rid, key) {
   if (res.every(x => x === true)) {
     const rn = nextRM(group, +1);
     if (rn == null) return;
-    const alt = S.oneRM[ex.rm];
+    const a = S.oneRM[ex.rm];
     const zeilen = group.map(g => {
       const top = Math.max.apply(null, g.ex.pct);
-      return `${g.ex.name}: ${fmtW(mround25(alt * top))} → ${fmtW(mround25(rn * top))} kg`;
+      const v1 = mround25(a * top), v2 = mround25(rn * top);
+      return v2 > v1 ? `${g.ex.name}: ${fmtW(v1)} → ${fmtW(v2)} kg`
+                     : `${g.ex.name}: ${fmtW(v1)} kg (bleibt)`;
     }).join("\n");
-    if (confirm(`${label} komplett geschafft.\n\n1RM von ${fmtW(alt)} auf ${fmtW(rn)} kg anheben?\n\nNächstes Mal:\n${zeilen}`)) {
+    if (confirm(`${label} komplett geschafft.\n\n1RM von ${fmtW(a)} auf ${fmtW(rn)} kg anheben?\n\nNächstes Mal:\n${zeilen}`)) {
       setRM(ex.rm, rn);
       render();
     }
     return;
   }
-  // Gegenrichtung: zweimal hintereinander verfehlt -> Senken anbieten
   if (res.some(x => x === false) && res.every(x => x !== null) && missStreak(ex.rm) >= 2) {
     const rn = nextRM(group, -1);
     if (rn == null) return;
-    const alt = S.oneRM[ex.rm];
-    if (confirm(`${label} zum zweiten Mal hintereinander verfehlt.\n\n1RM von ${fmtW(alt)} auf ${fmtW(rn)} kg senken, damit die Vorgaben wieder treffbar sind?`)) {
+    if (confirm(`${label} zum zweiten Mal hintereinander verfehlt.\n\n1RM von ${fmtW(S.oneRM[ex.rm])} auf ${fmtW(rn)} kg senken, damit die Vorgaben wieder treffbar sind?`)) {
       setRM(ex.rm, rn);
       render();
     }
