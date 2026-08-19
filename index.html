@@ -1136,7 +1136,10 @@ function renderPlan() {
   } else if (first.kind === "donetoday") {
     const nx = days.find(x => x.kind === "train");
     html += `<div class="today quiet">
-      <div class="k">Heute · ${WD[first.date.getDay()]} ${esc(fmtDay(first.date))}</div>
+      <div class="thead">
+        <div class="k">Heute · ${WD[first.date.getDay()]} ${esc(fmtDay(first.date))}</div>
+        ${first.d ? `<span class="dots" onclick="reDateSheet(${first.d.pi},${first.d.wi},${first.d.di})" title="War nicht heute">⋯</span>` : ""}
+      </div>
       <div class="v">${first.d ? esc(dayTitle(first.d)) + " ✓" : "Erledigt ✓"}</div>
       <div class="s">${nx ? "Als Nächstes: " + esc(dayTitle(nx.d)) : "Weiter geht's demnächst."}</div>
       ${first.d ? `<button class="cta ghost" onclick="location.hash='#d/${first.d.pi}/${first.d.wi}/${first.d.di}'">Einheit ansehen</button>` : ""}
@@ -2075,6 +2078,49 @@ window.trSetStep = function (id, partId, val) {
   const to = parseInt(val, 10);
   if (!isFinite(to) || to === trStep(id, partId)) return;
   trAdvance(id, partId, to);
+  render();
+};
+
+/* ---------- Einheit nachträglich umdatieren ----------
+   Trainiert am Vortag, aber erst heute abgehakt: Es genügt, die Zeitstempel
+   dieser Einheit umzuschreiben. Der Rest (heutiger Tag wieder frei, Ruhetags-
+   regel, Statistik) ergibt sich daraus von selbst.                            */
+window.reDateSheet = function (pi, wi, di) {
+  const opt = (n) => {
+    const d = addDays(today0(), -n);
+    return `<button onclick="reDateDay(${pi},${wi},${di},'${dkey(d)}')">${n === 1 ? "Gestern" : "Vorgestern"}
+      <small>${WD[d.getDay()]} ${esc(fmtDay(d))}</small></button>`;
+  };
+  const wrap = document.createElement("div");
+  wrap.className = "sheetwrap";
+  wrap.onclick = ev => { if (ev.target === wrap) closeSheet(); };
+  wrap.innerHTML = `<div class="sheet">
+    <h4>Wann war diese Einheit?</h4>
+    <p>${esc(PROGRAM[pi].weeks[wi].name + " · " + PROGRAM[pi].weeks[wi].days[di].label)} — das Datum wird zurückgesetzt, der Plan rutscht entsprechend nach vorne.</p>
+    ${opt(1)}${opt(2)}
+    <div class="setrow"><span class="lbl" style="width:auto;flex:1">Anderes Datum</span>
+      <input type="date" max="${dkey(today0())}" onchange="reDateDay(${pi},${wi},${di},this.value)"></div>
+    <button class="cancel" onclick="closeSheet()">Abbrechen</button>
+  </div>`;
+  document.body.appendChild(wrap);
+};
+window.reDateDay = function (pi, wi, di, dateK) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateK || "")) return;
+  const day = PROGRAM[pi] && PROGRAM[pi].weeks[wi] && PROGRAM[pi].weeks[wi].days[di];
+  if (!day) return;
+  const iso = new Date(dateK + "T12:00:00").toISOString();
+  // alle Schlüssel dieser Einheit — Items UND deren Übungsblöcke ("id/g0-…")
+  const ids = dayItems(day).map(i => i.id);
+  const gehoert = k => ids.some(id => k === id || k.indexOf(id + "/") === 0);
+  let n = 0;
+  Object.keys(S.checked).forEach(k => {
+    if (gehoert(k) && typeof S.checked[k] === "string") { S.checked[k] = iso; n++; }
+  });
+  (S.log || []).forEach(e => { if (e.e === "done" && e.id && gehoert(e.id)) e.t = iso; });
+  if (!n) { closeSheet(); return; }
+  closeSheet();
+  logEv("redate", ids[0], { to: dateK, n: n });
+  markDirty();
   render();
 };
 
