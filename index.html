@@ -212,6 +212,12 @@
   }
   .ghead.done .gcb { background: var(--lime); border-color: var(--lime); color: var(--lime-ink); }
   .ghead + .ex { border-top: none; padding-top: 0; }
+  .exhist {
+    display: block; width: 100%; text-align: left; margin-top: 4px; padding: 0;
+    background: none; border: none; font-size: 12px; color: var(--muted);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .exhist.tap { color: var(--lime); font-weight: 700; }
   .exlast {
     border: 1px dashed #3a4152; background: none; color: var(--lime);
     border-radius: 99px; padding: 4px 10px; font-size: 12px; font-weight: 700;
@@ -1478,10 +1484,22 @@ function targetWeight(ex, iso) {
   return mround25(base * Math.max.apply(null, ex.pct));
 }
 
+/* Die letzten zwei Einträge dieser Übung — je eine Zeile, "Datum: Gewicht × Wdh".
+   Solange das Feld leer ist, sind die Zeilen antippbar und übernehmen den Wert. */
+function exHistory(ex, rid, belegt) {
+  const arr = (S.results[ex.k] || []).filter(e => e.itemId !== rid).slice(-2).reverse();
+  return arr.map(e => {
+    const st = parseSet(e.value);
+    const txt = `${fmtDate(e.date)}: ${st ? fmtW(st.w) + " kg × " + st.r : esc(e.value)}`;
+    return belegt
+      ? `<div class="exhist">${txt}</div>`
+      : `<button class="exhist tap" onclick="fillResult('${rid}','${ex.k}','${String(e.value).replace(/'/g, "\\'")}')">${txt} — setzen</button>`;
+  }).join("");
+}
+
 function renderExercise(item, ex) {
   const rid = item.id + "/" + ex.k;
   const val = S.resultsByItem[rid] || "";
-  const last = lastResult(ex.k, rid);
   let h = `<div class="ex">`;
   if (isRmEx(ex)) {
     const cur = parseSet(val);
@@ -1508,7 +1526,7 @@ function renderExercise(item, ex) {
   const pre = prescription(ex);
   if (pre) h += `<div class="expre">Vorgabe: ${esc(pre)}</div>`;
   if (ex.note) h += `<div class="exnote">${esc(ex.note)}</div>`;
-  if (last && !val) h += `<button class="exlast" onclick="fillResult('${rid}','${ex.k}','${esc(last.value).replace(/'/g, "\\'")}')">Letztes Mal: ${esc(last.value)} · ${fmtDate(last.date)} — übernehmen</button>`;
+  h += exHistory(ex, rid, !!val);
   return h + `</div>`;
 }
 
@@ -1984,10 +2002,10 @@ window.setExSet = function (rid, key) {
     }
     return;
   }
-  if (res.some(x => x === false) && res.every(x => x !== null) && missStreak(ex.rm) >= 2) {
+  if (res.some(x => x === false) && res.every(x => x !== null) && missStreak(ex.rm) >= 3) {
     const rn = nextRM(group, -1);
     if (rn == null) return;
-    if (confirm(`${label} zum zweiten Mal hintereinander verfehlt.\n\n1RM von ${fmtW(S.oneRM[ex.rm])} auf ${fmtW(rn)} kg senken, damit die Vorgaben wieder treffbar sind?`)) {
+    if (confirm(`${label} zum dritten Mal hintereinander verfehlt.\n\n1RM von ${fmtW(S.oneRM[ex.rm])} auf ${fmtW(rn)} kg senken, damit die Vorgaben wieder treffbar sind?`)) {
       setRM(ex.rm, rn);
       render();
     }
