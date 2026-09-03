@@ -360,6 +360,10 @@
   .lrow:first-of-type { border-top: none; }
   .lrow .q { color: var(--muted); font-size: 11.5px; width: 60px; flex-shrink: 0; }
   .lrow .vals { color: var(--ink); font-weight: 700; }
+  .lrow .tot { color: var(--muted); font-size: 11.5px; margin-left: 6px; white-space: nowrap; }
+  .tsum { display: flex; align-items: center; gap: 8px; }
+  .tsum strong { font-size: 22px; font-weight: 800; color: var(--ink); letter-spacing: -.5px; }
+  .chartcard > .spark { display: block; margin-top: 10px; width: 100%; height: auto; }
 
   /* ---------- Bottom Nav ---------- */
   nav {
@@ -1014,25 +1018,18 @@ function trLastSets(trackId, partId) {
   }
   return [];
 }
-/* Vorbelegung: letzte Werte, +Steigerung wenn die letzte Einheit in einer früheren Woche lag */
-function trSuggest(trackId, part) {
-  const step = stepOf(part, trStep(trackId, part.id));
-  const sets = (step && step.sets) || 1;
+/* Gesamtleistung einer Einheit: Summe aller Sätze */
+function trTotal(vals) { return (vals || []).reduce((a, v) => a + (+v || 0), 0); }
+/* Referenzwert rechts neben dem Feld: der letzte Wert auf dieser Stufe, sonst Wades
+   Einstiegsmarke. Reine Anzeige — die Felder selbst bleiben leer (siehe renderTrack). */
+function trRef(trackId, part, i) {
   const last = trLastSets(trackId, part.id);
-  if (!last.length) {
-    // Erste Einheit auf dieser Stufe: Wades Einstiegsmarke vorbelegen, sonst leer lassen.
-    // Nie das Stufenziel vorbelegen — das würde den Aufstieg beim ersten Speichern auslösen.
-    const entry = step && step.entry;
-    if (!entry) return Array.from({ length: sets }, () => null);
-    const nEntry = (step && step.entrySets) || sets;
-    return Array.from({ length: sets }, (_, i) => i < nEntry ? entry : null);
-  }
-  const st = trState(trackId);
-  const lastD = st.log.filter(l => l.sets && l.sets[part.id]).map(l => l.d).sort().pop();
-  const bump = (part.incPerWeek && lastD && weekKeyOf(new Date(lastD + "T12:00:00")) !== weekKeyOf(today0()))
-    ? part.incPerWeek : 0;
-  return Array.from({ length: sets }, (_, i) =>
-    Math.min((step && step.target) || 1e9, Math.max(0, +(last[i] || last[last.length - 1] || 0) + bump)));
+  // 0 heißt „damals nicht eingetragen" — dann lieber die Einstiegsmarke zeigen
+  if (last[i]) return "zuletzt " + last[i];
+  const step = stepOf(part, trStep(trackId, part.id));
+  const nEntry = (step && step.entrySets) || (step && step.sets) || 1;
+  if (step && step.entry && i < nEntry) return "Einstieg " + step.entry;
+  return "—";
 }
 /* Ist der Nebenteil (z. B. Fingerspitzen) diese Woche schon ausgereizt? */
 function partCapLeft(trackId, part, dateK) {
@@ -1326,21 +1323,23 @@ function renderTrack(id) {
       if (part.warmup) pre.push(`Vorher: ${esc(part.warmup)}`);
       if (part.rest) pre.push(`Pause: ${esc(part.rest)}`);
       if (pre.length) html += `<div class="tnote">${pre.join("<br>")}</div>`;
+      // Felder bleiben leer — jede Einheit wird frisch getippt. Der Wert vom letzten Mal
+      // steht rechts als Referenz, damit ein Tipp auf „Speichern" nie eine Einheit erfindet.
       if (pr) {
-        const sug = trSuggest(id, part);
         for (let i = 0; i < pr.sets; i++) {
           html += `<div class="setrow">
             <span class="lbl">Satz ${i + 1}</span>
-            <input id="tin-${id}-${part.id}-${i}" type="number" inputmode="numeric" value="${sug[i] == null ? "" : sug[i]}">
+            <input id="tin-${id}-${part.id}-${i}" type="number" inputmode="numeric" value="">
             <span class="u">${part.unit === "s" ? "s" : "Wdh."}</span>
-            <span class="q">${pr.last[i] != null ? "zuletzt " + pr.last[i] : "—"}</span>
+            <span class="q">${trRef(id, part, i)}</span>
           </div>`;
         }
       } else {
         html += `<div class="setrow">
           <span class="lbl">Wdh.</span>
-          <input id="tin-${id}-${part.id}-0" type="number" inputmode="numeric" value="${part.reps || 5}">
-          <span class="u">Wdh.</span><span class="q"></span>
+          <input id="tin-${id}-${part.id}-0" type="number" inputmode="numeric" value="">
+          <span class="u">Wdh.</span>
+          <span class="q">${trRef(id, part, 0)}</span>
         </div>`;
       }
       if (part.note) html += `<div class="tnote q">${esc(part.note)}</div>`;
@@ -1367,15 +1366,27 @@ function renderTrack(id) {
         const v = l.sets && l.sets[p.id];
         if (!v) return "";
         const unit = p.unit === "s" ? " s" : "";
-        return `<span class="vals">${v.join(" · ")}${unit}</span>`;
+        // Bei mehreren Sätzen die Summe mitzeigen — das ist die Zahl, die die Einheit beschreibt
+        const tot = v.length > 1 ? `<span class="tot">= ${trTotal(v)}${unit}</span>` : "";
+        return `<span class="vals">${v.join(" · ")}${unit}</span>${tot}`;
       }).filter(Boolean).join(" <span class='q'>|</span> ");
       html += `<div class="lrow"><span class="q">${esc(fmtDate(l.d + "T12:00:00"))}</span>${cols}</div>`;
     });
     const mainPart = tr.parts[0];
+    // Verlauf über die Gesamtleistung einer Einheit, nicht über den besten Einzelsatz:
+    // vier saubere Sätze sind mehr wert als ein Ausreißer.
     const pts = st.log.filter(l => l.sets && l.sets[mainPart.id])
-      .slice(-10).map(l => Math.max.apply(null, l.sets[mainPart.id].map(Number)));
+      .slice(-10).map(l => trTotal(l.sets[mainPart.id]));
     if (pts.length > 1) {
-      html += `<div class="chartcard" style="margin-top:12px"><h3>Bester Satz je Einheit · ${esc(mainPart.name)}</h3>${spark(pts)}</div>`;
+      const u = mainPart.unit === "s" ? " s" : " Wdh.";
+      const cur = pts[pts.length - 1], d = cur - pts[pts.length - 2];
+      const chip = d > 0 ? `<span class="chip up">+${d}${u}</span>`
+        : d < 0 ? `<span class="chip down">−${Math.abs(d)}${u}</span>`
+        : `<span class="chip flat">±0</span>`;
+      html += `<div class="chartcard" style="margin-top:12px">
+        <h3>${mainPart.unit === "s" ? "Gesamtzeit" : "Gesamt-Wdh."} je Einheit · ${esc(mainPart.name)}</h3>
+        <div class="tsum"><strong>${cur}${u}</strong>${chip}</div>
+        ${spark(pts, 320, 56)}</div>`;
     }
   }
   if (st.hist.length) {
@@ -1718,9 +1729,9 @@ function trainingDates() {
   (S.log || []).forEach(e => { if (e.e === "done" && e.t) set.add(e.t.slice(0, 10)); });
   return [...set].sort();
 }
-function spark(pts) {
+function spark(pts, w, h) {
   if (!pts || pts.length < 2) return `<div class="sparkempty">noch zu wenig Daten</div>`;
-  const W = 120, H = 34, pad = 4;
+  const W = w || 120, H = h || 34, pad = 4;
   const min = Math.min(...pts), max = Math.max(...pts), span = (max - min) || 1;
   const x = i => pad + i * (W - 2 * pad) / (pts.length - 1);
   const y = v => H - pad - (v - min) * (H - 2 * pad) / span;
