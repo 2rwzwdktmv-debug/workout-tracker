@@ -235,6 +235,24 @@
     color: var(--lime); font-weight: 800; margin-bottom: 3px;
   }
   .item.checked:not(.open) .own { display: none; }
+  /* Zielpace — Vorgabe wie die Gewichte, steht in den Einstellungen */
+  .pace {
+    margin: 10px 0 0 42px; padding: 9px 12px; font-size: 13.5px; color: #c9cfda;
+    background: color-mix(in srgb, var(--sky) 9%, var(--bg));
+    border-left: 2px solid var(--sky); border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  }
+  .pace b {
+    display: block; font-size: 10.5px; letter-spacing: 1.2px; text-transform: uppercase;
+    color: var(--sky); font-weight: 800; margin-bottom: 3px;
+  }
+  /* Abweichung vom Original — bewusst leise, das ist nur eine Fußnote */
+  .orig { margin: 9px 0 0 42px; font-size: 11.5px; color: var(--muted); line-height: 1.45; }
+  .orig b {
+    display: inline; font-weight: 800; letter-spacing: .2px; color: #6f7789;
+    text-transform: none; margin-right: 5px;
+  }
+  .orig b::after { content: ":"; }
+  .item.checked:not(.open) .orig { display: none; }
   /* Details erledigter Einheiten wieder aufklappen — Rückblick auf ein Workout */
   .dtoggle {
     display: block; width: 100%; margin: 16px 0 2px; border: 1px dashed #3a4152;
@@ -490,7 +508,7 @@ const CACHE_KEY = "wt-progress-cache-v1";
 const DIRTY_KEY = "wt-dirty-v1";
 const DATA_KEY = "wt-data-cache-v1";
 
-let PROGRAM = null, PLAN_TITLE = "Workout Tracker", TRACKS = [];
+let PROGRAM = null, PLAN_TITLE = "Workout Tracker", TRACKS = [], PACES = [];
 let S = { checked: {}, resultsByItem: {}, results: {} };
 let FLAT = [];
 let mode = null;              // "local" | "github"
@@ -597,7 +615,7 @@ async function boot() {
     const r = await fetch("./data.json", { cache: "no-store" });
     if (r.ok) {
       const data = await r.json();
-      PROGRAM = data.program; PLAN_TITLE = data.title || PLAN_TITLE; TRACKS = data.tracks || [];
+      PROGRAM = data.program; PLAN_TITLE = data.title || PLAN_TITLE; TRACKS = data.tracks || []; PACES = data.paces || [];
       mode = "local";
       const cached = lsGet(CACHE_KEY);
       if (cached) try { S = Object.assign(S, JSON.parse(cached)); } catch (e) {}
@@ -616,7 +634,7 @@ async function boot() {
   if (cachedData) {
     try {
       const data = JSON.parse(cachedData);
-      PROGRAM = data.program; PLAN_TITLE = data.title || PLAN_TITLE; TRACKS = data.tracks || [];
+      PROGRAM = data.program; PLAN_TITLE = data.title || PLAN_TITLE; TRACKS = data.tracks || []; PACES = data.paces || [];
       const cached = lsGet(CACHE_KEY);
       if (cached) try { S = Object.assign(S, JSON.parse(cached)); } catch (e) {}
       finishBoot();
@@ -633,7 +651,7 @@ async function refreshFromGitHub() {
     if (dataFile && dataFile.text !== lsGet(DATA_KEY)) {
       lsSet(DATA_KEY, dataFile.text);
       const data = JSON.parse(dataFile.text);
-      PROGRAM = data.program; PLAN_TITLE = data.title || PLAN_TITLE; TRACKS = data.tracks || [];
+      PROGRAM = data.program; PLAN_TITLE = data.title || PLAN_TITLE; TRACKS = data.tracks || []; PACES = data.paces || [];
       finishBoot();
     }
     const progFile = await ghGet("progress.json");
@@ -664,7 +682,7 @@ async function loadFromGitHub() {
     if (!dataFile) throw new Error("data.json nicht im Repo gefunden");
     lsSet(DATA_KEY, dataFile.text);
     const data = JSON.parse(dataFile.text);
-    PROGRAM = data.program; PLAN_TITLE = data.title || PLAN_TITLE; TRACKS = data.tracks || [];
+    PROGRAM = data.program; PLAN_TITLE = data.title || PLAN_TITLE; TRACKS = data.tracks || []; PACES = data.paces || [];
 
     const progFile = await ghGet("progress.json");
     const dirty = !!lsGet(DIRTY_KEY);
@@ -725,6 +743,14 @@ const RM_KEYS = [
   ["deadlift", "Deadlift"],
   ["ohp", "Push Press (OHP)"]
 ];
+/* Ziel-Paces: Definition steht im Plan (`paces`), der Wert in den Einstellungen.
+   Ohne eigenen Wert gilt der Vorgabewert der Definition. */
+function paceDef(k) { return (PACES || []).find(p => p.k === k); }
+function paceOf(k) {
+  const def = paceDef(k);
+  const own = ((S.paces || {})[k] || "").trim();
+  return own || (def && def.def) || "";
+}
 function mround25(x) { return Math.round(x / 2.5) * 2.5; }
 function fmtW(x) { return (Math.round(x * 10) / 10).toLocaleString("de-DE"); }
 function prescription(ex) {
@@ -1480,7 +1506,10 @@ function renderDay(pi, wi, di) {
           </div>
         </div>
         ${item.body ? `<div class="body">${fmtBody(item.body)}</div>` : ""}
+        ${item.paceKey && paceOf(item.paceKey)
+          ? `<div class="pace"><b>Zielpace</b>${esc(paceOf(item.paceKey))}${(paceDef(item.paceKey) || {}).unit ? " " + esc(paceDef(item.paceKey).unit) : ""}</div>` : ""}
         ${item.own ? `<div class="own"><b>Meine Regel</b>${esc(item.own)}</div>` : ""}
+        ${item.orig ? `<div class="orig"><b>Im Plan steht hier</b>${esc(item.orig)}</div>` : ""}
         ${renderExercises(item)}
         ${item.after ? `<div class="body">${fmtBody(item.after)}</div>` : ""}
         ${item.key ? renderResult(item) : ""}
@@ -1710,6 +1739,17 @@ function renderSettings() {
         </div>
       </div>
     </details>
+    ${(PACES || []).length ? `<details class="setsec">
+      <summary>🏃 Ziel-Paces</summary>
+      <div class="secbody">
+        <p class="hint">Vorgabe für die Bahn-Intervalle. Leer lassen heißt: es gilt der Wert aus dem Plan.</p>
+        <div class="rmgrid">
+          ${PACES.map(p => `<div class="rmcell"><span>${esc(p.name)}${p.unit ? ` <span class="q">${esc(p.unit)}</span>` : ""}</span>
+            <input type="text" inputmode="text" value="${esc(((S.paces || {})[p.k]) || "")}"
+              placeholder="${esc(p.def || "")}" onchange="setPace('${esc(p.k)}', this.value)"></div>`).join("")}
+        </div>
+      </div>
+    </details>` : ""}
     <details class="setsec">
       <summary>💾 Backup</summary>
       <div class="secbody">
@@ -2050,6 +2090,12 @@ window.setExSet = function (rid, key) {
   }
 };
 
+window.setPace = function (k, v) {
+  v = String(v || "").trim();
+  S.paces = S.paces || {};
+  if (v) S.paces[k] = v; else delete S.paces[k];
+  markDirty();
+};
 window.setRM = function (k, v) {
   v = parseFloat(String(v).trim().replace(",", "."));
   S.oneRM = S.oneRM || {};
@@ -2284,7 +2330,7 @@ window.startNewRun = function () {
 };
 window.doReset = function () {
   if (confirm("Wirklich ALLEN Fortschritt und alle Ergebnisse löschen? (1RM-Gewichte, Trainingslog und Durchläufe bleiben erhalten)")) {
-    S = { checked: {}, resultsByItem: {}, results: {}, oneRM: S.oneRM, rmLog: S.rmLog, log: S.log, runs: S.runs, run: S.run, tracks: S.tracks };
+    S = { checked: {}, resultsByItem: {}, results: {}, oneRM: S.oneRM, rmLog: S.rmLog, log: S.log, runs: S.runs, run: S.run, tracks: S.tracks, paces: S.paces };
     markDirty();
     location.hash = "";
     render();
