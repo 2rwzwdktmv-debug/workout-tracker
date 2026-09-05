@@ -147,7 +147,7 @@
   .item.checked .st { color: var(--muted); }
   .item .body { color: var(--muted); font-size: 14px; white-space: pre-line; margin: 9px 0 0 42px; }
   .item .body .mv { color: #c9cfda; font-weight: 600; }
-  .item.checked .body { display: none; }
+  .item.checked:not(.open) .body { display: none; }
   .res { margin: 11px 0 0 42px; }
   .res input {
     width: 100%; font: inherit; font-size: 16px; color: var(--ink);
@@ -223,7 +223,7 @@
     border-radius: 99px; padding: 4px 10px; font-size: 12px; font-weight: 700;
     margin-top: 5px; text-align: left;
   }
-  .item.checked .exnote { display: none; }
+  .item.checked:not(.open) .exnote { display: none; }
   /* eigene Ergänzungen — klar vom Originaltext des Plans getrennt */
   .own {
     margin: 10px 0 0 42px; padding: 9px 12px; font-size: 13.5px; color: #c9cfda;
@@ -234,7 +234,13 @@
     display: block; font-size: 10.5px; letter-spacing: 1.2px; text-transform: uppercase;
     color: var(--lime); font-weight: 800; margin-bottom: 3px;
   }
-  .item.checked .own { display: none; }
+  .item.checked:not(.open) .own { display: none; }
+  /* Details erledigter Einheiten wieder aufklappen — Rückblick auf ein Workout */
+  .dtoggle {
+    display: block; width: 100%; margin: 16px 0 2px; border: 1px dashed #3a4152;
+    background: none; color: var(--muted); border-radius: 99px; padding: 9px;
+    font: inherit; font-size: 12.5px; font-weight: 700;
+  }
   .rest { text-align: center; padding: 34px 14px; color: var(--muted); }
   .rest .z { font-size: 36px; }
   .flash { animation: flash 1.6s ease-out 1; }
@@ -1423,12 +1429,33 @@ function renderWeek(pi, wi) {
   main.innerHTML = html;
 }
 
+/* Sichtbarkeit der Details erledigter Einheiten. Nichts wird gespeichert: beim
+   Öffnen eines Tages entscheidet sein Zustand (fertiger Tag = Rückblick = offen),
+   danach gilt, was der Knopf zuletzt gesagt hat. */
+let dayOpen = { key: "", on: null };
+window.setDayDetails = function (on) { dayOpen.on = on; render(); };
+
 function renderDay(pi, wi, di) {
   const part = PROGRAM[pi], week = part.weeks[wi], day = week.days[di];
   backBtn.style.display = "";
   titleEl.textContent = `${part.name} · ${week.name} · ${day.label}`;
   setNav("week");
+
+  const all = dayItems(day);
+  const done = countDone(all);
+  const key = pi + "/" + wi + "/" + di;
+  // Beim Betreten des Tages einmal entscheiden: ein bereits abgeschlossener Tag ist
+  // ein Rückblick und wird aufgeschlagen, ein laufender bleibt schlank. Danach zählt
+  // nur noch der Knopf — sonst klappte das Abhaken der letzten Einheit alles auf.
+  if (dayOpen.key !== key) dayOpen = { key: key, on: all.length > 0 && done === all.length };
+  const open = dayOpen.on;
+
   let html = "";
+  if (done > 0) {
+    html += `<button class="dtoggle" onclick="setDayDetails(${!open})">${open
+      ? "Details der erledigten Einheiten ausblenden"
+      : `Details der ${done} erledigten ${done === 1 ? "Einheit" : "Einheiten"} anzeigen`}</button>`;
+  }
   day.sessions.forEach((sess, si) => {
     const checkable = sess.items.filter(i => !i.rest);
     if (sess.label || day.sessions.length > 1) {
@@ -1444,7 +1471,7 @@ function renderDay(pi, wi, di) {
         return;
       }
       const checked = !!S.checked[item.id];
-      html += `<div class="card item ${checked ? "checked" : ""}" id="it-${item.id}">
+      html += `<div class="card item ${checked ? "checked" : ""}${checked && open ? " open" : ""}" id="it-${item.id}">
         <div class="head">
           <button class="cb" onclick="toggle('${item.id}')" aria-label="abhaken">✓</button>
           <div style="min-width:0">
