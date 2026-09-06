@@ -188,6 +188,7 @@
   .exok.no { color: var(--amber); }
   @media (max-width: 370px) { .exn { width: 60px; } .exset .sl { font-size: 11px; } }
   .expre { color: var(--lime); font-size: 12.5px; font-weight: 700; margin-top: 3px; opacity: .9; }
+  .exdl { color: var(--muted); font-size: 11px; font-weight: 700; margin-left: 6px; }
   .rmgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px; }
   .rmcell span { display: block; font-size: 12px; color: var(--muted); font-weight: 700; margin-bottom: 4px; }
   .exsec {
@@ -1591,7 +1592,7 @@ function renderExercise(item, ex) {
     </div>`;
   }
   const pre = prescription(ex);
-  if (pre) h += `<div class="expre">Vorgabe: ${esc(pre)}</div>`;
+  if (pre) h += `<div class="expre">Vorgabe: ${esc(pre)}${ex.noRaise ? ` <span class="exdl">Deload · zählt nicht für den 1RM</span>` : ""}</div>`;
   if (ex.note) h += `<div class="exnote">${esc(ex.note)}</div>`;
   h += exHistory(ex, rid, !!val);
   return h + `</div>`;
@@ -2026,6 +2027,7 @@ function missStreak(rmKey) {
   // muss dagegen die ganze Gruppe sitzen (asymmetrisch, absichtlich).
   let streak = 0;
   for (let i = tage.length - 1; i >= 0; i--) {
+    if (tage[i].some(g => g.ex.noRaise)) continue;     // Deload zählt auch als Fehlversuch nicht
     const top = tage[i].slice().sort((a, b) =>
       Math.max.apply(null, b.ex.pct) - Math.max.apply(null, a.ex.pct))[0];
     const res = exAchieved(top.item, top.ex);
@@ -2061,6 +2063,10 @@ window.setExSet = function (rid, key) {
   if (!ex || !isRmEx(ex)) return;
 
   const group = liftGroup(base, ex.rm);
+  // Deload-Einheiten sind für den 1RM unsichtbar — in beide Richtungen.
+  // 2x3 @75 % schafft man immer; daraus einen Sprung abzuleiten würde den
+  // 1RM über die Recovery-Wochen nach oben treiben, ohne dass etwas dahinter steht.
+  if (group.some(g => g.ex.noRaise)) return;
   const res = group.map(g => exAchieved(g.item, g.ex));
   const label = (RM_KEYS.find(x => x[0] === ex.rm) || [ex.rm, ex.rm])[1].replace(/\s*\(.*/, "");
 
