@@ -981,6 +981,8 @@ function planExtras(days) {
     (((a.sched || {}).mode === "anchor") ? 0 : 1) - (((b.sched || {}).mode === "anchor") ? 0 : 1));
   order.forEach(tr => {
     const sc = tr.sched || {}, perWeek = sc.perWeek || 2, minGap = sc.minGap || 1;
+    // "slots": die Leiter hängt an festen Programmstellen, nicht am Kalender.
+    if (sc.mode === "slots") return;
     const st = trState(tr.id);
     const lastLog = st.log.map(l => l.d).sort().pop() || null;
     const byWeek = {};
@@ -1052,6 +1054,8 @@ function trLastSets(trackId, partId) {
   return [];
 }
 /* Gesamtleistung einer Einheit: Summe aller Sätze */
+/* Kürzel der Einheit einer Leiter: Sekunden, Minuten oder Wiederholungen. */
+function trUnit(part) { return part.unit === "s" ? "s" : part.unit === "min" ? "Min" : "Wdh."; }
 function trTotal(vals) { return (vals || []).reduce((a, v) => a + (+v || 0), 0); }
 /* Referenzwert rechts neben dem Feld: der letzte Wert auf dieser Stufe, sonst Wades
    Einstiegsmarke. Reine Anzeige — die Felder selbst bleiben leer (siehe renderTrack). */
@@ -1233,7 +1237,7 @@ function renderPlan() {
   }
 
   const wkNow = dkey(today0());
-  const trSum = (TRACKS || []).map(tr =>
+  const trSum = (TRACKS || []).filter(tr => (tr.sched || {}).mode !== "slots").map(tr =>
     `${esc(tr.name)} ${trDoneInWeek(tr.id, wkNow)} von ${(tr.sched || {}).perWeek || 2}`).join(" · ");
   if (trSum) html += `<div class="planfoot" style="margin-top:12px">Diese Woche · ${trSum}</div>`;
 
@@ -1336,12 +1340,12 @@ function renderTrack(id) {
       ${step && step.desc ? `<div class="s">${esc(step.desc)}</div>` : ""}`;
 
     if (pr) {
-      html += `<div class="s">Ziel: ${pr.sets} ${pr.sets === 1 ? "Satz" : "Sätze"} × ${pr.target} ${part.unit === "s" ? "s" : "Wdh."}${step.perLeg ? " pro Bein" : ""}</div>
+      html += `<div class="s">Ziel: ${part.setLabel ? "" : pr.sets + " " + (pr.sets === 1 ? "Satz" : "Sätze") + " × "}${pr.target} ${trUnit(part)}${step.perLeg ? " pro Bein" : ""}</div>
         <div class="bar"><div style="width:${Math.min(100, pr.pct)}%"></div></div>
         <div class="s hi">${pr.reached
           ? "Ziel erreicht — Stufe abschließen"
           : (pr.last.length
-            ? `Noch ${pr.missing} ${part.unit === "s" ? "s" : "Wdh."} im schwächsten Satz bis Stufe ${cur + 1}`
+            ? `Noch ${pr.missing} ${trUnit(part)} bis Stufe ${cur + 1}`
             : "Noch keine Einheit auf dieser Stufe protokolliert")}</div>`;
     } else {
       html += `<div class="s">Ziel: ~${part.reps || 5} Wdh. pro Einheit</div>`;
@@ -1361,9 +1365,9 @@ function renderTrack(id) {
       if (pr) {
         for (let i = 0; i < pr.sets; i++) {
           html += `<div class="setrow">
-            <span class="lbl">Satz ${i + 1}</span>
+            <span class="lbl">${esc(part.setLabel || ("Satz " + (i + 1)))}</span>
             <input id="tin-${id}-${part.id}-${i}" type="number" inputmode="numeric" value="">
-            <span class="u">${part.unit === "s" ? "s" : "Wdh."}</span>
+            <span class="u">${trUnit(part)}</span>
             <span class="q">${trRef(id, part, i)}</span>
           </div>`;
         }
@@ -1411,13 +1415,13 @@ function renderTrack(id) {
     const pts = st.log.filter(l => l.sets && l.sets[mainPart.id])
       .slice(-10).map(l => trTotal(l.sets[mainPart.id]));
     if (pts.length > 1) {
-      const u = mainPart.unit === "s" ? " s" : " Wdh.";
+      const u = " " + trUnit(mainPart);
       const cur = pts[pts.length - 1], d = cur - pts[pts.length - 2];
       const chip = d > 0 ? `<span class="chip up">+${d}${u}</span>`
         : d < 0 ? `<span class="chip down">−${Math.abs(d)}${u}</span>`
         : `<span class="chip flat">±0</span>`;
       html += `<div class="chartcard" style="margin-top:12px">
-        <h3>${mainPart.unit === "s" ? "Gesamtzeit" : "Gesamt-Wdh."} je Einheit · ${esc(mainPart.name)}</h3>
+        <h3>${mainPart.unit === "s" ? "Gesamtzeit" : mainPart.unit === "min" ? "Geschaffte Minuten" : "Gesamt-Wdh."} je Einheit · ${esc(mainPart.name)}</h3>
         <div class="tsum"><strong>${cur}${u}</strong>${chip}</div>
         ${spark(pts, 320, 56)}</div>`;
     }
@@ -1565,8 +1569,62 @@ function exHistory(ex, rid, belegt) {
   }).join("");
 }
 
+/* Zuletzt protokollierte Einheit dieser Leiter — als Referenz an der Programmstelle. */
+function trLastEntry(trackId, partId) {
+  const log = trState(trackId).log;
+  for (let i = log.length - 1; i >= 0; i--) {
+    const v = log[i].sets && log[i].sets[partId];
+    if (v && v.length) return { d: log[i].d, v: +v[0], step: (log[i].steps || {})[partId] || null };
+  }
+  return null;
+}
+/* Eine Programmstelle, die von einer Stufenleiter bespielt wird (Klimmzug-EMOM).
+   Die Stufe kommt aus der Leiter, nicht aus dem Plan — so läuft die Progression über
+   Wochen und Durchläufe hinweg weiter. Eingetragen wird genau ein Wert: wie weit es
+   auf der aktuellen Stufe gereicht hat. Gespeichert wird "geschafft/Ziel", damit der
+   Eintrag auch nach einem Stufenwechsel noch für sich steht. */
+function renderTrackExercise(item, ex, rid) {
+  const tr = trackDef(ex.track);
+  const part = tr && (tr.parts || []).find(p => p.id === (ex.trackPart || ((tr.parts || [])[0] || {}).id));
+  if (!part) return `<div class="ex"><div class="exname">${esc(ex.name)}</div>
+    <div class="exnote">Leiter „${esc(String(ex.track))}" nicht gefunden.</div></div>`;
+
+  const cur = trStep(tr.id, part.id), nSteps = (part.steps || []).length;
+  const step = stepOf(part, cur);
+  const raw = S.resultsByItem[rid] || "";
+  const m = raw.match(/^(\d+(?:[.,]\d+)?)\s*\/\s*(\d+)/);
+  const got = m ? parseFloat(m[1].replace(",", ".")) : null;
+  const tgt = m ? +m[2] : (step ? step.target : null);
+  const geschafft = got != null && tgt != null && got >= tgt;
+  const u = trUnit(part);
+
+  let h = `<div class="ex">
+    <div class="exrow">
+      <div class="exname">${esc(ex.name)} — Stufe ${cur} von ${nSteps}</div>
+      ${m ? `<span class="exok ${geschafft ? "yes" : "no"}">${geschafft ? "✓" : "–"}</span>` : ""}
+    </div>
+    <div class="exset">
+      <span class="sl">${esc(part.setLabel || "Geschafft")}</span>
+      <input class="exn" type="number" inputmode="numeric" placeholder="${step ? step.target : ""}"
+        id="extr-${rid}" value="${m ? esc(m[1]) : ""}"
+        onchange="setTrackResult('${rid}','${tr.id}','${part.id}','${ex.k}')">
+      <span class="su">von ${step ? step.target : "—"} ${esc(u)}</span>
+    </div>`;
+  if (step) h += `<div class="expre">Vorgabe: ${esc(step.name)}</div>`;
+  if (ex.note) h += `<div class="exnote">${esc(ex.note)}</div>`;
+  const last = trLastEntry(tr.id, part.id);
+  if (last) {
+    const ls = last.step ? stepOf(part, last.step) : null;
+    h += `<div class="exnote q">zuletzt ${last.v}${ls ? " von " + ls.target : ""} ${esc(u)}
+      · ${esc(fmtDate(last.d + "T12:00:00"))}${ls ? " · " + esc(ls.name) : ""}</div>`;
+  }
+  h += `<button class="exhist tap" onclick="location.hash='#t/${tr.id}'">Leiter ansehen</button>`;
+  return h + `</div>`;
+}
+
 function renderExercise(item, ex) {
   const rid = item.id + "/" + ex.k;
+  if (ex.track) return renderTrackExercise(item, ex, rid);
   const val = S.resultsByItem[rid] || "";
   let h = `<div class="ex">`;
   if (isRmEx(ex)) {
@@ -1679,6 +1737,35 @@ window.setResult = function (id, key, value, quiet) {
   if (!quiet) render();
 };
 window.fillResult = function (id, key, value) { window.setResult(id, key, value); };
+/* Programmstelle mit Stufenleiter: ein Wert, der zugleich die Leiter fortschreibt. */
+window.setTrackResult = function (rid, trackId, partId, key) {
+  const tr = trackDef(trackId); if (!tr) return;
+  const part = (tr.parts || []).find(p => p.id === partId); if (!part) return;
+  const el = document.getElementById("extr-" + rid);
+  const v = parseFloat(String(el ? el.value : "").replace(",", ".").trim());
+  const cur = trStep(trackId, partId), step = stepOf(part, cur);
+  if (!(isFinite(v) && v > 0)) { setResult(rid, key, ""); return; }   // leer -> Eintrag zurücknehmen
+  setResult(rid, key, v + "/" + (step ? step.target : v), true);
+
+  // In die Leiter protokollieren — die Einheit gehört auf den Tag der Eingabe.
+  const st = trState(trackId), todayK = dkey(today0());
+  const i = st.log.findIndex(l => l.d === todayK);
+  const entry = i >= 0 ? st.log[i] : { d: todayK, sets: {}, steps: {} };
+  entry.sets = Object.assign({}, entry.sets || {}); entry.sets[partId] = [v];
+  entry.steps = Object.assign({}, entry.steps || {}); entry.steps[partId] = cur;
+  if (i >= 0) st.log[i] = entry; else st.log.push(entry);
+  st.log.sort((a, b) => (a.d < b.d ? -1 : a.d > b.d ? 1 : 0));
+  logEv("track", trackId + "/" + partId);
+  markDirty();
+
+  // Ziel erreicht? -> anbieten, nicht automatisch aufsteigen (wie auf der Leiter-Seite).
+  if (step && v >= (step.target || 1) && cur < (part.steps || []).length) {
+    const nxt = stepOf(part, cur + 1);
+    if (confirm(`${part.name}: Ziel der Stufe ${cur} geschafft.\n\nAuf Stufe ${nxt.n} — ${nxt.name} — wechseln?`))
+      trAdvance(trackId, partId, cur + 1);
+  }
+  render();
+};
 
 /* ---------- Setup ---------- */
 function renderSetup(err) {
@@ -1878,7 +1965,7 @@ function renderStats() {
     html += `<div class="chartcard" style="margin-bottom:12px"><h3>Stufen</h3>`
       + TRACKS.map(tr => (tr.parts || []).map(part => {
         const cur = trStep(tr.id, part.id), pr = trProgress(tr.id, part);
-        const rest = pr ? (pr.reached ? "Ziel erreicht" : (pr.last.length ? "noch " + pr.missing + (part.unit === "s" ? " s" : " Wdh.") : "offen")) : "nach Gefühl";
+        const rest = pr ? (pr.reached ? "Ziel erreicht" : (pr.last.length ? "noch " + pr.missing + (" " + trUnit(part)) : "offen")) : "nach Gefühl";
         return `<div class="ts"><span>${esc(tr.name)} · ${esc(part.name)}</span>
           <span><a href="#t/${tr.id}" style="color:var(--sky);text-decoration:none">Stufe ${cur} · ${esc(rest)}</a></span></div>`;
       }).join("")).join("")
