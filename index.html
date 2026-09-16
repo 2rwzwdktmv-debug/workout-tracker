@@ -116,7 +116,7 @@
   .dayrow .info { flex: 1; min-width: 0; }
   .dayrow .t { font-weight: 800; font-size: 15px; }
   .dayrow .sess { color: var(--muted); font-size: 12.5px; line-height: 1.35; margin-top: 2px;
-    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; }
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; white-space: pre-line; }
   .dayrow .mini { position: relative; width: 40px; height: 40px; flex-shrink: 0; }
   .dayrow .mini .mp { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 9.5px; font-weight: 800; color: var(--muted); }
   .dayrow.done { border-color: color-mix(in srgb, var(--lime) 45%, transparent); }
@@ -278,7 +278,7 @@
   .today.quiet .k { color: var(--muted); }
   .today.sel { border-color: var(--lime); }
   .today .v { font-size: 19px; font-weight: 800; margin: 4px 0 2px; letter-spacing: -.3px; }
-  .today .s { font-size: 13px; color: var(--muted); }
+  .today .s { font-size: 13px; color: var(--muted); white-space: pre-line; }
   .today .dur { flex-shrink: 0; align-self: center; font-size: 11px; font-weight: 800;
     letter-spacing: .3px; color: var(--muted); border: 1px solid var(--line);
     border-radius: 999px; padding: 3px 9px; white-space: nowrap; }
@@ -298,7 +298,7 @@
   .pd .inf { flex: 1; min-width: 0; }
   .pd .inf .t { font-size: 14px; font-weight: 800; }
   .pd .inf .s { font-size: 12px; color: var(--muted); line-height: 1.35;
-    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; }
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; white-space: pre-line; }
   .pd .tag {
     font-size: 10.5px; font-weight: 800; color: var(--muted); background: var(--surface2);
     border-radius: 99px; padding: 3px 9px; flex-shrink: 0;
@@ -853,7 +853,8 @@ function dayTitle(d) { return d.week.name + " · " + d.day.label; }
    Der Inhalt steckt im sub der Items ("90-120 minute bike session"), also wird
    die Zeile daraus gebaut: pro Session ein, zwei kurze Chips, AM/PM davor.
    Ein handgeschriebenes preview am Tag oder an der Session schlägt alles. */
-const PV_MAX = 50;                 // die Zeile wird einzeilig abgeschnitten
+const PV_MAX = 50;                 // eine Zeile, die auf zwei umbrechen darf
+const PV_LINE = 40;                // eine feste AM/PM-Zeile — ~261px Spaltenbreite
 const PV_SKIP = /warm.?up|cool.?down|aktivierung|einlaufen|auslaufen|accessory/i;
 const PV_MODE = [[/assault|\bbike|\brad\b/i, "bike"], [/\bski\b/i, "ski"],
                  [/\brow\b|rowing|rudern/i, "row"], [/\brun\b|\bjog|lauf/i, "run"]];
@@ -945,18 +946,26 @@ function pvRank(chips, n) {
     .sort((a, b) => pvScore(chips[b]) - pvScore(chips[a]) || a - b)
     .slice(0, n).sort((a, b) => a - b).map(i => chips[i]);
 }
+function pvClip(s, max) {
+  if (s.length <= max) return s;
+  const cut = s.slice(0, max - 1);
+  return cut.slice(0, Math.max(cut.lastIndexOf(" "), max - 12)).replace(/[\s+·]+$/, "") + "…";
+}
+/* Hat der Tag ein AM und ein PM, bekommt jede Hälfte ihre eigene Zeile — so
+   steht beiden das volle Zeilenbudget zur Verfügung statt einer geteilten
+   Zeile. Das \n rendert als Umbruch, weil die Zeile pre-line ist. */
 function dayPreview(day) {
   if (day.preview) return day.preview;
   const sess = (day.sessions || []).map(s => ({ s, chips: pvSession(s) })).filter(x => x.chips.length);
   if (!sess.length) return "";
   const slots = pvSlots(sess.map(x => x.s));
-  const build = n => sess.map((x, i) =>
-    (slots[i] ? slots[i] + ": " : "") + pvRank(x.chips, n).join(" + ")).join(" · ");
-  let out = build(2);
-  if (out.length > PV_MAX) out = build(1);
-  if (out.length <= PV_MAX) return out;
-  const cut = out.slice(0, PV_MAX - 1);
-  return cut.slice(0, Math.max(cut.lastIndexOf(" "), PV_MAX - 12)).replace(/[\s+·]+$/, "") + "…";
+  const line = (x, i, n) => (slots[i] ? slots[i] + ": " : "") + pvRank(x.chips, n).join(" + ");
+  if (sess.length > 1 && slots.some(Boolean)) return sess.map((x, i) => {
+    const two = line(x, i, 2);
+    return two.length <= PV_LINE ? two : pvClip(line(x, i, 1), PV_LINE);
+  }).join("\n");
+  const two = sess.map((x, i) => line(x, i, 2)).join(" · ");
+  return pvClip(two.length <= PV_MAX ? two : sess.map((x, i) => line(x, i, 1)).join(" · "), PV_MAX);
 }
 /* Grobe Zeitschätzung für die Heute-Karte. Explizite Minuten zählen, alles
    andere bekommt einen Erfahrungswert — deshalb steht ein ≈ davor. */
@@ -2470,7 +2479,7 @@ window.planSheet = function (dateKey) {
   wrap.onclick = ev => { if (ev.target === wrap) closeSheet(); };
   wrap.innerHTML = `<div class="sheet">
     <h4>${WD[e.date.getDay()]} ${esc(fmtDay(e.date))}</h4>
-    <p>${esc(dayTitle(e.d))} — ${esc(daySub(e.d))}</p>
+    <p style="white-space:pre-line">${esc(dayTitle(e.d))}\n${esc(daySub(e.d))}</p>
     <button onclick="planOffToggle('${e.k}')">Geht nicht<small>Der Tag fällt aus, alles rutscht nach hinten.</small></button>
     <button onclick="planSwapStart('${e.d.key}')">Tauschen<small>Danach den zweiten Tag antippen.</small></button>
     <button onclick="planDrop('${e.d.key}')">Einheit streichen<small>Fällt dauerhaft weg, erscheint in der Analyse als gestrichen.</small></button>
