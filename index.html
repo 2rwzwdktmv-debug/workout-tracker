@@ -6,12 +6,12 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="robots" content="noindex">
-<meta name="theme-color" content="#0a0c10">
+<meta name="theme-color" content="#000000">
 <title>Workout Tracker</title>
 <style>
   :root {
-    --bg: #0a0c10; --surface: #14171f; --surface2: #1b202b;
-    --ink: #f4f6f8; --muted: #8b93a3; --line: rgba(255,255,255,.07);
+    --bg: #000000; --surface: #12161e; --surface2: #1c222e;
+    --ink: #f4f6f8; --muted: #8b93a3; --line: rgba(255,255,255,.1);
     --lime: #d7f651; --lime-ink: #12150a; --sky: #8ec5f0;
     --red: #ff4d5e; --amber: #f5c344;
     --r-lg: 22px; --r-md: 16px; --r-sm: 12px;
@@ -93,7 +93,7 @@
 
   h2.section {
     font-size: 12px; text-transform: uppercase; letter-spacing: 1.6px;
-    color: var(--muted); margin: 24px 2px 10px; font-weight: 800;
+    color: var(--muted); margin: 24px 2px 10px; font-weight: 700;
   }
   h2.section em { color: var(--lime); font-style: normal; }
 
@@ -105,7 +105,7 @@
   }
   .wk { display: flex; flex-direction: column; gap: 10px; }
   .wk .top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-  .wk .t { font-weight: 800; font-size: 15px; }
+  .wk .t { font-weight: 700; font-size: 15px; }
   .wk .f { color: var(--muted); font-size: 12px; margin-top: 1px; }
   .wk .mini { position: relative; width: 40px; height: 40px; flex-shrink: 0; }
   .wk .mini .mp { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 9.5px; font-weight: 800; color: var(--muted); }
@@ -114,7 +114,7 @@
 
   .dayrow { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
   .dayrow .info { flex: 1; min-width: 0; }
-  .dayrow .t { font-weight: 800; font-size: 15px; }
+  .dayrow .t { font-weight: 700; font-size: 15px; }
   .dayrow .sess { color: var(--muted); font-size: 12.5px; line-height: 1.35; margin-top: 2px;
     display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; white-space: pre-line; }
   .dayrow .mini { position: relative; width: 40px; height: 40px; flex-shrink: 0; }
@@ -126,7 +126,7 @@
   .sesshead { display: flex; align-items: center; margin: 22px 2px 10px; gap: 10px; }
   .sesshead h3 {
     font-size: 12px; text-transform: uppercase; letter-spacing: 1.4px;
-    color: var(--lime); margin: 0; flex: 1; min-width: 0; font-weight: 800;
+    color: var(--lime); margin: 0; flex: 1; min-width: 0; font-weight: 700;
   }
   .sesshead button {
     border: 1px solid var(--line); background: var(--surface2); color: var(--muted);
@@ -146,8 +146,27 @@
   .item .tt { font-weight: 800; font-size: 15px; }
   .item .st { font-weight: 600; font-size: 14px; margin-top: 1px; color: #c9cfda; }
   .item.checked .st { color: var(--muted); }
-  .item .body { color: var(--muted); font-size: 14px; white-space: pre-line; margin: 9px 0 0 42px; }
-  .item .body .mv { color: #c9cfda; font-weight: 600; }
+  .item .body { color: #a9b1bf; font-size: 14px; margin: 9px 0 0 42px; }
+  .item .body > * { margin: .75em 0 0; padding: 0; }
+  .item .body > :first-child { margin-top: 0; }
+  .item .body .gap { margin-top: 1.2em; }
+  .item .body .pg { color: #c3cad6; }
+  /* Aufzählungen: hängender Einzug, Luft zwischen den Punkten. Der Akzent
+     sitzt im Marker, nicht im Textgewicht — sonst schreit das Detail lauter
+     als der Satz darueber. */
+  .item .body ul.bl { list-style: none; }
+  .item .body ul.bl li { position: relative; padding-left: 1.15em; color: #c3cad6; }
+  .item .body ul.bl li::before {
+    content: "\2022"; position: absolute; left: .1em; top: 0;
+    color: var(--lime); font-weight: 700;
+  }
+  .item .body ul.bl li + li { margin-top: .4em; }
+  /* Zeilen, die im Plan mit * beginnen, sind Fußnoten — also leiser */
+  .item .body .note {
+    border-left: 2px solid var(--line); padding-left: 11px;
+    color: var(--muted); font-size: 13px;
+  }
+  .item .body .note .nm { display: none; }
   .item.checked:not(.open) .body { display: none; }
   .res { margin: 11px 0 0 42px; }
   .res input {
@@ -168,7 +187,7 @@
   .ex { border-top: 1px solid var(--line); padding-top: 9px; }
   .ex:first-child { border-top: none; padding-top: 0; }
   .exrow { display: flex; align-items: center; gap: 10px; }
-  .exname { flex: 1; min-width: 0; font-weight: 700; font-size: 14px; }
+  .exname { flex: 1; min-width: 0; font-weight: 600; font-size: 14px; }
   .exw {
     width: 104px; flex-shrink: 0; font: inherit; font-size: 16px; color: var(--ink);
     background: var(--bg); border: 1px solid var(--line); border-radius: 10px;
@@ -193,7 +212,7 @@
   .rmgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px; }
   .rmcell span { display: block; font-size: 12px; color: var(--muted); font-weight: 700; margin-bottom: 4px; }
   .exsec {
-    font-size: 11px; text-transform: uppercase; letter-spacing: 1.4px; font-weight: 800;
+    font-size: 11px; text-transform: uppercase; letter-spacing: 1.4px; font-weight: 700;
     color: var(--muted); margin: 14px 0 2px; padding-top: 10px; border-top: 1px dashed #3a4152;
   }
   .ex.hassec { border-top: none; padding-top: 0; }
@@ -204,7 +223,7 @@
   .ghead:first-child { border-top: none; padding-top: 0; margin-top: 2px; }
   .ghead span {
     flex: 1; min-width: 0; font-size: 11px; text-transform: uppercase;
-    letter-spacing: 1.4px; font-weight: 800; color: var(--muted);
+    letter-spacing: 1.4px; font-weight: 700; color: var(--muted);
   }
   .ghead.done span { color: var(--lime); }
   .gcb {
@@ -234,7 +253,7 @@
   }
   .own b {
     display: block; font-size: 10.5px; letter-spacing: 1.2px; text-transform: uppercase;
-    color: var(--lime); font-weight: 800; margin-bottom: 3px;
+    color: var(--lime); font-weight: 700; margin-bottom: 3px;
   }
   .item.checked:not(.open) .own { display: none; }
   /* Zielpace — Vorgabe wie die Gewichte, steht in den Einstellungen */
@@ -245,7 +264,7 @@
   }
   .pace b {
     display: block; font-size: 10.5px; letter-spacing: 1.2px; text-transform: uppercase;
-    color: var(--sky); font-weight: 800; margin-bottom: 3px;
+    color: var(--sky); font-weight: 700; margin-bottom: 3px;
   }
   /* Abweichung vom Original — bewusst leise, das ist nur eine Fußnote */
   .orig { margin: 9px 0 0 42px; font-size: 11.5px; color: var(--muted); line-height: 1.45; }
@@ -274,7 +293,7 @@
   }
   .today .thead { display: flex; align-items: flex-start; gap: 8px; margin-right: -6px; }
   .today .thead .k { flex: 1; min-width: 0; padding-top: 2px; }
-  .today .k { font-size: 11px; letter-spacing: 1.4px; text-transform: uppercase; color: var(--lime); font-weight: 800; }
+  .today .k { font-size: 11px; letter-spacing: 1.4px; text-transform: uppercase; color: var(--lime); font-weight: 700; }
   .today.quiet .k { color: var(--muted); }
   .today.sel { border-color: var(--lime); }
   .today .v { font-size: 19px; font-weight: 800; margin: 4px 0 2px; letter-spacing: -.3px; }
@@ -296,7 +315,7 @@
   .pd .dt .wd { font-size: 11px; color: var(--muted); font-weight: 700; line-height: 1.2; }
   .pd .dt .dn { font-size: 15px; font-weight: 800; line-height: 1.2; }
   .pd .inf { flex: 1; min-width: 0; }
-  .pd .inf .t { font-size: 14px; font-weight: 800; }
+  .pd .inf .t { font-size: 14px; font-weight: 700; }
   .pd .inf .s { font-size: 12px; color: var(--muted); line-height: 1.35;
     display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; white-space: pre-line; }
   .pd .tag {
@@ -330,10 +349,10 @@
   .sheet p { margin: 0 0 14px; font-size: 12.5px; color: var(--muted); }
   .sheet button {
     display: block; width: 100%; border: 1px solid var(--line); background: var(--surface2);
-    color: var(--ink); border-radius: var(--r-md); padding: 13px; font-size: 15px; font-weight: 800;
+    color: var(--ink); border-radius: var(--r-md); padding: 13px; font-size: 15px; font-weight: 700;
     margin-bottom: 8px; text-align: left;
   }
-  .sheet button small { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-top: 3px; }
+  .sheet button small { display: block; font-size: 12px; font-weight: 400; color: var(--muted); margin-top: 3px; }
   .sheet button.cancel { text-align: center; background: none; border: none; color: var(--muted); margin: 4px 0 0; }
 
   /* ---------- Stufenleitern ---------- */
@@ -357,7 +376,7 @@
   .tcard .thead2 { display: flex; align-items: baseline; gap: 8px; }
   .tcard .k {
     flex: 1; min-width: 0; font-size: 11px; letter-spacing: 1.2px; text-transform: uppercase;
-    color: var(--sky); font-weight: 800;
+    color: var(--sky); font-weight: 700;
   }
   .tcard .q { color: var(--muted); font-size: 11px; flex-shrink: 0; }
   .tcard .v { font-size: 17px; font-weight: 800; margin: 4px 0 2px; letter-spacing: -.3px; }
@@ -409,7 +428,7 @@
     /* unten NUR die Home-Indicator-Zone (kein zusätzlicher Eigenabstand) */
     padding: 10px 6px max(10px, env(safe-area-inset-bottom));
   }
-  nav button { border: none; background: none; color: var(--muted); display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 9.5px; font-weight: 700; letter-spacing: .2px; padding: 2px 2px; white-space: nowrap; }
+  nav button { border: none; background: none; color: var(--muted); display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 9.5px; font-weight: 600; letter-spacing: .2px; padding: 2px 2px; white-space: nowrap; }
   #navHome { grid-column: 1; }
   #navWeek { grid-column: 2; }
   #navStats { grid-column: 4; }
@@ -453,7 +472,7 @@
     background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md);
     margin-bottom: 10px; padding: 0 14px;
   }
-  .setsec summary { list-style: none; cursor: pointer; font-weight: 800; font-size: 15px; padding: 15px 0; display: flex; align-items: center; }
+  .setsec summary { list-style: none; cursor: pointer; font-weight: 700; font-size: 15px; padding: 15px 0; display: flex; align-items: center; }
   .setsec summary::-webkit-details-marker { display: none; }
   .setsec summary::after { content: "›"; margin-left: auto; color: var(--muted); font-size: 18px; transform: rotate(90deg); transition: transform .15s; }
   .setsec[open] summary::after { transform: rotate(-90deg); }
@@ -466,7 +485,7 @@
     padding: 16px 18px; font-size: 16px; font-weight: 800; margin-bottom: 12px;
   }
   .chartcard { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md); padding: 14px; margin-top: 4px; }
-  .chartcard h3 { margin: 0 0 10px; font-size: 11px; text-transform: uppercase; letter-spacing: 1.4px; color: var(--muted); font-weight: 800; }
+  .chartcard h3 { margin: 0 0 10px; font-size: 11px; text-transform: uppercase; letter-spacing: 1.4px; color: var(--muted); font-weight: 700; }
   .liftgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .lift { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md); padding: 12px; }
   .lift .ln { font-size: 12px; color: var(--muted); font-weight: 700; }
@@ -474,15 +493,172 @@
   .lift .spark { display: block; margin-top: 8px; max-width: 100%; }
   .sparkempty { color: var(--muted); font-size: 11.5px; margin-top: 10px; border-top: 1px dashed #3a4152; padding-top: 8px; }
   .chip { display: inline-block; font-size: 11.5px; font-weight: 800; border-radius: 99px; padding: 2.5px 9px; }
-  .chip.up { color: var(--lime); background: rgba(215, 246, 81, .13); }
+  .chip.up { color: var(--lime); background: color-mix(in srgb, var(--lime) 13%, transparent); }
   .chip.down { color: var(--red); background: rgba(255, 77, 94, .13); }
   .chip.flat { color: var(--muted); background: var(--surface2); }
   .ts { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid var(--line); font-size: 13.5px; }
   .ts:first-of-type { border-top: none; }
   .ts span:first-child { color: var(--muted); min-width: 0; }
   .foot { text-align: center; color: var(--muted); font-size: 11.5px; margin: 26px 0 4px; }
+
+  /* ================================================================
+     Tiefe, Touch-Feedback, Uebergaenge, Akzentfarbe
+     ================================================================ */
+
+  /* ---- Tiefe: Schatten unten, 1px Lichtkante oben ---- */
+  .stat, .card, .lift, .chartcard, .setsec {
+    box-shadow: 0 1px 2px rgba(0,0,0,.45), 0 10px 24px -14px rgba(0,0,0,.9),
+                inset 0 1px 0 rgba(255,255,255,.055);
+  }
+  .hero, .today, .tcard, .motto {
+    box-shadow: 0 2px 4px rgba(0,0,0,.5), 0 18px 40px -22px rgba(0,0,0,1),
+                inset 0 1px 0 rgba(255,255,255,.07);
+  }
+  /* Eingabefelder liegen umgekehrt tiefer als ihre Karte */
+  .res input, .exw, .exn, .setrow input, .set textarea, .set input {
+    box-shadow: inset 0 1px 2px rgba(0,0,0,.55);
+  }
+  nav { box-shadow: 0 -12px 28px -20px rgba(0,0,0,1); }
+  header { box-shadow: 0 10px 24px -22px rgba(0,0,0,1); }
+  nav .go {
+    box-shadow: 0 10px 26px color-mix(in srgb, var(--lime) 38%, transparent),
+                0 2px 6px rgba(0,0,0,.6);
+  }
+
+  /* ---- Touch-Feedback ---- */
+  button, .setsec summary {
+    transition: transform .13s cubic-bezier(.2,.7,.4,1),
+                filter .13s ease, background-color .13s ease, border-color .13s ease;
+  }
+  button:active { transform: scale(.965); }
+  .card:active, .item:active, .today:active, .sheet button:active { transform: scale(.985); }
+  .setsec summary:active { transform: scale(.99); }
+  .today .cta:active, .tsave:active,
+  .set .row button.primary:active, .setup .row button.primary:active { filter: brightness(.88); }
+  /* FAB: eigene Regel, damit translateX(-50%) erhalten bleibt */
+  nav .go { transition: transform .13s cubic-bezier(.2,.7,.4,1), box-shadow .13s ease; }
+  nav .go:active {
+    transform: translateX(-50%) scale(.9);
+    box-shadow: 0 3px 10px color-mix(in srgb, var(--lime) 30%, transparent);
+  }
+  nav button:not(.go) { transition: color .15s ease; }
+  nav button:not(.go):active { transform: none; }
+  nav button:not(.go) svg { transition: transform .13s cubic-bezier(.34,1.56,.64,1); }
+  nav button:not(.go):active svg { transform: scale(.82); }
+  nav button.active svg { transform: scale(1.06); }
+  .res input, .exw, .exn, .setrow input, .set textarea, .set input, .setup input {
+    transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
+  }
+  .res input:focus, .exw:focus, .exn:focus {
+    box-shadow: inset 0 1px 2px rgba(0,0,0,.55),
+                0 0 0 3px color-mix(in srgb, var(--lime) 14%, transparent);
+  }
+  .setrow input:focus {
+    box-shadow: inset 0 1px 2px rgba(0,0,0,.55),
+                0 0 0 3px color-mix(in srgb, var(--sky) 14%, transparent);
+  }
+
+  /* ---- Checkbox mit Feder ---- */
+  .cb, .gcb { transition: background-color .16s ease, border-color .16s ease, color .16s ease; }
+  .cb:active, .gcb:active { transform: scale(.88); }
+  @keyframes cbpop  { 0% { transform: scale(.55); } 55% { transform: scale(1.16); } 100% { transform: scale(1); } }
+  @keyframes cbring { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--lime) 55%, transparent); }
+                      100% { box-shadow: 0 0 0 14px transparent; } }
+  @keyframes rowdone { 0% { background: color-mix(in srgb, var(--lime) 13%, transparent); }
+                       100% { background: transparent; } }
+  .cb.pop, .gcb.pop {
+    animation: cbpop .36s cubic-bezier(.34,1.56,.64,1), cbring .5s ease-out;
+    will-change: transform;
+  }
+  .item { transition: opacity .22s ease; }
+  .item .tt { transition: color .22s ease; }
+  .item.justdone { animation: rowdone .7s ease-out; border-radius: var(--r-md); }
+
+  /* ---- .flash muss den Kartenschatten mitfuehren, sonst faellt
+         die Tiefe während der Hervorhebung für 1,6s weg ---- */
+  .item.flash { animation: flashd 1.6s ease-out 1; }
+  @keyframes flashd {
+    0%   { box-shadow: 0 0 0 3px var(--lime),
+                       0 1px 2px rgba(0,0,0,.45), 0 10px 24px -14px rgba(0,0,0,.9),
+                       inset 0 1px 0 rgba(255,255,255,.055); }
+    100% { box-shadow: 0 0 0 0 transparent,
+                       0 1px 2px rgba(0,0,0,.45), 0 10px 24px -14px rgba(0,0,0,.9),
+                       inset 0 1px 0 rgba(255,255,255,.055); }
+  }
+
+  /* ---- Screen-Uebergaenge ---- */
+  @keyframes vtin { from { opacity: 0; transform: translateY(9px); } to { opacity: 1; transform: none; } }
+  #main.vt { animation: vtin .19s cubic-bezier(.2,.7,.4,1); }
+
+  /* ---- Icons in den Einstellungen ---- */
+  .setsec summary svg.secic {
+    width: 18px; height: 18px; flex-shrink: 0; margin-right: 11px;
+    fill: none; stroke: currentColor; stroke-width: 2;
+    stroke-linecap: round; stroke-linejoin: round;
+    color: var(--muted); transition: color .15s ease;
+  }
+  .setsec[open] summary svg.secic { color: var(--lime); }
+  .setsec summary svg.secic.warn, .setsec[open] summary svg.secic.warn { color: var(--amber); }
+
+  /* ================================================================
+     Akzentfarbe — die Presets stehen als CSS, damit sie schon vor dem
+     ersten Paint greifen (data-accent wird ganz oben gesetzt).
+     Kontrast geprueft: Akzent auf Schwarz und Buttontext auf dem
+     Akzent liegen bei allen ueber 4,5:1.
+     ================================================================ */
+  :root[data-accent="lime"]    { --lime: #d7f651; --lime-ink: #12150a; }
+  :root[data-accent="amber"]   { --lime: #fbbf24; --lime-ink: #2a1c00; }
+  :root[data-accent="mint"]    { --lime: #4ade80; --lime-ink: #052c14; }
+  :root[data-accent="violet"]  { --lime: #a78bfa; --lime-ink: #160a2e; }
+  /* Cyan/Blau: --sky weicht aus, sonst stehen zwei gleiche Töne nebeneinander */
+  :root[data-accent="ice"]     { --lime: #22d3ee; --lime-ink: #04232a; --sky: #a7b4c6; }
+  :root[data-accent="blue"]    { --lime: #5b8cff; --lime-ink: #06122e; --sky: #a7b4c6; }
+  /* Rot-Familie: --red ist die Fehlerfarbe. Wird Rot zur Markenfarbe,
+     weicht sie auf Amber aus — das gilt bei "Ziel verfehlt" ohnehin schon. */
+  :root[data-accent="red"]     { --lime: #ff3b4e; --lime-ink: #2a0409; --red: #f5c344; }
+  :root[data-accent="crimson"] { --lime: #f43f5e; --lime-ink: #2b040e; --red: #f5c344; }
+  :root[data-accent="coral"]   { --lime: #ff6b6b; --lime-ink: #2b0a0a; --red: #f5c344; }
+  :root[data-accent="magenta"] { --lime: #ff4d8d; --lime-ink: #2b0416; --red: #f5c344; }
+
+  .acgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .acdot {
+    display: flex; align-items: center; gap: 9px; text-align: left;
+    border: 1px solid var(--line); background: var(--bg); color: var(--ink);
+    border-radius: var(--r-sm); padding: 9px 10px; font-size: 13px; font-weight: 600;
+  }
+  .acdot i { width: 16px; height: 16px; border-radius: 99px; background: var(--c); flex-shrink: 0; }
+  .acdot.sel { border-color: var(--c); background: color-mix(in srgb, var(--c) 10%, var(--bg)); }
+  .acdot.sel i { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px var(--c); }
+  .accustom { display: flex; align-items: center; gap: 10px; margin-top: 10px; font-size: 13px; }
+  .accustom input[type=color] {
+    width: 46px; height: 32px; padding: 0; border: 1px solid var(--line);
+    border-radius: 9px; background: var(--bg); flex-shrink: 0;
+  }
+  #acwarn { color: var(--amber); font-weight: 700; min-height: 0; }
+  #acwarn:empty { display: none; }
+
+  /* ---- Systemeinstellung respektieren ---- */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: .01ms !important; animation-iteration-count: 1 !important;
+      transition-duration: .01ms !important;
+    }
+    button:active, .card:active, .item:active { transform: none; }
+    nav .go:active { transform: translateX(-50%); }
+  }
 </style>
 </head>
+<script>
+/* Akzentfarbe aus dem Cache setzen, BEVOR gerendert wird — sonst blitzt
+   kurz die Standardfarbe auf. Presets sind CSS, deshalb reicht hier das
+   data-Attribut; eine eigene Farbe setzt applyAccent() nach dem Boot. */
+(function () {
+  try {
+    var a = (JSON.parse(localStorage.getItem("wt-progress-cache-v1") || "{}") || {}).accent;
+    if (a && /^[a-z]+$/.test(a)) document.documentElement.dataset.accent = a;
+  } catch (e) {}
+})();
+</script>
 <body>
 <header>
   <button class="back" id="backBtn" style="display:none" aria-label="Zurück">‹</button>
@@ -738,11 +914,117 @@ function weekItems(week) { return week.days.flatMap(dayItems); }
 function pct(done, total) { return total ? Math.round(done / total * 100) : 0; }
 function esc(s) { return (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
 function fmtBody(s) {
-  return esc(s).split("\n").map(line =>
-    /^- /.test(line.trim()) ? `<span class="mv">${line}</span>` : line
-  ).join("\n");
+  /* Gruppiert den Plantext in Blöcke: zusammenhängende "- "-Zeilen werden
+     eine echte Liste, alles andere ein Absatz. Eine Leerzeile im Original
+     markiert einen Abstand, eine mit * beginnende Zeile eine Fußnote. */
+  const L = esc(s).split("\n");
+  const isLi = t => /^- /.test(t);
+  let out = "", i = 0, gap = false, first = true;
+  while (i < L.length) {
+    const t = L[i].trim();
+    if (!t) { gap = true; i++; continue; }
+    const cls = (gap && !first) ? " gap" : "";
+    if (isLi(t)) {
+      let items = "";
+      while (i < L.length && isLi(L[i].trim())) { items += `<li class="mv">${L[i].trim().slice(2)}</li>`; i++; }
+      out += `<ul class="bl${cls}">${items}</ul>`;
+    } else {
+      const par = [];
+      while (i < L.length && L[i].trim() && !isLi(L[i].trim())) { par.push(L[i].trim()); i++; }
+      const note = /^\*/.test(par[0]);
+      let body = par.join("<br>");
+      if (note) body = body.replace(/^\*\s?/, `<span class="nm">*</span>`);
+      out += `<p class="pg${note ? " note" : ""}${cls}">${body}</p>`;
+    }
+    gap = false; first = false;
+  }
+  return out;
 }
 function fmtDate(iso) { const d = new Date(iso); return d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "2-digit" }); }
+/* ---------- Akzentfarbe ----------
+   Presets stehen als CSS unter :root[data-accent=...] — deshalb greifen sie
+   schon vor dem ersten Paint. Eine eigene Farbe wird hier gesetzt; die
+   Schriftfarbe darauf rechnet inkFor() aus der Helligkeit aus. */
+const ACCENTS = [
+  ["lime",    "Lime",      "#d7f651"], ["red",     "Signalrot", "#ff3b4e"],
+  ["crimson", "Crimson",   "#f43f5e"], ["coral",   "Koralle",   "#ff6b6b"],
+  ["magenta", "Magenta",   "#ff4d8d"], ["amber",   "Amber",     "#fbbf24"],
+  ["mint",    "Mint",      "#4ade80"], ["ice",     "Ice",       "#22d3ee"],
+  ["blue",    "Blue",      "#5b8cff"], ["violet",  "Violett",   "#a78bfa"]
+];
+const ERR_AMBER = "#f5c344", SKY_NEUTRAL = "#a7b4c6";
+
+function hexRGB(h) {
+  const m = /^#?([0-9a-fA-F]{6})$/.exec(String(h || "").trim());
+  if (!m) return null;
+  const n = parseInt(m[1], 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+function relLum(rgb) {
+  const c = rgb.map(v => { v /= 255; return v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4); });
+  return .2126 * c[0] + .7152 * c[1] + .0722 * c[2];
+}
+function contrastOf(a, b) {
+  const L = [relLum(a), relLum(b)].sort((x, y) => y - x);
+  return (L[0] + .05) / (L[1] + .05);
+}
+/* Schrift auf der Akzentfläche: dunkle Variante des Tons oder Weiß —
+   was den besseren Kontrast bringt. */
+function inkFor(rgb) {
+  const dark = rgb.map(v => Math.round(v / 9));
+  return contrastOf(dark, rgb) >= contrastOf([255, 255, 255], rgb)
+    ? "#" + dark.map(v => v.toString(16).padStart(2, "0")).join("")
+    : "#ffffff";
+}
+function hueOf(rgb) {
+  const [r, g, b] = rgb.map(v => v / 255);
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+  if (!d) return 0;
+  const h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return (h * 60 + 360) % 360;
+}
+function accentPreset(v) { return ACCENTS.find(a => a[0] === v) || null; }
+function accentHex(v) {
+  const p = accentPreset(v);
+  return p ? p[2] : (hexRGB(v) ? (String(v).startsWith("#") ? v : "#" + v) : ACCENTS[0][2]);
+}
+function applyAccent(v) {
+  const root = document.documentElement, st = root.style;
+  const p = accentPreset(v || "lime");
+  if (p || !hexRGB(v)) {
+    root.dataset.accent = p ? p[0] : "lime";
+    ["--lime", "--lime-ink", "--red", "--sky"].forEach(k => st.removeProperty(k));
+    return;
+  }
+  delete root.dataset.accent;
+  const hex = accentHex(v), rgb = hexRGB(hex), h = hueOf(rgb);
+  st.setProperty("--lime", hex);
+  st.setProperty("--lime-ink", inkFor(rgb));
+  // Rot-Töne schieben die Fehlerfarbe weg, Cyan/Blau neutralisieren --sky
+  if (h >= 320 || h <= 18) st.setProperty("--red", ERR_AMBER); else st.removeProperty("--red");
+  if (h >= 170 && h <= 250) st.setProperty("--sky", SKY_NEUTRAL); else st.removeProperty("--sky");
+}
+/* Aendert die Farbe ohne Re-Render — sonst klappt der offene
+   Einstellungsbereich zu (gleiches Muster wie setRM). */
+window.setAccent = function (v) {
+  S.accent = v;
+  markDirty();
+  applyAccent(v);
+  document.querySelectorAll(".acdot").forEach(b => b.classList.toggle("sel", b.dataset.k === v));
+  const inp = document.getElementById("accustom");
+  if (inp && accentPreset(v)) inp.value = accentHex(v);
+  accentWarn();
+};
+function accentWarn() {
+  const el = document.getElementById("acwarn");
+  if (!el) return;
+  const rgb = hexRGB(accentHex(S.accent));
+  const onBg = contrastOf(rgb, [0, 0, 0]), onInk = contrastOf(hexRGB(inkFor(rgb)), rgb);
+  el.textContent = (onBg < 4.5 || onInk < 4.5)
+    ? `Achtung: schwacher Kontrast (${onBg.toFixed(1)}:1 auf Schwarz, ${onInk.toFixed(1)}:1 für den Buttontext). Im hellen Studio schwer lesbar.`
+    : "";
+}
+
 const RM_KEYS = [
   ["squat", "Front Squat (Squat-1RM)"],
   ["bench", "Bench Press"],
@@ -1249,6 +1531,7 @@ function setNav(active) {
 }
 
 function render() {
+  applyAccent(S.accent);
   const seg = location.hash.replace(/^#/, "").split("/").filter(Boolean);
   const st = window.scrollY;
   if (seg[0] === "settings") renderSettings();
@@ -1259,7 +1542,11 @@ function render() {
   else if (seg[0] === "w") renderWeek(+seg[1], +seg[2]);
   else renderHome();
   // Scroll-Position nur bei echter Navigation zurücksetzen, nicht beim Abhaken
-  if (navScroll) { window.scrollTo(0, 0); navScroll = false; }
+  if (navScroll) {
+    window.scrollTo(0, 0); navScroll = false;
+    // nur bei echter Navigation einblenden, nicht beim Abhaken
+    main.classList.remove("vt"); void main.offsetWidth; main.classList.add("vt");
+  }
   else window.scrollTo(0, st);
 }
 
@@ -1653,9 +1940,9 @@ function renderDay(pi, wi, di) {
         return;
       }
       const checked = !!S.checked[item.id];
-      html += `<div class="card item ${checked ? "checked" : ""}${checked && open ? " open" : ""}" id="it-${item.id}">
+      html += `<div class="card item ${checked ? "checked" : ""}${checked && open ? " open" : ""}${POP_ID === item.id ? " justdone" : ""}" id="it-${item.id}">
         <div class="head">
-          <button class="cb" onclick="toggle('${item.id}')" aria-label="abhaken">✓</button>
+          <button class="cb${POP_ID === item.id ? " pop" : ""}" onclick="toggle('${item.id}')" aria-label="abhaken">✓</button>
           <div style="min-width:0">
             <div class="tt">${esc(item.title)}</div>
             ${item.sub ? `<div class="st">${esc(item.sub)}</div>` : ""}
@@ -1817,7 +2104,7 @@ function renderExercises(item) {
     const done = !!S.checked[g.id];
     return `<div class="ghead ${done ? "done" : ""}">
         <span>${esc(g.label)}</span>
-        <button class="gcb" onclick="toggleGroup('${g.id}','${item.id}')" aria-label="Block abhaken">✓</button>
+        <button class="gcb${POP_ID === g.id ? " pop" : ""}" onclick="toggleGroup('${g.id}','${item.id}')" aria-label="Block abhaken">✓</button>
       </div>` + g.exs.map(ex => renderExercise(item, ex)).join("");
   }).join("") + `</div>`;
 }
@@ -1840,6 +2127,24 @@ function renderResult(item) {
 }
 
 /* ---------- Actions ---------- */
+/* Rahmt nach dem Abhaken den nächsten noch OFFENEN Part ein — dieselbe
+   Hervorhebung, die goContinue() benutzt. Scrollt nur hin, wenn der Part
+   nicht ohnehin gut sichtbar ist, sonst springt die Seite unterm Daumen weg. */
+function flashNextOpen(doneEl) {
+  const all = Array.prototype.slice.call(document.querySelectorAll("#main .item"));
+  const from = doneEl ? all.indexOf(doneEl) : -1;
+  let next = null;
+  for (let i = from + 1; i < all.length; i++) {
+    if (!all[i].classList.contains("checked")) { next = all[i]; break; }
+  }
+  if (!next) return;
+  next.classList.remove("flash"); void next.offsetWidth; next.classList.add("flash");
+  const r = next.getBoundingClientRect();
+  if (r.top < 70 || r.bottom > window.innerHeight - 90) {
+    const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    next.scrollIntoView({ behavior: calm ? "auto" : "smooth", block: "center" });
+  }
+}
 function setItemChecked(id, on, now) {
   const item = ITEM_INDEX[id];
   const gs = item && item.exercises ? exGroups(item) : [];
@@ -1851,10 +2156,15 @@ function setItemChecked(id, on, now) {
     gs.forEach(g => delete S.checked[g.id]);
   }
 }
+let POP_ID = null;   /* nur DIESE Checkbox federt beim nächsten Re-Render */
 window.toggle = function (id) {
-  setItemChecked(id, !S.checked[id], new Date().toISOString());
+  const on = !S.checked[id];
+  setItemChecked(id, on, new Date().toISOString());
+  POP_ID = on ? id : null;
   markDirty();
   render();
+  POP_ID = null;
+  if (on) flashNextOpen(document.getElementById("it-" + id));
 };
 window.toggleGroup = function (gid, itemId) {
   const now = new Date().toISOString();
@@ -1864,8 +2174,10 @@ window.toggleGroup = function (gid, itemId) {
   const all = gs.every(g => S.checked[g.id]);
   if (all && !S.checked[itemId]) { S.checked[itemId] = now; logEv("done", itemId); }
   if (!all && S.checked[itemId]) delete S.checked[itemId];
+  POP_ID = S.checked[gid] ? gid : null;
   markDirty();
   render();
+  POP_ID = null;
 };
 window.checkSession = function (pi, wi, di, si) {
   const sess = PROGRAM[pi].weeks[wi].days[di].sessions[si];
@@ -1958,7 +2270,7 @@ function renderSettings() {
   const dirty = !!lsGet(DIRTY_KEY);
   main.innerHTML = `<div class="set">
     <details class="setsec" open>
-      <summary>🔄 Sync & Verbindung</summary>
+      <summary><svg class="secic" viewBox="0 0 24 24" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>Sync & Verbindung</summary>
       <div class="secbody">
         <p class="hint">Fortschritt: ${done}/${total} Parts · Modus: ${mode === "github" ? `GitHub (${esc(cfg.user)}/${esc(cfg.repo)}) — ${dirty ? "ungesicherte Änderungen ●" : "synchron ✓"}` : "lokal (localStorage)"}</p>
         ${mode === "github" ? `<div class="row">
@@ -1968,7 +2280,7 @@ function renderSettings() {
       </div>
     </details>
     <details class="setsec">
-      <summary>🏋️ 1RM-Gewichte</summary>
+      <summary><svg class="secic" viewBox="0 0 24 24" aria-hidden="true"><rect x="1.5" y="9.2" width="3.2" height="5.6" rx="1.2"/><rect x="19.3" y="9.2" width="3.2" height="5.6" rx="1.2"/><rect x="4.9" y="6.6" width="3.6" height="10.8" rx="1.4"/><rect x="15.5" y="6.6" width="3.6" height="10.8" rx="1.4"/><path d="M8.5 12h7"/></svg>1RM-Gewichte</summary>
       <div class="secbody">
         <p class="hint">Basis für die Gewichts-Vorgaben der schweren Grundübungen (auf 2,5 kg gerundet). Jede Änderung wird mit Datum im Verlauf gespeichert und synchronisiert.</p>
         <div class="rmgrid">
@@ -1979,7 +2291,7 @@ function renderSettings() {
       </div>
     </details>
     ${(PACES || []).length ? `<details class="setsec">
-      <summary>🏃 Ziel-Paces</summary>
+      <summary><svg class="secic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13.5" r="7.5"/><path d="M12 9.5v4l2.6 2.2M9.2 2h5.6"/></svg>Ziel-Paces</summary>
       <div class="secbody">
         <p class="hint">Vorgabe für die Bahn-Intervalle. Leer lassen heißt: es gilt der Wert aus dem Plan.</p>
         <div class="rmgrid">
@@ -1990,7 +2302,21 @@ function renderSettings() {
       </div>
     </details>` : ""}
     <details class="setsec">
-      <summary>💾 Backup</summary>
+      <summary><svg class="secic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="13.5" cy="6.5" r="1.2"/><circle cx="17.5" cy="10.5" r="1.2"/><circle cx="8.5" cy="7.5" r="1.2"/><circle cx="6.5" cy="12.5" r="1.2"/><path d="M12 3a9 9 0 1 0 0 18c1 0 1.8-.8 1.8-1.8 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-1 .8-1.8 1.8-1.8H17a4 4 0 0 0 4-4c0-4.4-4-8-9-8z"/></svg>Akzentfarbe</summary>
+      <div class="secbody">
+        <p class="hint">Gilt für die ganze App und wird mitsynchronisiert — die Wahl gilt also auch auf dem Handy.</p>
+        <div class="acgrid">
+          ${ACCENTS.map(([k, name, hex]) => `<button class="acdot${(S.accent || "lime") === k ? " sel" : ""}" data-k="${k}"
+            style="--c:${hex}" onclick="setAccent('${k}')"><i></i>${esc(name)}</button>`).join("")}
+        </div>
+        <label class="accustom">Eigene Farbe
+          <input type="color" id="accustom" value="${esc(accentHex(S.accent))}"
+            onchange="setAccent(this.value)"></label>
+        <p class="hint" id="acwarn"></p>
+      </div>
+    </details>
+    <details class="setsec">
+      <summary><svg class="secic" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Backup</summary>
       <div class="secbody">
         <p class="hint">Exportieren kopiert den kompletten Fortschritt als JSON. Zum Wiederherstellen JSON einfügen und „Importieren“ tippen.</p>
         <textarea id="io" placeholder='{"checked":{...}}'></textarea>
@@ -2001,7 +2327,7 @@ function renderSettings() {
       </div>
     </details>
     <details class="setsec">
-      <summary>🔁 Neuer Durchlauf</summary>
+      <summary><svg class="secic" viewBox="0 0 24 24" aria-hidden="true"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>Neuer Durchlauf</summary>
       <div class="secbody">
         <p class="hint">Aktuell: Durchlauf ${S.run || 1}${(S.runs || []).length ? ` · ${S.runs.length} abgeschlossen` : ""}. Archiviert den aktuellen Stand und setzt Häkchen &amp; Eingabefelder zurück — jederzeit möglich, auch mitten im Programm. Gewichts-Historie und 1RM bleiben erhalten; die Analyse vergleicht dann die Durchläufe.</p>
         <div class="row">
@@ -2010,13 +2336,13 @@ function renderSettings() {
       </div>
     </details>
     <details class="setsec">
-      <summary>🩺 Diagnose (Anzeige)</summary>
+      <summary><svg class="secic" viewBox="0 0 24 24" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Diagnose (Anzeige)</summary>
       <div class="secbody">
         <p class="hint" id="diag">…</p>
       </div>
     </details>
     <details class="setsec">
-      <summary>⚠️ Zurücksetzen</summary>
+      <summary><svg class="secic warn" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Zurücksetzen</summary>
       <div class="secbody">
         <p class="hint">Löscht Häkchen und eingetragene Ergebnisse unwiderruflich. 1RM-Gewichte, Trainingslog und archivierte Durchläufe bleiben erhalten. Für einen Neustart mit Vergleich nutze stattdessen „Neuer Durchlauf".</p>
         <div class="row">
@@ -2026,6 +2352,7 @@ function renderSettings() {
     </details>
   </div>`;
   fillDiag();
+  accentWarn();
 }
 /* ---------- Analyse ---------- */
 function parseW(v) { const m = String(v).replace(",", ".").match(/-?\d+(\.\d+)?/); return m ? parseFloat(m[0]) : null; }
