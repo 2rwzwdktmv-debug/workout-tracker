@@ -115,7 +115,8 @@
   .dayrow { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
   .dayrow .info { flex: 1; min-width: 0; }
   .dayrow .t { font-weight: 800; font-size: 15px; }
-  .dayrow .sess { color: var(--muted); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+  .dayrow .sess { color: var(--muted); font-size: 12.5px; line-height: 1.35; margin-top: 2px;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; }
   .dayrow .mini { position: relative; width: 40px; height: 40px; flex-shrink: 0; }
   .dayrow .mini .mp { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 9.5px; font-weight: 800; color: var(--muted); }
   .dayrow.done { border-color: color-mix(in srgb, var(--lime) 45%, transparent); }
@@ -278,6 +279,9 @@
   .today.sel { border-color: var(--lime); }
   .today .v { font-size: 19px; font-weight: 800; margin: 4px 0 2px; letter-spacing: -.3px; }
   .today .s { font-size: 13px; color: var(--muted); }
+  .today .dur { flex-shrink: 0; align-self: center; font-size: 11px; font-weight: 800;
+    letter-spacing: .3px; color: var(--muted); border: 1px solid var(--line);
+    border-radius: 999px; padding: 3px 9px; white-space: nowrap; }
   .today .cta {
     display: block; width: 100%; margin-top: 14px; border: none; border-radius: 99px;
     background: var(--lime); color: var(--lime-ink); font-size: 15px; font-weight: 800; padding: 12px;
@@ -293,7 +297,8 @@
   .pd .dt .dn { font-size: 15px; font-weight: 800; line-height: 1.2; }
   .pd .inf { flex: 1; min-width: 0; }
   .pd .inf .t { font-size: 14px; font-weight: 800; }
-  .pd .inf .s { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pd .inf .s { font-size: 12px; color: var(--muted); line-height: 1.35;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; }
   .pd .tag {
     font-size: 10.5px; font-weight: 800; color: var(--muted); background: var(--surface2);
     border-radius: 99px; padding: 3px 9px; flex-shrink: 0;
@@ -843,11 +848,147 @@ function planDays() {
   return out;
 }
 function dayTitle(d) { return d.week.name + " · " + d.day.label; }
+/* ---------- Vorschau: was steht an diesem Tag wirklich an? -----------------
+   Die Session-Labels im Plan ("Endurance Session", "PM Session") sagen nichts.
+   Der Inhalt steckt im sub der Items ("90-120 minute bike session"), also wird
+   die Zeile daraus gebaut: pro Session ein, zwei kurze Chips, AM/PM davor.
+   Ein handgeschriebenes preview am Tag oder an der Session schlägt alles. */
+const PV_MAX = 50;                 // die Zeile wird einzeilig abgeschnitten
+const PV_SKIP = /warm.?up|cool.?down|aktivierung|einlaufen|auslaufen|accessory/i;
+const PV_MODE = [[/assault|\bbike|\brad\b/i, "bike"], [/\bski\b/i, "ski"],
+                 [/\brow\b|rowing|rudern/i, "row"], [/\brun\b|\bjog|lauf/i, "run"]];
+const PV_GENERIC = /^(part \d+.*|intensity session|strength session|session|endurance session|am session|pm session|warm-?up.*)$/i;
+
+function pvDur(s) {
+  let m = s.match(/(\d+)\s*[-–]\s*(\d+)\s*[-\s]*(?:minutes?|min)\b/i);
+  if (m) return m[1] + "–" + m[2] + " min";
+  m = s.match(/(\d+)\s*[-\s]*(?:minutes?|min)\b/i);
+  if (m) return m[1] + " min";
+  m = s.match(/(\d+)\s*(?:hours?|std)\b/i);
+  if (m) return m[1] + " h";
+  return null;
+}
+function pvMode(s) {
+  for (const [rx, name] of PV_MODE) if (rx.test(s)) return name;
+  return null;
+}
+/* Der Teil hinter dem Gedankenstrich im Titel ist oft der beste Name:
+   "Part 3 — Strong Man Complex" → "Strong Man Complex". */
+function pvNamed(it) {
+  const t = pvTrim((it.title || "").split(/\s+[—–]\s+/).slice(1).join(" — "));
+  return (t && !PV_GENERIC.test(t)) ? t : null;
+}
+function pvTrim(s) {
+  return (s || "").replace(/[„“”"]/g, "").trim();
+}
+function pvChip(it) {
+  const sub = (it.sub || "").trim();
+  const all = sub + " " + (it.title || "") + " " + (it.key || "");
+  const d = pvDur(sub), mode = pvMode(all);
+  let m;
+  if (/tempo/i.test(all) && (m = sub.match(/(\d+)\s*[-–]?\s*(\d+)?\s*[x×]\s*(\d+)\s*(?:minutes?|min)\b/i)))
+    return m[1] + (m[2] ? "–" + m[2] : "") + "×" + m[3] + " min tempo";
+  if (/time trial/i.test(all)) return "1 mile TT";
+  if (d && /\bemom\b/i.test(all)) return d + " EMOM";
+  if (d && /\bamrap\b/i.test(all)) return d + " AMRAP";
+  if ((m = sub.match(/(\d+)\s*[x×]\s*(\d+)\s*(?:minutes?|min)\b/i)))
+    return m[1] + "×" + m[2] + " min rounds";
+  if ((m = sub.match(/(\d+)\s*s\s+[\w\s]*?\/\s*(\d+)\s*s\s*rest/i)))
+    return m[1] + "/" + m[2] + " s" + (mode ? " " + mode : "");
+  if ((m = sub.match(/(\d+)\s*[x×]\s*(\d+)\s*m\b/i))) return m[1] + "×" + m[2] + " m";
+  if ((m = sub.match(/(\d+)\s*calorie/i))) return m[1] + " cal" + (mode ? " " + mode : "");
+  if ((m = sub.match(/\b(\d{1,2})\s*k\s+(row|ski|bike|run)/i))) return m[1] + "k " + m[2].toLowerCase();
+  if ((m = sub.match(/\b(\d{3,5})\s*m\b/i))) return m[1] + " m" + (mode ? " " + mode : "");
+  if (d && mode) return d + " " + mode;
+  const named = pvNamed(it);
+  if (named) return named;
+  if (d) return d;
+  if (/lower body/i.test(sub)) return "lower body lift";
+  if (/upper body/i.test(sub)) return "upper body lift";
+  if ((m = sub.match(/(\d+)\s*[-–]?\s*(\d+)?\s*rounds?/i)))
+    return m[1] + (m[2] ? "–" + m[2] : "") + " rounds";
+  const short = pvTrim(sub.split(/\s+[·|]\s+/)[0]);
+  if (short && short.length <= 28 && !PV_GENERIC.test(short)) return short;
+  if (it.exercises && it.exercises.length)
+    return it.exercises.map(e => pvTrim(e.name.replace(/\s+\d+\s*x.*$/i, ""))).slice(0, 2).join(" + ");
+  if (/\bemom\b/i.test(all)) return "EMOM";
+  if (/\bamrap\b/i.test(all)) return "AMRAP";
+  return null;
+}
+function pvSession(sess) {
+  if (sess.preview) return [sess.preview];
+  const chips = [];
+  for (const it of sess.items || []) {
+    if (it.rest) continue;
+    if (PV_SKIP.test((it.title || "") + " " + (it.sub || ""))) continue;
+    const c = pvChip(it);
+    if (c && chips.indexOf(c) < 0) chips.push(c);
+  }
+  return chips;
+}
+/* AM/PM: steht es im Label, wird es übernommen; hat ein Doppeltag nur eine
+   Hälfte beschriftet, ergibt sich die andere aus der Reihenfolge. */
+function pvSlots(sess) {
+  const found = sess.map(s => { const m = (s.label || "").match(/\b(AM|PM)\b/i); return m ? m[1].toUpperCase() : null; });
+  if (sess.length !== 2 || !found.some(Boolean)) return found.map(() => null);
+  return [found[0] || (found[1] === "PM" ? "AM" : null), found[1] || (found[0] === "AM" ? "PM" : null)];
+}
+/* Nicht die ersten zwei Chips gewinnen, sondern die aussagekräftigsten:
+   "5 rounds" sagt weniger als "Deadlift + Push Press". Die Reihenfolge der
+   Session bleibt danach erhalten. */
+function pvScore(c) {
+  return (/^\d+(–\d+)?\s(rounds?|min|h)$/.test(c) || /^(EMOM|AMRAP)$/.test(c)) ? 1 : 3;
+}
+function pvRank(chips, n) {
+  if (chips.length <= n) return chips;
+  return chips.map((c, i) => i)
+    .sort((a, b) => pvScore(chips[b]) - pvScore(chips[a]) || a - b)
+    .slice(0, n).sort((a, b) => a - b).map(i => chips[i]);
+}
+function dayPreview(day) {
+  if (day.preview) return day.preview;
+  const sess = (day.sessions || []).map(s => ({ s, chips: pvSession(s) })).filter(x => x.chips.length);
+  if (!sess.length) return "";
+  const slots = pvSlots(sess.map(x => x.s));
+  const build = n => sess.map((x, i) =>
+    (slots[i] ? slots[i] + ": " : "") + pvRank(x.chips, n).join(" + ")).join(" · ");
+  let out = build(2);
+  if (out.length > PV_MAX) out = build(1);
+  if (out.length <= PV_MAX) return out;
+  const cut = out.slice(0, PV_MAX - 1);
+  return cut.slice(0, Math.max(cut.lastIndexOf(" "), PV_MAX - 12)).replace(/[\s+·]+$/, "") + "…";
+}
+/* Grobe Zeitschätzung für die Heute-Karte. Explizite Minuten zählen, alles
+   andere bekommt einen Erfahrungswert — deshalb steht ein ≈ davor. */
+function pvMinutes(it) {
+  const sub = (it.sub || "").trim(), all = sub + " " + (it.title || "");
+  let m = sub.match(/(\d+)\s*[-–]\s*(\d+)\s*[-\s]*(?:minutes?|min)\b/i);
+  if (m) return (+m[1] + +m[2]) / 2;
+  if ((m = sub.match(/(\d+)\s*[x×]\s*(\d+)\s*(?:minutes?|min)\b/i))) return +m[1] * +m[2];
+  if ((m = sub.match(/(\d+)\s*[-\s]*(?:minutes?|min)\b/i))) return +m[1];
+  if ((m = sub.match(/(\d+)\s*(?:hours?|std)\b/i))) return +m[1] * 60;
+  if ((m = sub.match(/(\d+)\s*[x×]\s*(\d+)\s*m\b/i))) return Math.round(+m[1] * (+m[2] / 1000) * 8);
+  if ((m = sub.match(/\b(\d{1,2})\s*k\s+(?:row|ski|bike|run)/i))) return +m[1] * 5;
+  if ((m = sub.match(/\b(\d{3,5})\s*m\b/i))) return Math.max(4, Math.round(+m[1] / 1000 * 5));
+  if ((m = sub.match(/(\d+(?:\.\d+)?)\s*mile/i))) return Math.round(+m[1] * 9);
+  if ((m = sub.match(/(\d+)\s*calorie/i))) return Math.max(4, Math.round(+m[1] / 18));
+  if ((m = sub.match(/(\d+)\s*[-–]?\s*(\d+)?\s*rounds?/i))) return (+(m[2] || m[1])) * 4;
+  if (it.exercises && it.exercises.length) {
+    let sets = 0;
+    it.exercises.forEach(e => { const s = (e.name || "").match(/(\d+)\s*x\s*\d+/i); sets += s ? +s[1] : 3; });
+    return sets * 3;
+  }
+  if (/\bemom\b|\bamrap\b/i.test(all)) return 15;
+  return 8;
+}
+function dayMinutes(day) {
+  let t = 0;
+  (day.sessions || []).forEach(s => (s.items || []).forEach(it => { if (!it.rest) t += pvMinutes(it); }));
+  return t ? Math.round(t / 5) * 5 : 0;
+}
+
 function daySub(d) {
-  const names = d.day.sessions.map(s => s.label).filter(Boolean);
-  if (names.length) return names.join(" · ");
-  const it = d.day.sessions[0] && d.day.sessions[0].items[0];
-  return it ? (it.sub || it.title) : "";
+  return dayPreview(d.day) || d.day.sessions.map(s => s.label).filter(Boolean).join(" · ");
 }
 function dayDone(d) { return d.items.every(i => S.checked[i.id]); }
 /* Offene Einheiten in Reihenfolge, Streichungen raus, Tausche angewendet. */
@@ -1164,6 +1305,7 @@ function renderPlan() {
     html += `<div class="today ${istQuelle ? "sel" : ""}">
       <div class="thead">
         <div class="k">Heute · ${WD[first.date.getDay()]} ${esc(fmtDay(first.date))}</div>
+        ${dayMinutes(first.d.day) ? `<span class="dur">≈ ${dayMinutes(first.d.day)} min</span>` : ""}
         <span class="dots" onclick="planSheet('${first.k}')">⋯</span>
       </div>
       <div class="v">${esc(dayTitle(first.d))}</div>
@@ -1446,8 +1588,8 @@ function renderWeek(pi, wi) {
     const items = dayItems(day);
     const isRest = items.length === 0;
     const d = countDone(items), p = pct(d, items.length);
-    const sessNames = day.sessions.map(s => s.label).filter(Boolean).join(" · ")
-      || (day.sessions[0] && day.sessions[0].items[0] ? (day.sessions[0].items[0].sub || day.sessions[0].items[0].title) : "");
+    const sessNames = dayPreview(day)
+      || day.sessions.map(s => s.label).filter(Boolean).join(" · ");
     const dropped = planState().dropped.indexOf(pi + "." + wi + "." + di) >= 0;
     html += `<button class="card dayrow ${(!isRest && p === 100) ? "done" : ""}" onclick="location.hash='#d/${pi}/${wi}/${di}'">
       <div class="info">
