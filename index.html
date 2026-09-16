@@ -1645,7 +1645,7 @@ function renderExercise(item, ex) {
   } else {
     h += `<div class="exrow">
       <div class="exname">${esc(ex.name)}</div>
-      <input class="exw" type="text" placeholder="Gewicht" value="${esc(val)}"
+      <input class="exw" type="text" placeholder="${esc(ex.unit || "Gewicht")}" value="${esc(val)}"
         onchange="setResult('${rid}','${ex.k}',this.value)">
     </div>`;
   }
