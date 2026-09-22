@@ -233,6 +233,19 @@
   }
   .ghead.done .gcb { background: var(--lime); border-color: var(--lime); color: var(--lime-ink); }
   .ghead + .ex { border-top: none; padding-top: 0; }
+  /* Kniebeuge-Wahl (Einheit und Einstellungen) · Leitern an/aus */
+  .sqsw { display: flex; gap: 4px; padding: 3px; background: var(--surface2); border-radius: 99px; }
+  .sqsw button {
+    flex: 1; border: none; background: none; color: var(--muted); font: inherit;
+    font-size: 12.5px; font-weight: 800; padding: 7px 8px; border-radius: 99px;
+  }
+  .sqsw button.sel { background: var(--lime); color: var(--lime-ink); }
+  .sqsw + .ex { border-top: none; padding-top: 0; }
+  .set .sqsw { margin-top: 10px; }
+  .set .sqsw button { font-size: 14px; padding: 10px; }
+  .trsw { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
+  .trsw > span { flex: 1; min-width: 0; font-weight: 700; }
+  .trsw .sqsw { margin-top: 0; flex: 0 0 150px; }
   .exhist {
     display: block; width: 100%; text-align: left; margin-top: 4px; padding: 0;
     background: none; border: none; font-size: 12px; color: var(--muted);
@@ -691,6 +704,11 @@ const DIRTY_KEY = "wt-dirty-v1";
 const DATA_KEY = "wt-data-cache-v1";
 
 let PROGRAM = null, PLAN_TITLE = "Workout Tracker", TRACKS = [], PACES = [];
+let TRACKS_ALL = [], DEFAULTS = {};   // TRACKS = sichtbare Leitern, TRACKS_ALL = alle aus dem Plan
+function setData(data) {
+  PROGRAM = data.program; PLAN_TITLE = data.title || PLAN_TITLE; PACES = data.paces || [];
+  TRACKS_ALL = data.tracks || []; TRACKS = TRACKS_ALL; DEFAULTS = data.defaults || {};
+}
 let S = { checked: {}, resultsByItem: {}, results: {} };
 let FLAT = [];
 let mode = null;              // "local" | "github"
@@ -797,7 +815,7 @@ async function boot() {
     const r = await fetch("./data.json", { cache: "no-store" });
     if (r.ok) {
       const data = await r.json();
-      PROGRAM = data.program; PLAN_TITLE = data.title || PLAN_TITLE; TRACKS = data.tracks || []; PACES = data.paces || [];
+      setData(data);
       mode = "local";
       const cached = lsGet(CACHE_KEY);
       if (cached) try { S = Object.assign(S, JSON.parse(cached)); } catch (e) {}
@@ -816,7 +834,7 @@ async function boot() {
   if (cachedData) {
     try {
       const data = JSON.parse(cachedData);
-      PROGRAM = data.program; PLAN_TITLE = data.title || PLAN_TITLE; TRACKS = data.tracks || []; PACES = data.paces || [];
+      setData(data);
       const cached = lsGet(CACHE_KEY);
       if (cached) try { S = Object.assign(S, JSON.parse(cached)); } catch (e) {}
       finishBoot();
@@ -833,7 +851,7 @@ async function refreshFromGitHub() {
     if (dataFile && dataFile.text !== lsGet(DATA_KEY)) {
       lsSet(DATA_KEY, dataFile.text);
       const data = JSON.parse(dataFile.text);
-      PROGRAM = data.program; PLAN_TITLE = data.title || PLAN_TITLE; TRACKS = data.tracks || []; PACES = data.paces || [];
+      setData(data);
       finishBoot();
     }
     const progFile = await ghGet("progress.json");
@@ -864,7 +882,7 @@ async function loadFromGitHub() {
     if (!dataFile) throw new Error("data.json nicht im Repo gefunden");
     lsSet(DATA_KEY, dataFile.text);
     const data = JSON.parse(dataFile.text);
-    PROGRAM = data.program; PLAN_TITLE = data.title || PLAN_TITLE; TRACKS = data.tracks || []; PACES = data.paces || [];
+    setData(data);
 
     const progFile = await ghGet("progress.json");
     const dirty = !!lsGet(DIRTY_KEY);
@@ -902,6 +920,7 @@ function finishBoot() {
     }));
   })));
   document.getElementById("nav").style.display = "";
+  applyPrefs();
   prunePlan();
   setSync(mode === "github" ? (lsGet(DIRTY_KEY) ? "pending" : "ok") : "idle");
   render();
@@ -1054,7 +1073,8 @@ function exGroups(item) {
   const gs = [];
   (item.exercises || []).forEach(ex => {
     const acc = ex.k.startsWith("ex-");
-    const gk = acc ? "acc" : (ex.rm || ex.k);
+    // Plan-rm, nicht die gewählte Kniebeuge: die Block-ID darf beim Wechsel nicht wandern
+    const gk = acc ? "acc" : ((ex._o || ex).rm || ex.k);
     const last = gs[gs.length - 1];
     if (last && last.gk === gk) last.exs.push(ex);
     else gs.push({ gk, acc, exs: [ex] });
@@ -1065,6 +1085,103 @@ function exGroups(item) {
   });
   return gs;
 }
+/* ---------- Kniebeuge: Front oder Back ----------
+   Jeder Kniebeugen-Slot kann als Front oder Back Squat gefahren werden. Schema
+   (Sätze, Wdh., Prozent) bleibt, es wechseln 1RM-Basis, Übungsschlüssel und Name —
+   damit laufen Vorgabe, Steigerung und Historie automatisch gegen den richtigen Lift.
+   Gespeichert wird nur die Ausnahme: S.squat (Vorbelegung) und S.squatAt[itemId]
+   (Wahl für eine Einheit). Sobald eine Einheit Einträge oder Häkchen hat, wird ihre
+   Variante festgeschrieben — sonst würde ein späterer Wechsel der Vorbelegung
+   erledigte Einheiten umdeuten. Alte Einheiten ohne Eintrag behalten den Plan-Lift. */
+const SQUATS = { squat: "Front Squat", backsquat: "Back Squat" };
+function isSquatEx(ex) { return !!SQUATS[(ex._o || ex).rm]; }
+function squatExs(item) { return (item.exercises || []).filter(isSquatEx); }
+function squatPref() {
+  if (SQUATS[S.squat]) return S.squat;
+  return SQUATS[DEFAULTS.squat] ? DEFAULTS.squat : null;
+}
+function squatKey(k, v) {
+  return v === "backsquat" ? k.replace(/^front-squat-/, "back-squat-") : k.replace(/^back-squat-/, "front-squat-");
+}
+/* Hat diese Einheit schon Kniebeugen-Einträge (unter einer der beiden Varianten)? */
+function squatLogged(item) {
+  return squatExs(item).some(ex => ["squat", "backsquat"].some(v =>
+    S.resultsByItem[item.id + "/" + squatKey((ex._o || ex).k, v)]));
+}
+function squatTouched(item) {
+  return !!S.checked[item.id] || squatLogged(item)
+    || Object.keys(S.checked).some(c => c.indexOf(item.id + "/g") === 0);
+}
+function squatOf(item) {
+  const plan = (squatExs(item)[0]._o || squatExs(item)[0]).rm;
+  const fixed = (S.squatAt || {})[item.id];
+  if (SQUATS[fixed]) return fixed;
+  if (squatTouched(item)) return plan;
+  return squatPref() || plan;
+}
+function freezeSquat(itemId) {
+  const item = ITEM_INDEX[String(itemId).split("/")[0]];
+  if (!item || !squatExs(item).length) return;
+  S.squatAt = S.squatAt || {};
+  if (!S.squatAt[item.id]) S.squatAt[item.id] = squatOf(item);
+}
+function applySquats() {
+  if (!PROGRAM) return;
+  PROGRAM.forEach(p => p.weeks.forEach(w => w.days.forEach(d => d.sessions.forEach(s => s.items.forEach(item => {
+    const exs = squatExs(item);
+    if (!exs.length) return;
+    if (item._osub === undefined) item._osub = item.sub;
+    const v = squatOf(item);
+    exs.forEach(ex => {
+      const o = ex._o || (ex._o = { rm: ex.rm, k: ex.k, name: ex.name });
+      ex.rm = v;
+      ex.k = squatKey(o.k, v);
+      ex.name = o.name.replace(/^(Front|Back) Squat/, SQUATS[v]);
+    });
+    if (item._osub) item.sub = item._osub.replace(/\b(Front|Back) Squat\b/g, SQUATS[v]);
+  })))));
+}
+window.setSquatAt = function (itemId, v) {
+  const item = ITEM_INDEX[itemId];
+  if (!item || !SQUATS[v] || squatLogged(item)) return;
+  (S.squatAt = S.squatAt || {})[itemId] = v;
+  markDirty();
+  render();
+};
+/* Einstellungen: nicht neu rendern (klappt sonst die Bereiche zu), nur die Knöpfe umschalten */
+function segSelect(btn) {
+  if (!btn || !btn.parentNode) return;
+  Array.prototype.forEach.call(btn.parentNode.children, b => {
+    b.classList.toggle("sel", b === btn); b.setAttribute("aria-pressed", String(b === btn));
+  });
+}
+window.setSquatPref = function (v, btn) {
+  if (!SQUATS[v]) return;
+  S.squat = v;
+  markDirty();
+  applyPrefs();
+  segSelect(btn);
+};
+
+/* ---------- Stufenleitern ein-/ausblenden ----------
+   Vorbelegung aus dem Plan (defaults.hiddenTracks), überschreibbar in den
+   Einstellungen (S.tracksShown). Protokoll und Stufen bleiben beim Ausblenden
+   erhalten. Leitern an festen Programmstellen ("slots") sind nicht abschaltbar. */
+function trackShown(tr) {
+  if ((tr.sched || {}).mode === "slots") return true;
+  const own = (S.tracksShown || {})[tr.id];
+  if (typeof own === "boolean") return own;
+  return (DEFAULTS.hiddenTracks || []).indexOf(tr.id) < 0;
+}
+function applyTracks() { TRACKS = (TRACKS_ALL || []).filter(trackShown); }
+window.setTrackShown = function (id, on, btn) {
+  (S.tracksShown = S.tracksShown || {})[id] = !!on;
+  markDirty();
+  applyPrefs();
+  segSelect(btn);
+};
+function applyPrefs() { applySquats(); applyTracks(); }
+
 function locOf(id) {
   const baseId = id.split("/")[0];
   const f = FLAT.find(x => x.item.id === baseId);
@@ -1393,7 +1510,7 @@ function dayAnchor(pd) {
   pd.day.sessions.forEach(s => s.items.forEach(it => {
     if (it.key === "barbell-complex") { lower = true; upper = true; }
     (it.exercises || []).forEach(ex => {
-      if (ex.rm === "squat" || ex.rm === "deadlift") lower = true;
+      if (ex.rm === "squat" || ex.rm === "backsquat" || ex.rm === "deadlift") lower = true;
       if (ex.rm === "bench" || ex.rm === "ohp") upper = true;
     });
   }));
@@ -1533,6 +1650,7 @@ function setNav(active) {
 
 function render() {
   applyAccent(S.accent);
+  applyPrefs();
   const seg = location.hash.replace(/^#/, "").split("/").filter(Boolean);
   const st = window.scrollY;
   if (seg[0] === "settings") renderSettings();
@@ -2095,18 +2213,25 @@ function renderExercise(item, ex) {
   return h + `</div>`;
 }
 
+/* Front/Back für genau diese Einheit — nur solange nichts eingetragen ist */
+function squatSwitch(item) {
+  if (!squatExs(item).length || squatLogged(item)) return "";
+  const v = squatOf(item);
+  return `<div class="sqsw" role="group" aria-label="Kniebeuge für diese Einheit">` + Object.keys(SQUATS).map(k =>
+    `<button class="${k === v ? "sel" : ""}" aria-pressed="${k === v}" onclick="setSquatAt('${item.id}','${k}')">${SQUATS[k]}</button>`).join("") + `</div>`;
+}
 function renderExercises(item) {
   if (!item.exercises || !item.exercises.length) return "";
   const gs = exGroups(item);
   if (gs.length < 2) {
-    return `<div class="exs">` + item.exercises.map(ex => renderExercise(item, ex)).join("") + `</div>`;
+    return `<div class="exs">` + squatSwitch(item) + item.exercises.map(ex => renderExercise(item, ex)).join("") + `</div>`;
   }
   return `<div class="exs">` + gs.map(g => {
     const done = !!S.checked[g.id];
     return `<div class="ghead ${done ? "done" : ""}">
         <span>${esc(g.label)}</span>
         <button class="gcb${POP_ID === g.id ? " pop" : ""}" onclick="toggleGroup('${g.id}','${item.id}')" aria-label="Block abhaken">✓</button>
-      </div>` + g.exs.map(ex => renderExercise(item, ex)).join("");
+      </div>` + (g.exs.some(isSquatEx) ? squatSwitch(item) : "") + g.exs.map(ex => renderExercise(item, ex)).join("");
   }).join("") + `</div>`;
 }
 
@@ -2150,6 +2275,7 @@ function setItemChecked(id, on, now) {
   const item = ITEM_INDEX[id];
   const gs = item && item.exercises ? exGroups(item) : [];
   if (on) {
+    freezeSquat(id);
     if (!S.checked[id]) { S.checked[id] = now; logEv("done", id); }
     gs.forEach(g => { S.checked[g.id] = now; });
   } else {
@@ -2169,6 +2295,7 @@ window.toggle = function (id) {
 };
 window.toggleGroup = function (gid, itemId) {
   const now = new Date().toISOString();
+  freezeSquat(itemId);
   if (S.checked[gid]) { delete S.checked[gid]; logEv("undone", gid); }
   else { S.checked[gid] = now; logEv("done", gid); }
   const gs = exGroups(ITEM_INDEX[itemId]);
@@ -2191,6 +2318,7 @@ window.checkSession = function (pi, wi, di, si) {
 };
 window.setResult = function (id, key, value, quiet) {
   value = (value || "").trim();
+  if (value) freezeSquat(id);
   if (value) S.resultsByItem[id] = value; else delete S.resultsByItem[id];
   const arr = (S.results[key] = S.results[key] || []);
   // Nur den Eintrag des AKTUELLEN Durchlaufs ersetzen — Historie früherer Durchläufe bleibt
@@ -2291,6 +2419,27 @@ function renderSettings() {
         </div>
       </div>
     </details>
+    <details class="setsec">
+      <summary><svg class="secic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M7 7v10M17 7v10M9 17h6"/></svg>Kniebeuge</summary>
+      <div class="secbody">
+        <p class="hint">Vorbelegung für alle offenen Kniebeugen-Einheiten. Sätze, Wiederholungen und Prozente bleiben, es wechselt nur der Lift — und damit 1RM, Gewicht, Steigerung und Historie. In jeder Einheit lässt sich die Wahl einzeln ändern, solange noch nichts eingetragen ist.</p>
+        <div class="sqsw" role="group" aria-label="Kniebeuge-Vorbelegung">${Object.keys(SQUATS).map(k =>
+          `<button class="${squatPref() === k ? "sel" : ""}" aria-pressed="${squatPref() === k}" onclick="setSquatPref('${k}', this)">${SQUATS[k]}</button>`).join("")}</div>
+      </div>
+    </details>
+    ${(TRACKS_ALL || []).some(tr => (tr.sched || {}).mode !== "slots") ? `<details class="setsec">
+      <summary><svg class="secic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 21V3M18 21V3M6 8h12M6 13h12M6 18h12"/></svg>Stufenleitern</summary>
+      <div class="secbody">
+        <p class="hint">Ausgeblendete Leitern verschwinden aus Tagesplan und Analyse. Stufen und Protokoll bleiben gespeichert — einblenden, und es geht dort weiter.</p>
+        ${TRACKS_ALL.filter(tr => (tr.sched || {}).mode !== "slots").map(tr => {
+          const on = trackShown(tr);
+          return `<div class="trsw"><span>${esc(tr.name)}</span><div class="sqsw" role="group" aria-label="${esc(tr.name)}">
+            <button class="${on ? "sel" : ""}" aria-pressed="${on}" onclick="setTrackShown('${esc(tr.id)}', true, this)">An</button>
+            <button class="${on ? "" : "sel"}" aria-pressed="${!on}" onclick="setTrackShown('${esc(tr.id)}', false, this)">Aus</button>
+          </div></div>`;
+        }).join("")}
+      </div>
+    </details>` : ""}
     ${(PACES || []).length ? `<details class="setsec">
       <summary><svg class="secic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13.5" r="7.5"/><path d="M12 9.5v4l2.6 2.2M9.2 2h5.6"/></svg>Ziel-Paces</summary>
       <div class="secbody">
@@ -2889,11 +3038,13 @@ window.startNewRun = function () {
     done,
     total: FLAT.length,
     checked: S.checked,
-    resultsByItem: S.resultsByItem
+    resultsByItem: S.resultsByItem,
+    squatAt: S.squatAt || {}
   });
   S.run = runNo + 1;
   S.checked = {};
   S.resultsByItem = {};
+  S.squatAt = {};                                            // Kniebeugen-Wahl gehört zum Durchlauf
   S.plan = { off: [], force: [], dropped: [], swaps: [] };   // Planung gehört zum Durchlauf
   logEv("run-start", "run-" + S.run);
   markDirty();
@@ -2902,7 +3053,7 @@ window.startNewRun = function () {
 };
 window.doReset = function () {
   if (confirm("Wirklich ALLEN Fortschritt und alle Ergebnisse löschen? (1RM-Gewichte, Trainingslog und Durchläufe bleiben erhalten)")) {
-    S = { checked: {}, resultsByItem: {}, results: {}, oneRM: S.oneRM, rmLog: S.rmLog, log: S.log, runs: S.runs, run: S.run, tracks: S.tracks, paces: S.paces };
+    S = { checked: {}, resultsByItem: {}, results: {}, oneRM: S.oneRM, rmLog: S.rmLog, log: S.log, runs: S.runs, run: S.run, tracks: S.tracks, paces: S.paces, squat: S.squat, tracksShown: S.tracksShown };
     markDirty();
     location.hash = "";
     render();
