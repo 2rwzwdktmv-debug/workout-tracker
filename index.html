@@ -246,6 +246,13 @@
   .trsw { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
   .trsw > span { flex: 1; min-width: 0; font-weight: 700; }
   .trsw .sqsw { margin-top: 0; flex: 0 0 150px; }
+  /* Optionale Einheit: gestrichelt, klar als Ergänzung erkennbar */
+  .card.item.opt { border: 1px dashed color-mix(in srgb, var(--lime) 45%, transparent); }
+  .optb {
+    display: inline-block; margin-left: 6px; font-size: 10.5px; font-weight: 800; letter-spacing: .3px;
+    color: var(--lime); background: color-mix(in srgb, var(--lime) 13%, transparent);
+    border-radius: 99px; padding: 2px 8px; vertical-align: 2px; text-decoration: none;
+  }
   .exhist {
     display: block; width: 100%; text-align: left; margin-top: 4px; padding: 0;
     background: none; border: none; font-size: 12px; color: var(--muted);
@@ -909,14 +916,17 @@ async function loadFromGitHub() {
   }
 }
 
-let ITEM_INDEX = {};
+let ITEM_INDEX = {}, ITEM_LOC = {};
 function finishBoot() {
   FLAT = [];
   ITEM_INDEX = {};
+  ITEM_LOC = {};
   PROGRAM.forEach((part, pi) => part.weeks.forEach((week, wi) => week.days.forEach((day, di) => {
     day.sessions.forEach(sess => sess.items.forEach(item => {
       ITEM_INDEX[item.id] = item;
-      if (!item.rest) FLAT.push({ item, pi, wi, di });
+      ITEM_LOC[item.id] = { item, pi, wi, di };
+      // Optionale Einheiten (opt) gehören nicht zum Plan: kein Fortschritt, keine Prognose
+      if (!item.rest && !item.opt) FLAT.push({ item, pi, wi, di });
     }));
   })));
   document.getElementById("nav").style.display = "";
@@ -927,7 +937,7 @@ function finishBoot() {
 }
 
 /* ---------- Helpers ---------- */
-function dayItems(day) { return day.sessions.flatMap(s => s.items).filter(i => !i.rest); }
+function dayItems(day) { return day.sessions.flatMap(s => s.items).filter(i => !i.rest && !i.opt); }
 function countDone(items) { return items.filter(i => S.checked[i.id]).length; }
 function weekItems(week) { return week.days.flatMap(dayItems); }
 function pct(done, total) { return total ? Math.round(done / total * 100) : 0; }
@@ -1182,9 +1192,26 @@ window.setTrackShown = function (id, on, btn) {
 };
 function applyPrefs() { applySquats(); applyTracks(); }
 
+/* ---------- Optionale Einheiten ----------
+   Items mit opt: "<gruppe>" sind Ergänzungen, kein Teil des Plans: Sie zählen nicht
+   in Fortschritt, Tagesabschluss, Prognose oder „alle ✓“. Gewicht, Steigerung und
+   Kniebeugen-Wahl funktionieren wie überall. Gruppen und Namen stehen in
+   defaults.optional; ein-/ausblendbar über S.optShown. */
+function optShown(key) {
+  const own = (S.optShown || {})[key];
+  if (typeof own === "boolean") return own;
+  const def = (DEFAULTS.optional || {})[key];
+  return !(def && def.hidden);
+}
+window.setOptShown = function (key, on, btn) {
+  (S.optShown = S.optShown || {})[key] = !!on;
+  markDirty();
+  segSelect(btn);
+};
+
 function locOf(id) {
   const baseId = id.split("/")[0];
-  const f = FLAT.find(x => x.item.id === baseId);
+  const f = ITEM_LOC[baseId];
   if (!f) return "";
   const p = PROGRAM[f.pi];
   return `${p.name} · ${p.weeks[f.wi].name} · ${p.weeks[f.wi].days[f.di].label}`;
@@ -1321,6 +1348,7 @@ function pvSession(sess) {
   const chips = [];
   for (const it of sess.items || []) {
     if (it.rest) continue;
+    if (it.opt) continue;                    // optionale Einheit: eigene ＋-Zeile im Tagesplan
     if (PV_SKIP.test((it.title || "") + " " + (it.sub || ""))) continue;
     const c = pvChip(it);
     if (c && chips.indexOf(c) < 0) chips.push(c);
@@ -1392,7 +1420,7 @@ function pvMinutes(it) {
 }
 function dayMinutes(day) {
   let t = 0;
-  (day.sessions || []).forEach(s => (s.items || []).forEach(it => { if (!it.rest) t += pvMinutes(it); }));
+  (day.sessions || []).forEach(s => (s.items || []).forEach(it => { if (!it.rest && !it.opt) t += pvMinutes(it); }));
   return t ? Math.round(t / 5) * 5 : 0;
 }
 
@@ -1508,6 +1536,7 @@ function dayGap(k1, k2) {
 function dayAnchor(pd) {
   let lower = false, upper = false;
   pd.day.sessions.forEach(s => s.items.forEach(it => {
+    if (it.opt) return;                                // Optionales bestimmt den Tag nicht
     if (it.key === "barbell-complex") { lower = true; upper = true; }
     (it.exercises || []).forEach(ex => {
       if (ex.rm === "squat" || ex.rm === "backsquat" || ex.rm === "deadlift") lower = true;
@@ -1687,8 +1716,17 @@ function renderPlan() {
   const extras = planExtras(days);
   let html = "";
 
+  // Optionale Einheiten eines Plan-Tages (eingeblendet), als ＋-Zeile bzw. Knopf
+  const optOf = pd => pd ? pd.day.sessions.flatMap(s => s.items).filter(i => i.opt && optShown(i.opt)) : [];
+  const optLbl = it => "optional: " + ((it.exercises || [])[0] || {}).name;
+  const optRows = e => optOf(e.d).map(it => {
+    const done = !!S.checked[it.id];
+    return `<div class="xrow ${done ? "done" : ""}" onclick="event.stopPropagation();location.hash='#d/${e.d.pi}/${e.d.wi}/${e.d.di}'">
+      ＋ ${esc(optLbl(it))}${done ? " ✓" : ""} <span class="q">· zählt nicht zum Plan</span></div>`;
+  }).join("");
+
   // Zusatz-Zeile(n) für einen projizierten Tag
-  const extraRows = e => (extras[e.k] || []).map(id => {
+  const extraRows = e => optRows(e) + (extras[e.k] || []).map(id => {
     const tr = trackDef(id); if (!tr) return "";
     const done = trLoggedOn(id, e.k);
     const main = tr.parts[0];
@@ -1713,7 +1751,8 @@ function renderPlan() {
     const tr = trackDef(id); if (!tr) return "";
     const done = trLoggedOn(id, first.k);
     return `<button class="cta xcta ${done ? "done" : ""}" onclick="location.hash='#t/${id}'">＋ ${esc(tr.name)} · Stufe ${trStep(id, tr.parts[0].id)}${done ? " ✓" : ""}</button>`;
-  }).join("");
+  }).join("") + optOf(first.d).map(it => `<button class="cta xcta ${S.checked[it.id] ? "done" : ""}"
+      onclick="location.hash='#d/${first.d.pi}/${first.d.wi}/${first.d.di}'">＋ ${esc(optLbl(it))}${S.checked[it.id] ? " ✓" : ""}</button>`).join("");
 
   if (first.kind === "train") {
     const istQuelle = swapFrom === first.d.key;
@@ -2045,7 +2084,7 @@ function renderDay(pi, wi, di) {
       : `Details der ${done} erledigten ${done === 1 ? "Einheit" : "Einheiten"} anzeigen`}</button>`;
   }
   day.sessions.forEach((sess, si) => {
-    const checkable = sess.items.filter(i => !i.rest);
+    const checkable = sess.items.filter(i => !i.rest && !i.opt);
     if (sess.label || day.sessions.length > 1) {
       html += `<div class="sesshead"><h3>${esc(sess.label || "Session")}</h3>
         ${checkable.length > 1 ? `<button onclick="checkSession(${pi},${wi},${di},${si})">alle ✓</button>` : ""}</div>`;
@@ -2053,17 +2092,18 @@ function renderDay(pi, wi, di) {
       html += `<div style="margin-top:14px"></div>`;
     }
     sess.items.forEach(item => {
+      if (item.opt && !optShown(item.opt)) return;
       if (item.rest) {
         html += `<div class="card rest"><div class="z">😴</div><div class="tt" style="font-weight:800">${esc(item.title)}</div>
           <div style="margin-top:6px">${esc(item.body || "")}</div></div>`;
         return;
       }
       const checked = !!S.checked[item.id];
-      html += `<div class="card item ${checked ? "checked" : ""}${checked && open ? " open" : ""}${POP_ID === item.id ? " justdone" : ""}" id="it-${item.id}">
+      html += `<div class="card item${item.opt ? " opt" : ""} ${checked ? "checked" : ""}${checked && open ? " open" : ""}${POP_ID === item.id ? " justdone" : ""}" id="it-${item.id}">
         <div class="head">
           <button class="cb${POP_ID === item.id ? " pop" : ""}" onclick="toggle('${item.id}')" aria-label="abhaken">✓</button>
           <div style="min-width:0">
-            <div class="tt">${esc(item.title)}</div>
+            <div class="tt">${esc(item.title)}${item.opt ? ` <span class="optb">optional · zählt nicht</span>` : ""}</div>
             ${item.sub ? `<div class="st">${esc(item.sub)}</div>` : ""}
           </div>
         </div>
@@ -2309,7 +2349,7 @@ window.toggleGroup = function (gid, itemId) {
 };
 window.checkSession = function (pi, wi, di, si) {
   const sess = PROGRAM[pi].weeks[wi].days[di].sessions[si];
-  const items = sess.items.filter(i => !i.rest);
+  const items = sess.items.filter(i => !i.rest && !i.opt);
   const allDone = items.every(i => S.checked[i.id]);
   const now = new Date().toISOString();
   items.forEach(i => setItemChecked(i.id, !allDone, now));
@@ -2436,6 +2476,19 @@ function renderSettings() {
           return `<div class="trsw"><span>${esc(tr.name)}</span><div class="sqsw" role="group" aria-label="${esc(tr.name)}">
             <button class="${on ? "sel" : ""}" aria-pressed="${on}" onclick="setTrackShown('${esc(tr.id)}', true, this)">An</button>
             <button class="${on ? "" : "sel"}" aria-pressed="${!on}" onclick="setTrackShown('${esc(tr.id)}', false, this)">Aus</button>
+          </div></div>`;
+        }).join("")}
+      </div>
+    </details>` : ""}
+    ${Object.keys(DEFAULTS.optional || {}).length ? `<details class="setsec">
+      <summary><svg class="secic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>Optionale Einheiten</summary>
+      <div class="secbody">
+        <p class="hint">Ergänzungen zum Plan. Sie stehen am passenden Tag als eigener Block, zählen aber nicht zum Fortschritt — machen oder weglassen, ohne dass sich etwas verschiebt.</p>
+        ${Object.keys(DEFAULTS.optional).map(k => {
+          const on = optShown(k), lbl = (DEFAULTS.optional[k] || {}).name || k;
+          return `<div class="trsw"><span>${esc(lbl)}</span><div class="sqsw" role="group" aria-label="${esc(lbl)}">
+            <button class="${on ? "sel" : ""}" aria-pressed="${on}" onclick="setOptShown('${esc(k)}', true, this)">An</button>
+            <button class="${on ? "" : "sel"}" aria-pressed="${!on}" onclick="setOptShown('${esc(k)}', false, this)">Aus</button>
           </div></div>`;
         }).join("")}
       </div>
@@ -2689,7 +2742,7 @@ function renderStats() {
    der kleinste Wert, der JEDE Übung der Gruppe um eine Rasterstufe hebt.     */
 function liftGroup(itemId, rmKey) {
   const base = String(itemId).split("/")[0];
-  const f = FLAT.find(x => x.item.id === base);
+  const f = ITEM_LOC[base];
   if (!f) return [];
   const day = PROGRAM[f.pi].weeks[f.wi].days[f.di];
   const out = [];
@@ -2933,7 +2986,7 @@ window.reDateDay = function (pi, wi, di, dateK) {
   if (!day) return;
   const iso = new Date(dateK + "T12:00:00").toISOString();
   // alle Schlüssel dieser Einheit — Items UND deren Übungsblöcke ("id/g0-…")
-  const ids = dayItems(day).map(i => i.id);
+  const ids = day.sessions.flatMap(s => s.items).filter(i => !i.rest).map(i => i.id);   // inkl. optionaler
   const gehoert = k => ids.some(id => k === id || k.indexOf(id + "/") === 0);
   let n = 0;
   Object.keys(S.checked).forEach(k => {
@@ -3053,7 +3106,7 @@ window.startNewRun = function () {
 };
 window.doReset = function () {
   if (confirm("Wirklich ALLEN Fortschritt und alle Ergebnisse löschen? (1RM-Gewichte, Trainingslog und Durchläufe bleiben erhalten)")) {
-    S = { checked: {}, resultsByItem: {}, results: {}, oneRM: S.oneRM, rmLog: S.rmLog, log: S.log, runs: S.runs, run: S.run, tracks: S.tracks, paces: S.paces, squat: S.squat, tracksShown: S.tracksShown };
+    S = { checked: {}, resultsByItem: {}, results: {}, oneRM: S.oneRM, rmLog: S.rmLog, log: S.log, runs: S.runs, run: S.run, tracks: S.tracks, paces: S.paces, squat: S.squat, tracksShown: S.tracksShown, optShown: S.optShown };
     markDirty();
     location.hash = "";
     render();
