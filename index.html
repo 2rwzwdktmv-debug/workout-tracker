@@ -1190,7 +1190,44 @@ window.setTrackShown = function (id, on, btn) {
   applyPrefs();
   segSelect(btn);
 };
-function applyPrefs() { applySquats(); applyTracks(); }
+function applyPrefs() { applySquats(); applyUnits(); applyTracks(); }
+
+/* ---------- Feste Lasten aus Hunters Plan: lb oder kg ----------
+   Im Plan steht jede feste Last doppelt: {{275/185 lb|125/85 kg}}. Beide Seiten
+   sind von Hand geprüft (gerundet nach Gerät), die App rechnet nichts um, sie
+   wählt nur die Seite. 1RM, Vorgaben und Einträge sind davon unberührt (immer kg). */
+const UNIT_RE = /\{\{([^|{}]*)\|([^{}]*)\}\}/g;
+const UNIT_FIELDS = ["title", "sub", "body", "after", "own", "orig", "hint", "preview"];
+function unitPref() {
+  if (S.unit === "lb" || S.unit === "kg") return S.unit;
+  return DEFAULTS.unit === "lb" ? "lb" : "kg";
+}
+function unitize(s) { const u = unitPref(); return String(s).replace(UNIT_RE, (m, lb, kg) => u === "lb" ? lb : kg); }
+function unitFields(o, fields) {
+  fields.forEach(f => {
+    const raw = o._ou && f in o._ou ? o._ou[f] : o[f];
+    if (typeof raw !== "string" || raw.indexOf("{{") < 0) return;
+    (o._ou = o._ou || {})[f] = raw;
+    o[f] = unitize(raw);
+  });
+}
+function applyUnits() {
+  if (!PROGRAM) return;
+  PROGRAM.forEach(p => p.weeks.forEach(w => w.days.forEach(d => d.sessions.forEach(s => {
+    unitFields(s, ["label", "preview"]);
+    s.items.forEach(item => {
+      unitFields(item, UNIT_FIELDS);
+      (item.exercises || []).forEach(ex => unitFields(ex, ["name", "note"]));
+    });
+  }))));
+}
+window.setUnit = function (u, btn) {
+  if (u !== "lb" && u !== "kg") return;
+  S.unit = u;
+  markDirty();
+  applyPrefs();
+  segSelect(btn);
+};
 
 /* ---------- Optionale Einheiten ----------
    Items mit opt: "<gruppe>" sind Ergänzungen, kein Teil des Plans: Sie zählen nicht
@@ -2112,6 +2149,7 @@ function renderDay(pi, wi, di) {
           ? `<div class="pace"><b>Zielpace</b>${esc(paceOf(item.paceKey))}${(paceDef(item.paceKey) || {}).unit ? " " + esc(paceDef(item.paceKey).unit) : ""}</div>` : ""}
         ${item.own ? `<div class="own"><b>Meine Regel</b>${esc(item.own)}</div>` : ""}
         ${item.orig ? `<div class="orig"><b>Im Plan steht hier</b>${esc(item.orig)}</div>` : ""}
+        ${item.hint ? `<div class="orig"><b>Hinweis zum Original</b>${esc(item.hint)}</div>` : ""}
         ${renderExercises(item)}
         ${item.after ? `<div class="body">${fmtBody(item.after)}</div>` : ""}
         ${item.key ? renderResult(item) : ""}
@@ -2465,6 +2503,14 @@ function renderSettings() {
         <p class="hint">Vorbelegung für alle offenen Kniebeugen-Einheiten. Sätze, Wiederholungen und Prozente bleiben, es wechselt nur der Lift — und damit 1RM, Gewicht, Steigerung und Historie. In jeder Einheit lässt sich die Wahl einzeln ändern, solange noch nichts eingetragen ist.</p>
         <div class="sqsw" role="group" aria-label="Kniebeuge-Vorbelegung">${Object.keys(SQUATS).map(k =>
           `<button class="${squatPref() === k ? "sel" : ""}" aria-pressed="${squatPref() === k}" onclick="setSquatPref('${k}', this)">${SQUATS[k]}</button>`).join("")}</div>
+      </div>
+    </details>
+    <details class="setsec">
+      <summary><svg class="secic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v3M5 21h14l-2.5-12h-9z"/><circle cx="12" cy="7" r="1.6"/></svg>Gewichte im Plan</summary>
+      <div class="secbody">
+        <p class="hint">Einheit für die festen Lasten aus Hunters Plan (Kreuzheben im Zirkel, Sandbag, Wall Balls, Kettlebells …). Das Original ist in Pfund; kg ist gerundet auf das, was es im Gym gibt. 1RM, Vorgaben und deine Einträge bleiben immer in kg.</p>
+        <div class="sqsw" role="group" aria-label="Gewichtseinheit">${["kg", "lb"].map(u =>
+          `<button class="${unitPref() === u ? "sel" : ""}" aria-pressed="${unitPref() === u}" onclick="setUnit('${u}', this)">${u}</button>`).join("")}</div>
       </div>
     </details>
     ${(TRACKS_ALL || []).some(tr => (tr.sched || {}).mode !== "slots") ? `<details class="setsec">
@@ -3106,7 +3152,7 @@ window.startNewRun = function () {
 };
 window.doReset = function () {
   if (confirm("Wirklich ALLEN Fortschritt und alle Ergebnisse löschen? (1RM-Gewichte, Trainingslog und Durchläufe bleiben erhalten)")) {
-    S = { checked: {}, resultsByItem: {}, results: {}, oneRM: S.oneRM, rmLog: S.rmLog, log: S.log, runs: S.runs, run: S.run, tracks: S.tracks, paces: S.paces, squat: S.squat, tracksShown: S.tracksShown, optShown: S.optShown };
+    S = { checked: {}, resultsByItem: {}, results: {}, oneRM: S.oneRM, rmLog: S.rmLog, log: S.log, runs: S.runs, run: S.run, tracks: S.tracks, paces: S.paces, squat: S.squat, tracksShown: S.tracksShown, optShown: S.optShown, unit: S.unit };
     markDirty();
     location.hash = "";
     render();
