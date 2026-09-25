@@ -1192,10 +1192,12 @@ window.setTrackShown = function (id, on, btn) {
 };
 function applyPrefs() { applySquats(); applyUnits(); applyTracks(); }
 
-/* ---------- Feste Lasten aus Hunters Plan: lb oder kg ----------
-   Im Plan steht jede feste Last doppelt: {{275/185 lb|125/85 kg}}. Beide Seiten
-   sind von Hand geprüft (gerundet nach Gerät), die App rechnet nichts um, sie
-   wählt nur die Seite. 1RM, Vorgaben und Einträge sind davon unberührt (immer kg). */
+/* ---------- Maßsystem für Hunters feste Angaben: imperial oder metrisch ----------
+   Im Plan steht jede feste Last bzw. Länge doppelt, links imperial, rechts metrisch:
+   {{275/185 lb|125/85 kg}}, {{24/20"|60/50 cm}}. Beide Seiten sind von Hand geprüft
+   (gerundet nach Gerät), die App rechnet nichts um, sie wählt nur die Seite.
+   Gespeichert als S.unit "kg" (metrisch) | "lb" (imperial). 1RM, Vorgaben und
+   Einträge sind davon unberührt (immer kg). */
 const UNIT_RE = /\{\{([^|{}]*)\|([^{}]*)\}\}/g;
 const UNIT_FIELDS = ["title", "sub", "body", "after", "own", "orig", "hint", "preview"];
 function unitPref() {
@@ -2506,11 +2508,11 @@ function renderSettings() {
       </div>
     </details>
     <details class="setsec">
-      <summary><svg class="secic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v3M5 21h14l-2.5-12h-9z"/><circle cx="12" cy="7" r="1.6"/></svg>Gewichte im Plan</summary>
+      <summary><svg class="secic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8h18v8H3z"/><path d="M7 8v3M11 8v4M15 8v3M19 8v4"/></svg>Maßsystem</summary>
       <div class="secbody">
-        <p class="hint">Einheit für die festen Lasten aus Hunters Plan (Kreuzheben im Zirkel, Sandbag, Wall Balls, Kettlebells …). Das Original ist in Pfund; kg ist gerundet auf das, was es im Gym gibt. 1RM, Vorgaben und deine Einträge bleiben immer in kg.</p>
-        <div class="sqsw" role="group" aria-label="Gewichtseinheit">${["kg", "lb"].map(u =>
-          `<button class="${unitPref() === u ? "sel" : ""}" aria-pressed="${unitPref() === u}" onclick="setUnit('${u}', this)">${u}</button>`).join("")}</div>
+        <p class="hint">Einheiten für die festen Angaben aus Hunters Plan: Lasten (Kreuzheben im Zirkel, Sandbag, Wall Balls, Kettlebells …) und Längen (Boxhöhe, Strecken in Fuß). Das Original ist imperial; metrisch ist gerundet auf das, was es im Gym gibt. 1RM, Vorgaben und deine Einträge bleiben immer in kg.</p>
+        <div class="sqsw" role="group" aria-label="Maßsystem">${[["kg", "Metrisch · kg, cm"], ["lb", "Imperial · lb, inch"]].map(([u, lbl]) =>
+          `<button class="${unitPref() === u ? "sel" : ""}" aria-pressed="${unitPref() === u}" onclick="setUnit('${u}', this)">${lbl}</button>`).join("")}</div>
       </div>
     </details>
     ${(TRACKS_ALL || []).some(tr => (tr.sched || {}).mode !== "slots") ? `<details class="setsec">
