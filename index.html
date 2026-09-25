@@ -265,6 +265,23 @@
     margin-top: 5px; text-align: left;
   }
   .item.checked:not(.open) .exnote { display: none; }
+  /* Satzpause als Chip neben dem Übungsnamen */
+  .expz {
+    flex-shrink: 0; font-size: 11px; font-weight: 800; color: var(--muted);
+    background: var(--surface2); border-radius: 99px; padding: 3px 8px; white-space: nowrap;
+  }
+  /* Erklärtext: eingeklappt eine Zeile mit ⓘ, Tipp klappt auf */
+  .tip, .item .body > .tip { cursor: pointer; position: relative; padding-left: 1.35em; }
+  .tip::before {
+    content: "i"; position: absolute; left: 0; top: .15em; width: 1em; height: 1em;
+    border: 1.5px solid currentColor; border-radius: 99px; font: 800 .68em/1 ui-rounded, system-ui, sans-serif;
+    display: flex; align-items: center; justify-content: center; opacity: .55;
+  }
+  .tip:not(.on) {
+    display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;
+    opacity: .75;
+  }
+  .tip:not(.on) br { display: none; }
   /* eigene Ergänzungen — klar vom Originaltext des Plans getrennt */
   .own {
     margin: 10px 0 0 42px; padding: 9px 12px; font-size: 13.5px; color: #c9cfda;
@@ -942,33 +959,84 @@ function countDone(items) { return items.filter(i => S.checked[i.id]).length; }
 function weekItems(week) { return week.days.flatMap(dayItems); }
 function pct(done, total) { return total ? Math.round(done / total * 100) : 0; }
 function esc(s) { return (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
-function fmtBody(s) {
-  /* Gruppiert den Plantext in Blöcke: zusammenhängende "- "-Zeilen werden
-     eine echte Liste, alles andere ein Absatz. Eine Leerzeile im Original
-     markiert einen Abstand, eine mit * beginnende Zeile eine Fußnote. */
+/* Zerlegt den Plantext in Blöcke: zusammenhängende "- "-Zeilen werden eine
+   Liste (das Workout selbst), alles andere ein Absatz (Erklärung). Eine
+   Leerzeile im Original markiert einen Abstand, * am Anfang eine Fußnote. */
+function bodyBlocks(s) {
   const L = esc(s).split("\n");
   const isLi = t => /^- /.test(t);
-  let out = "", i = 0, gap = false, first = true;
+  const out = [];
+  let i = 0, gap = false;
   while (i < L.length) {
     const t = L[i].trim();
     if (!t) { gap = true; i++; continue; }
-    const cls = (gap && !first) ? " gap" : "";
+    const g = gap && out.length > 0;
     if (isLi(t)) {
-      let items = "";
-      while (i < L.length && isLi(L[i].trim())) { items += `<li class="mv">${L[i].trim().slice(2)}</li>`; i++; }
-      out += `<ul class="bl${cls}">${items}</ul>`;
+      const items = [];
+      while (i < L.length && isLi(L[i].trim())) { items.push(L[i].trim().slice(2)); i++; }
+      out.push({ li: true, items, gap: g });
     } else {
       const par = [];
       while (i < L.length && L[i].trim() && !isLi(L[i].trim())) { par.push(L[i].trim()); i++; }
-      const note = /^\*/.test(par[0]);
-      let body = par.join("<br>");
-      if (note) body = body.replace(/^\*\s?/, `<span class="nm">*</span>`);
-      out += `<p class="pg${note ? " note" : ""}${cls}">${body}</p>`;
+      out.push({ li: false, par, note: /^\*/.test(par[0]), gap: g });
     }
-    gap = false; first = false;
+    gap = false;
   }
   return out;
 }
+/* tipId (optional): Absätze werden zu ein-/ausklappbaren Hinweisen, Listen nie. */
+function fmtBody(s, tipId) {
+  return bodyBlocks(s).map((b, bi) => {
+    const cls = b.gap ? " gap" : "";
+    if (b.li) return `<ul class="bl${cls}">${b.items.map(t => `<li class="mv">${t}</li>`).join("")}</ul>`;
+    let body = b.par.join("<br>");
+    if (b.note) body = body.replace(/^\*\s?/, `<span class="nm">*</span>`);
+    if (tipId) return tipHtml(tipId + ":" + bi, b.par.join(" "), body, "pg" + (b.note ? " note" : "") + cls);
+    return `<p class="pg${b.note ? " note" : ""}${cls}">${body}</p>`;
+  }).join("");
+}
+
+/* ---------- Texte: Anweisung sichtbar, Erklärung einklappbar ----------
+   Erklärtext (Absätze, NOTE, Übungsnotizen) startet OFFEN, wenn er neu ist, und
+   EINGEKLAPPT auf eine Zeile, wenn er schon in einer erledigten Einheit stand.
+   Abgeleitet bei jedem Rendern, nichts gespeichert. Ein Tipp klappt um (TIP_OPEN,
+   nur im Speicher); „Alle Texte zeigen“ (dayOpen.on) öffnet alles. */
+let TIP_OPEN = {};
+let KNOWN = new Set();
+let TIP_SHUT = 0;             // wie viele Hinweise gerade eingeklappt sind (für den Knopf)
+function normTxt(s) { return String(s || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().toLowerCase(); }
+/* "… Push it! 4-5 Min Pause" -> { pause: "4–5 Min", text: "… Push it!" } */
+function splitNote(n) {
+  const m = String(n || "").match(/(?:^|\s)(\d+(?:\s*[-–]\s*\d+)?)\s*Min\.?\s*Pause\.?\s*$/i);
+  if (!m) return { pause: null, text: String(n || "").trim() };
+  return { pause: m[1].replace(/\s*[-–]\s*/, "–") + " Min", text: String(n).slice(0, m.index).trim() };
+}
+function knownTexts() {
+  const k = new Set();
+  PROGRAM.forEach(p => p.weeks.forEach(w => w.days.forEach(d => d.sessions.forEach(s => s.items.forEach(it => {
+    if (!S.checked[it.id]) return;
+    [it.body, it.after].forEach(t => t && bodyBlocks(t).forEach(b => { if (!b.li) k.add(normTxt(b.par.join(" "))); }));
+    (it.exercises || []).forEach(ex => { const n = splitNote(ex.note).text; if (n) k.add(normTxt(esc(n))); });
+  })))));
+  return k;
+}
+function tipOpen(id, key) {
+  if (dayOpen.on) return true;
+  if (typeof TIP_OPEN[id] === "boolean") return TIP_OPEN[id];
+  return !KNOWN.has(normTxt(key));
+}
+/* key = Text zum Vergleich (escaped), html = Inhalt, cls = zusätzliche Klassen */
+function tipHtml(id, key, html, cls) {
+  const on = tipOpen(id, key);
+  if (!on) TIP_SHUT++;
+  return `<div class="tip ${cls || ""}${on ? " on" : ""}" data-tip="${esc(id)}" onclick="tipToggle(this)" role="button" aria-expanded="${on}">${html}</div>`;
+}
+window.tipToggle = function (el) {
+  const on = !el.classList.contains("on");
+  el.classList.toggle("on", on);
+  el.setAttribute("aria-expanded", String(on));
+  TIP_OPEN[el.getAttribute("data-tip")] = on;
+};
 function fmtDate(iso) { const d = new Date(iso); return d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "2-digit" }); }
 /* ---------- Akzentfarbe ----------
    Presets stehen als CSS unter :root[data-accent=...] — deshalb greifen sie
@@ -1199,7 +1267,7 @@ function applyPrefs() { applySquats(); applyUnits(); applyTracks(); }
    Gespeichert als S.unit "kg" (metrisch) | "lb" (imperial). 1RM, Vorgaben und
    Einträge sind davon unberührt (immer kg). */
 const UNIT_RE = /\{\{([^|{}]*)\|([^{}]*)\}\}/g;
-const UNIT_FIELDS = ["title", "sub", "body", "after", "own", "orig", "hint", "preview"];
+const UNIT_FIELDS = ["title", "sub", "body", "after", "own", "orig", "preview"];
 function unitPref() {
   if (S.unit === "lb" || S.unit === "kg") return S.unit;
   return DEFAULTS.unit === "lb" ? "lb" : "kg";
@@ -2099,7 +2167,7 @@ function renderWeek(pi, wi) {
    Öffnen eines Tages entscheidet sein Zustand (fertiger Tag = Rückblick = offen),
    danach gilt, was der Knopf zuletzt gesagt hat. */
 let dayOpen = { key: "", on: null };
-window.setDayDetails = function (on) { dayOpen.on = on; render(); };
+window.setDayDetails = function (on) { dayOpen.on = on; if (!on) TIP_OPEN = {}; render(); };
 
 function renderDay(pi, wi, di) {
   const part = PROGRAM[pi], week = part.weeks[wi], day = week.days[di];
@@ -2113,15 +2181,12 @@ function renderDay(pi, wi, di) {
   // Beim Betreten des Tages einmal entscheiden: ein bereits abgeschlossener Tag ist
   // ein Rückblick und wird aufgeschlagen, ein laufender bleibt schlank. Danach zählt
   // nur noch der Knopf — sonst klappte das Abhaken der letzten Einheit alles auf.
-  if (dayOpen.key !== key) dayOpen = { key: key, on: all.length > 0 && done === all.length };
+  if (dayOpen.key !== key) { dayOpen = { key: key, on: all.length > 0 && done === all.length }; TIP_OPEN = {}; }
   const open = dayOpen.on;
+  KNOWN = knownTexts();
+  TIP_SHUT = 0;
 
   let html = "";
-  if (done > 0) {
-    html += `<button class="dtoggle" onclick="setDayDetails(${!open})">${open
-      ? "Details der erledigten Einheiten ausblenden"
-      : `Details der ${done} erledigten ${done === 1 ? "Einheit" : "Einheiten"} anzeigen`}</button>`;
-  }
   day.sessions.forEach((sess, si) => {
     const checkable = sess.items.filter(i => !i.rest && !i.opt);
     if (sess.label || day.sessions.length > 1) {
@@ -2146,19 +2211,22 @@ function renderDay(pi, wi, di) {
             ${item.sub ? `<div class="st">${esc(item.sub)}</div>` : ""}
           </div>
         </div>
-        ${item.body ? `<div class="body">${fmtBody(item.body)}</div>` : ""}
+        ${item.body ? `<div class="body">${fmtBody(item.body, item.id + ":b")}</div>` : ""}
         ${item.paceKey && paceOf(item.paceKey)
           ? `<div class="pace"><b>Zielpace</b>${esc(paceOf(item.paceKey))}${(paceDef(item.paceKey) || {}).unit ? " " + esc(paceDef(item.paceKey).unit) : ""}</div>` : ""}
         ${item.own ? `<div class="own"><b>Meine Regel</b>${esc(item.own)}</div>` : ""}
         ${item.orig ? `<div class="orig"><b>Im Plan steht hier</b>${esc(item.orig)}</div>` : ""}
-        ${item.hint ? `<div class="orig"><b>Hinweis zum Original</b>${esc(item.hint)}</div>` : ""}
         ${renderExercises(item)}
-        ${item.after ? `<div class="body">${fmtBody(item.after)}</div>` : ""}
+        ${item.after ? `<div class="body">${fmtBody(item.after, item.id + ":a")}</div>` : ""}
         ${item.key ? renderResult(item) : ""}
       </div>`;
     });
   });
-  main.innerHTML = html;
+  // Knopf nur, wenn es etwas auf- oder zuzuklappen gibt
+  const tbtn = `<button class="dtoggle" onclick="setDayDetails(${!open})">${open
+    ? "Texte kürzen"
+    : `Alle Texte zeigen${done > 0 ? ` · auch der ${done} erledigten ${done === 1 ? "Einheit" : "Einheiten"}` : ""}`}</button>`;
+  main.innerHTML = (open || done > 0 || TIP_SHUT > 0 ? tbtn : "") + html;
 }
 
 /* "85x6" -> {w:85, r:6}. Toleriert Komma und Leerzeichen; null wenn unlesbar. */
@@ -2248,7 +2316,7 @@ function renderTrackExercise(item, ex, rid) {
       <span class="su">von ${step ? step.target : "—"} ${esc(u)}</span>
     </div>`;
   if (step) h += `<div class="expre">Vorgabe: ${esc(step.name)}</div>`;
-  if (ex.note) h += `<div class="exnote">${esc(ex.note)}</div>`;
+  if (ex.note) h += tipHtml(item.id + ":ex:" + ex.k, esc(ex.note), esc(ex.note), "exnote");
   const last = trLastEntry(tr.id, part.id);
   if (last) {
     const ls = last.step ? stepOf(part, last.step) : null;
@@ -2268,7 +2336,9 @@ function renderExercise(item, ex) {
     const cur = parseSet(val);
     const tw = targetWeight(ex, resultDate(ex.k, rid)), tr = targetReps(ex);
     const geschafft = cur && tw != null && cur.w >= tw && (tr == null || cur.r >= tr);
+    const pz = splitNote(ex.note).pause;
     h += `<div class="exrow"><div class="exname">${esc(ex.name)}</div>
+      ${pz ? `<span class="expz" title="Satzpause">${esc(pz)}</span>` : ""}
       ${cur ? `<span class="exok ${geschafft ? "yes" : "no"}">${geschafft ? "✓" : "–"}</span>` : ""}</div>
       <div class="exset">
         <span class="sl">Schwächster Satz</span>
@@ -2288,7 +2358,8 @@ function renderExercise(item, ex) {
   }
   const pre = prescription(ex);
   if (pre) h += `<div class="expre">Vorgabe: ${esc(pre)}${ex.noRaise ? ` <span class="exdl">Deload · zählt nicht für den 1RM</span>` : ""}</div>`;
-  if (ex.note) h += `<div class="exnote">${esc(ex.note)}</div>`;
+  const nt = splitNote(ex.note).text;
+  if (nt) h += tipHtml(item.id + ":ex:" + ex.k, esc(nt), esc(nt), "exnote");
   h += exHistory(ex, rid, !!val);
   return h + `</div>`;
 }
