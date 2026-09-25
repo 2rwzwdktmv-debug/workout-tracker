@@ -12,6 +12,7 @@
   :root {
     --bg: #000000; --surface: #12161e; --surface2: #1c222e;
     --ink: #f4f6f8; --muted: #8b93a3; --line: rgba(255,255,255,.1);
+    --ink2: #c3cad6; --line-strong: #4a5366;   /* Lesetext zweiter Ordnung · Rahmen der Parts */
     --lime: #d7f651; --lime-ink: #12150a; --sky: #8ec5f0;
     --red: #ff4d5e; --amber: #f5c344;
     --r-lg: 22px; --r-md: 16px; --r-sm: 12px;
@@ -340,6 +341,71 @@
     background: none; color: var(--muted); border-radius: 99px; padding: 9px;
     font: inherit; font-size: 12.5px; font-weight: 700;
   }
+  /* ---------- Tagesansicht, Stand 25.09.: ein Schriftsystem ----------
+     Größen 16 (Kartentitel) · 14 (Inhalt) · 13 (Hinweise) · 12 (Meta).
+     Farben: --ink Inhalt, --ink2 Lesetext, --muted Nebeninfo, --lime nur Vorgabe
+     (Gewicht, Pause, Zielpace) und Struktur (Session-Köpfe). Einzug 38 px. */
+  .item { border: 1.5px solid var(--line-strong); margin-bottom: 12px; opacity: 1; }
+  .item.checked { opacity: 1; }
+  .item.opt { border: 1.5px dashed color-mix(in srgb, var(--lime) 55%, transparent); }
+  .item .head { gap: 10px; align-items: flex-start; }
+  .item .cb, .blk .gcb { width: 28px; height: 28px; position: relative; margin-top: 0; }
+  .item .cb::after, .blk .gcb::after { content: ""; position: absolute; inset: -8px; }   /* Tippfläche ~44 px */
+  .item .tt { font-size: 16px; font-weight: 600; line-height: 1.3; padding-top: 3px; }
+  .item .st { font-size: 12px; font-weight: 400; color: var(--muted); margin-top: 2px; }
+  .item.fold { padding: 10px 14px; border-color: color-mix(in srgb, var(--lime) 45%, transparent); }
+  .item.fold .head { align-items: center; }
+  .item.fold .tt { font-size: 14px; font-weight: 400; color: var(--muted); text-decoration: none; padding-top: 0; }
+  .item .body { margin: 10px 0 0 38px; font-size: 14px; }
+  .item .body .pg, .item .body ul.bl li { color: var(--ink2); }
+  .item .body ul.bl li { color: var(--ink); }
+  .tip, .item .body > .tip { font-size: 13px; }
+  .tip:not(.on), .item .body .tip:not(.on) { color: var(--muted); opacity: 1; }
+  .exs { margin: 12px 0 0 38px; gap: 12px; }
+  .blks { margin-top: 0; }
+  .blk + .blk { border-top: 1px solid var(--line); margin-top: 14px; padding-top: 14px; }
+  .bhead { display: flex; align-items: center; gap: 10px; }
+  .bt { flex: 1; min-width: 0; font-size: 14px; font-weight: 600; }
+  .blk.done .bt { color: var(--muted); text-decoration: line-through; }
+  .blk.done .gcb { background: var(--lime); border-color: var(--lime); color: var(--lime-ink); }
+  .blk .ex, .blk .sqsw { margin-left: 38px; }
+  .blk .ex, .blk .sqsw { margin-top: 10px; }
+  .ex, .ex:first-child { border-top: none; padding-top: 0; }
+  .xr { display: flex; align-items: baseline; gap: 10px; font-size: 14px; }
+  .xs { width: 34px; flex-shrink: 0; color: var(--ink); }
+  .xv { flex: 1; min-width: 0; color: var(--lime); font-weight: 600; }
+  .xp { color: var(--lime); flex-shrink: 0; }
+  .xd { font-size: 12px; color: var(--muted); flex-shrink: 0; }
+  .xi { display: flex; align-items: center; gap: 6px; margin: 6px 0 0 44px; font-size: 12px; color: var(--muted); }
+  .xi .exn { width: 64px; }
+  .xi .exn.r { width: 52px; }
+  .xi .exhist, .xi .xl { flex: 1; min-width: 0; width: auto; margin: 0 0 0 4px; }
+  .ex .tip { margin: 6px 0 0 44px; }
+  .ex .exnote:not(.tip) { margin-left: 44px; }
+  .xn { font-size: 14px; color: var(--ink); display: flex; align-items: baseline; gap: 8px; }
+  .acc .exw { display: block; width: 100%; margin-top: 6px; text-align: left; }
+  .acc .exhist, .acc .tip { margin-left: 0; }
+  .acc .exhist { margin-top: 4px; }
+  .xlink {
+    margin-left: auto; flex-shrink: 0; border: none; background: none; padding: 4px 0;
+    color: var(--muted); font: inherit; font-size: 12px;
+  }
+  .own {
+    margin: 10px 0 0 38px; padding: 6px 10px; background: none; border-radius: 0;
+    border-left: 2px solid #3a4152; font-size: 13px; color: var(--ink2);
+  }
+  .own span { color: var(--muted); }
+  .pace {
+    margin: 10px 0 0 38px; padding: 6px 10px; background: none; border-radius: 0;
+    border-left: 2px solid #3a4152; font-size: 14px; color: var(--lime); font-weight: 600;
+  }
+  .pace span { color: var(--muted); font-weight: 400; font-size: 13px; }
+  .orig { margin-left: 38px; }
+  .res { margin-left: 38px; }
+  .res .last button { border: none; padding: 0; color: var(--muted); font-weight: 400; font-size: 12px; }
+  .item .sqsw, .exs > .sqsw { margin-top: 0; }
+  .sesshead button { font-weight: 400; background: none; }
+  .dtoggle { margin: 18px 0 4px; font-weight: 400; }
   .rest { text-align: center; padding: 34px 14px; color: var(--muted); }
   .rest .z { font-size: 36px; }
   .flash { animation: flash 1.6s ease-out 1; }
@@ -538,6 +604,10 @@
   .setsec[open] summary::after { transform: rotate(-90deg); }
   .setsec .secbody { padding-bottom: 15px; }
   .setsec .secbody p.hint:first-child { margin-top: 0; }
+  .basics .bi { padding: 10px 0; border-top: 1px solid var(--line); }
+  .basics .bi:first-child { border-top: none; padding-top: 0; }
+  .basics .bi b { display: block; font-size: 14px; font-weight: 600; }
+  .basics .bi span { display: block; font-size: 13px; color: var(--muted); line-height: 1.45; margin-top: 2px; }
   /* ---------- Analyse ---------- */
   .motto {
     background: linear-gradient(145deg, var(--surface2), var(--surface));
@@ -2244,18 +2314,25 @@ function renderDay(pi, wi, di) {
         return;
       }
       const checked = !!S.checked[item.id];
-      html += `<div class="card item${item.opt ? " opt" : ""} ${checked ? "checked" : ""}${checked && open ? " open" : ""}${POP_ID === item.id ? " justdone" : ""}" id="it-${item.id}">
-        <div class="head">
-          <button class="cb${POP_ID === item.id ? " pop" : ""}" onclick="toggle('${item.id}')" aria-label="abhaken">✓</button>
-          <div style="min-width:0">
-            <div class="tt">${esc(item.title)}${item.opt ? ` <span class="optb">optional</span>` : ""}</div>
-            ${item.sub ? `<div class="st">${esc(item.sub)}</div>` : ""}
-          </div>
-        </div>
+      const multi = exGroups(item).length >= 2;
+      const ct = cardTitle(item);
+      const cls = `card item${item.opt ? " opt" : ""}${multi ? " multi" : ""} ${checked ? "checked" : ""}${checked && open ? " open" : ""}${POP_ID === item.id ? " justdone" : ""}`;
+      const cb = `<button class="cb${POP_ID === item.id ? " pop" : ""}" onclick="toggle('${item.id}')" aria-label="abhaken">✓</button>`;
+      // Erledigt und nicht aufgeklappt: eine Zeile — der Blick geht nach vorn
+      if (checked && !open) {
+        const lbl = multi ? exGroups(item).map(g => g.label).join(" · ") : ct.title;
+        html += `<div class="${cls} fold" id="it-${item.id}"><div class="head">${cb}<div class="tt">${esc(lbl)}</div></div></div>`;
+        return;
+      }
+      const pace = item.paceKey && paceOf(item.paceKey);
+      html += `<div class="${cls}" id="it-${item.id}">
+        ${multi ? "" : `<div class="head">${cb}<div style="min-width:0">
+            <div class="tt">${esc(ct.title)}${item.opt ? ` <span class="optb">optional</span>` : ""}</div>
+            ${ct.meta ? `<div class="st">${esc(ct.meta)}</div>` : ""}
+          </div></div>`}
         ${item.body ? `<div class="body">${fmtBody(item.body, item.id + ":b")}</div>` : ""}
-        ${item.paceKey && paceOf(item.paceKey)
-          ? `<div class="pace"><b>Zielpace</b>${esc(paceOf(item.paceKey))}${(paceDef(item.paceKey) || {}).unit ? " " + esc(paceDef(item.paceKey).unit) : ""}</div>` : ""}
-        ${item.own ? `<div class="own"><b>Meine Regel</b>${esc(item.own)}</div>` : ""}
+        ${pace ? `<div class="pace"><span>Zielpace</span> ${esc(pace)}${(paceDef(item.paceKey) || {}).unit ? " " + esc(paceDef(item.paceKey).unit) : ""}</div>` : ""}
+        ${item.own ? `<div class="own"><span>Meine Regel ·</span> ${esc(item.own)}</div>` : ""}
         ${item.orig ? `<div class="orig"><b>Im Plan steht hier</b>${esc(item.orig)}</div>` : ""}
         ${renderExercises(item)}
         ${item.after ? `<div class="body">${fmtBody(item.after, item.id + ":a")}</div>` : ""}
@@ -2263,11 +2340,23 @@ function renderDay(pi, wi, di) {
       </div>`;
     });
   });
-  // Knopf nur, wenn es etwas auf- oder zuzuklappen gibt
+  // Knopf unten, und nur, wenn es etwas auf- oder zuzuklappen gibt
   const tbtn = `<button class="dtoggle" onclick="setDayDetails(${!open})">${open
     ? "Texte kürzen"
     : `Alle Texte zeigen${done > 0 ? ` · auch der ${done} erledigten ${done === 1 ? "Einheit" : "Einheiten"}` : ""}`}</button>`;
-  main.innerHTML = (open || done > 0 || TIP_SHUT > 0 ? tbtn : "") + html;
+  main.innerHTML = html + (open || done > 0 || TIP_SHUT > 0 ? tbtn : "");
+}
+
+/* Kartentitel: „Part N“ ist Nummerierung, kein Inhalt. Hat der Part einen echten
+   Namen („IWT „Tristan““), ist der Titel und der Untertitel wird zur Meta-Zeile;
+   sonst ist der Untertitel der Titel. Steckt der Name im Untertitel, reicht dieser. */
+const PART_RE = /^part\s*\d+\s*[—–-]?\s*/i;
+function cardTitle(item) {
+  const t = String(item.title || "").replace(PART_RE, "").trim();
+  const sub = String(item.sub || "").trim();
+  if (!t || PV_GENERIC.test(t)) return { title: sub || item.title || "", meta: "" };
+  if (sub && normTxt(sub).indexOf(normTxt(t)) >= 0) return { title: sub, meta: "" };
+  return { title: t, meta: sub };
 }
 
 /* "85x6" -> {w:85, r:6}. Toleriert Komma und Leerzeichen; null wenn unlesbar. */
@@ -2309,10 +2398,11 @@ function exHistory(ex, rid, belegt) {
   const e = (S.results[ex.k] || []).filter(x => x.itemId !== rid).slice(-1)[0];
   if (!e) return "";
   const st = parseSet(e.value);
-  const txt = `Zuletzt ${fmtDate(e.date)}: ${st ? fmtW(st.w) + " kg × " + st.r : esc(e.value)}`;
+  const txt = `zuletzt ${st ? fmtW(st.w) + " × " + st.r : esc(e.value)}`;
+  const t = `title="${esc(fmtDate(e.date))}"`;
   return belegt
-    ? `<div class="exhist">${txt}</div>`
-    : `<button class="exhist" onclick="fillResult('${rid}','${ex.k}','${String(e.value).replace(/'/g, "\\'")}')">${txt}</button>`;
+    ? `<span class="exhist" ${t}>${txt}</span>`
+    : `<button class="exhist" ${t} onclick="fillResult('${rid}','${ex.k}','${String(e.value).replace(/'/g, "\\'")}')">${txt}</button>`;
 }
 
 /* Zuletzt protokollierte Einheit dieser Leiter — als Referenz an der Programmstelle. */
@@ -2344,66 +2434,84 @@ function renderTrackExercise(item, ex, rid) {
   const geschafft = got != null && tgt != null && got >= tgt;
   const u = trUnit(part);
 
+  const last = trLastEntry(tr.id, part.id);
+  // Einzelne Leiter-Übung ohne Blockkopf: Name und Stufe stehen in der Zeile
+  const solo = exGroups(item).length < 2;
   let h = `<div class="ex">
-    <div class="exrow">
-      <div class="exname">${esc(ex.name)} — Stufe ${cur} von ${nSteps}</div>
-      ${m ? `<span class="exok ${geschafft ? "yes" : "no"}">${geschafft ? "✓" : "–"}</span>` : ""}
-    </div>
-    <div class="exset">
-      <span class="sl">${esc(part.setLabel || "Geschafft")}</span>
+    ${solo ? `<div class="xn">${esc(ex.name)} <button class="xlink" onclick="location.hash='#t/${tr.id}'">Stufe ${cur}/${nSteps} ›</button></div>` : ""}
+    <div class="xr"><span class="xv">${step ? esc(step.name) : "—"}</span></div>
+    <div class="xi">
       <input class="exn" type="number" inputmode="numeric" placeholder="${step ? step.target : ""}"
         id="extr-${rid}" value="${m ? esc(m[1]) : ""}"
         onchange="setTrackResult('${rid}','${tr.id}','${part.id}','${ex.k}')">
-      <span class="su">von ${step ? step.target : "—"} ${esc(u)}</span>
+      <span>von ${step ? step.target : "—"} ${esc(u)}</span>
+      ${m ? `<span class="exok ${geschafft ? "yes" : "no"}">${geschafft ? "✓" : "–"}</span>` : ""}
+      ${last ? `<span class="xl">· zuletzt ${esc(String(last.v))}</span>` : ""}
     </div>`;
-  if (step) h += `<div class="expre">Vorgabe: ${esc(step.name)}</div>`;
   if (ex.note) h += tipHtml(item.id + ":ex:" + ex.k, esc(ex.note), esc(ex.note), "exnote");
-  const last = trLastEntry(tr.id, part.id);
-  if (last) {
-    const ls = last.step ? stepOf(part, last.step) : null;
-    h += `<div class="exnote q">zuletzt ${last.v}${ls ? " von " + ls.target : ""} ${esc(u)}
-      · ${esc(fmtDate(last.d + "T12:00:00"))}${ls ? " · " + esc(ls.name) : ""}</div>`;
-  }
-  h += `<button class="exhist tap" onclick="location.hash='#t/${tr.id}'">Leiter ansehen</button>`;
   return h + `</div>`;
+}
+/* Rechts im Blockkopf einer Leiter: aktuelle Stufe, führt zur Leiter */
+function trackBadge(ex) {
+  const tr = trackDef(ex.track);
+  const part = tr && (tr.parts || []).find(p => p.id === (ex.trackPart || ((tr.parts || [])[0] || {}).id));
+  if (!part) return "";
+  return `<button class="xlink" onclick="location.hash='#t/${tr.id}'">Stufe ${trStep(tr.id, part.id)}/${(part.steps || []).length} ›</button>`;
+}
+/* "Bench Press 1x6" -> "1×6"; ohne Schema der ganze Name */
+function schemeOf(name) {
+  const m = String(name || "").match(/(\d+)\s*[x×]\s*(\d+(?:\s*[-–]\s*\d+)?)/i);
+  return m ? m[1] + "×" + m[2].replace(/\s*[-–]\s*/, "–") : String(name || "");
+}
+/* Vorgabe nur als Gewicht ("80–85 kg"); die Prozente stehen in der Analyse */
+function prescribedKg(ex) {
+  const base = parseFloat((S.oneRM || {})[ex.rm]);
+  if (!base || !ex.pct) return "";
+  return ex.pct.map(p => fmtW(mround25(base * p))).join("–") + " kg";
 }
 
 function renderExercise(item, ex) {
   const rid = item.id + "/" + ex.k;
   if (ex.track) return renderTrackExercise(item, ex, rid);
   const val = S.resultsByItem[rid] || "";
-  let h = `<div class="ex">`;
+  const nt = splitNote(ex.note).text;
+  const tip = nt ? tipHtml(item.id + ":ex:" + ex.k, esc(nt), esc(nt), "exnote") : "";
   if (isRmEx(ex)) {
+    /* Zeile 1: Schema · Gewicht · Pause (Gewicht und Pause sind die Vorgabe → Akzent)
+       Zeile 2: Eingabe (schwächster Satz) · zuletzt. Darunter der Hinweis. */
     const cur = parseSet(val);
     const tw = targetWeight(ex, resultDate(ex.k, rid)), tr = targetReps(ex);
     const geschafft = cur && tw != null && cur.w >= tw && (tr == null || cur.r >= tr);
     const pz = splitNote(ex.note).pause;
-    h += `<div class="exrow"><div class="exname">${esc(ex.name)}</div>
-      ${pz ? `<span class="expz" title="Satzpause">${esc(pz)}</span>` : ""}
-      ${cur ? `<span class="exok ${geschafft ? "yes" : "no"}">${geschafft ? "✓" : "–"}</span>` : ""}</div>
-      <div class="exset">
-        <span class="sl">Schwächster Satz</span>
+    // Optionale Einheiten tragen ihr "zählt nicht" schon im Badge — hier nicht nochmal
+    return `<div class="ex">
+      <div class="xr"><span class="xs">${esc(schemeOf(ex.name))}</span>
+        <span class="xv">${esc(prescribedKg(ex) || "—")}</span>
+        ${pz ? `<span class="xp">${esc(pz)}</span>` : ""}
+        ${ex.noRaise && !item.opt ? `<span class="xd">Deload</span>` : ""}</div>
+      <div class="xi">
         <input class="exn" type="number" inputmode="decimal" step="2.5" placeholder="kg"
           id="exw-${rid}" value="${cur ? cur.w : ""}" onchange="setExSet('${rid}','${ex.k}')">
-        <span class="su">kg ×</span>
-        <input class="exn" type="number" inputmode="numeric" placeholder="Wdh."
+        <span>×</span>
+        <input class="exn r" type="number" inputmode="numeric" placeholder="Wdh."
           id="exr-${rid}" value="${cur ? cur.r : ""}" onchange="setExSet('${rid}','${ex.k}')">
-      </div>`;
-    if (val && !cur) h += `<div class="exnote">bisher eingetragen: ${esc(val)}</div>`;
-  } else {
-    h += `<div class="exrow">
-      <div class="exname">${esc(ex.name)}</div>
-      <input class="exw" type="text" placeholder="${esc(ex.unit || "Gewicht")}" value="${esc(val)}"
-        onchange="setResult('${rid}','${ex.k}',this.value)">
+        ${cur ? `<span class="exok ${geschafft ? "yes" : "no"}">${geschafft ? "✓" : "–"}</span>` : ""}
+        ${exHistory(ex, rid, !!val)}
+      </div>
+      ${val && !cur ? `<div class="exnote">bisher eingetragen: ${esc(val)}</div>` : ""}
+      ${tip}
     </div>`;
   }
-  const pre = prescription(ex);
-  // Optionale Einheiten tragen ihr "zählt nicht" schon im Badge — hier nicht nochmal
-  if (pre) h += `<div class="expre">Vorgabe: ${esc(pre)}${ex.noRaise && !item.opt ? ` <span class="exdl">Deload · zählt nicht für den 1RM</span>` : ""}</div>`;
-  const nt = splitNote(ex.note).text;
-  if (nt) h += tipHtml(item.id + ":ex:" + ex.k, esc(nt), esc(nt), "exnote");
-  h += exHistory(ex, rid, !!val);
-  return h + `</div>`;
+  // Accessory: Name, darunter ein Feld über die ganze Breite. Hat die Übung einen
+  // eigenen Blockkopf (Power Clean …), steht dort der Name — hier nur das Schema.
+  const ownBlock = !ex.k.startsWith("ex-") && exGroups(item).length >= 2;
+  return `<div class="ex acc">
+    <div class="xn">${esc(ownBlock ? schemeOf(ex.name) : String(ex.name).replace(/(\d)\s*x\s*(\d)/gi, "$1×$2"))}</div>
+    <input class="exw" type="text" placeholder="${esc(ex.unit || "Gewicht")}" value="${esc(val)}"
+      onchange="setResult('${rid}','${ex.k}',this.value)">
+    ${exHistory(ex, rid, !!val)}
+    ${tip}
+  </div>`;
 }
 
 /* Front/Back für genau diese Einheit — nur solange nichts eingetragen ist */
@@ -2419,12 +2527,15 @@ function renderExercises(item) {
   if (gs.length < 2) {
     return `<div class="exs">` + squatSwitch(item) + item.exercises.map(ex => renderExercise(item, ex)).join("") + `</div>`;
   }
-  return `<div class="exs">` + gs.map(g => {
+  // Mehrere Blöcke: jeder mit eigenem Haken links, feine Linie dazwischen.
+  // Die Karte selbst hat keinen Kopf — sie ist erledigt, wenn alle Blöcke es sind.
+  return `<div class="blks">` + gs.map(g => {
     const done = !!S.checked[g.id];
-    return `<div class="ghead ${done ? "done" : ""}">
-        <span>${esc(g.label)}</span>
+    const tr = g.exs[0] && g.exs[0].track ? trackBadge(g.exs[0]) : "";
+    return `<div class="blk ${done ? "done" : ""}"><div class="bhead">
         <button class="gcb${POP_ID === g.id ? " pop" : ""}" onclick="toggleGroup('${g.id}','${item.id}')" aria-label="Block abhaken">✓</button>
-      </div>` + (g.exs.some(isSquatEx) ? squatSwitch(item) : "") + g.exs.map(ex => renderExercise(item, ex)).join("");
+        <span class="bt">${esc(g.label)}</span>${tr}
+      </div>` + (g.exs.some(isSquatEx) ? squatSwitch(item) : "") + g.exs.map(ex => renderExercise(item, ex)).join("") + `</div>`;
   }).join("") + `</div>`;
 }
 
@@ -2437,7 +2548,7 @@ function renderResult(item) {
       onchange="setResult('${item.id}','${item.key}',this.value)">`;
   if (last && !val) {
     html += `<div class="last"><button onclick="fillResult('${item.id}','${item.key}','${esc(last.value).replace(/'/g, "\\'")}')">
-      Letztes Mal: ${esc(last.value)} · ${fmtDate(last.date)} — übernehmen</button></div>`;
+      zuletzt ${esc(last.value)} · ${fmtDate(last.date)}</button></div>`;
   }
   if (hist.length) {
     html += `<details><summary>Verlauf</summary>${hist.map(e => `${fmtDate(e.date)}: ${esc(e.value)}`).join("<br>")}</details>`;
@@ -2584,6 +2695,16 @@ window.saveSetup = async function () {
 };
 
 /* ---------- Settings ---------- */
+/* Einmal verstehen, dann nicht mehr bei jeder Übung lesen müssen */
+const BASICS = [
+  ["Schwächster Satz", "Bei mehreren Sätzen trägst du den schwächsten ein, meist den letzten. Die Steigerung prüft ihn gegen die Vorgabe."],
+  ["Farben", "Grün ist, was du heute tun sollst: Gewicht, Pause, Zielpace. Grau ist Nebeninfo."],
+  ["EMOM", "Every minute on the minute: zu jeder vollen Minute ein Satz, der Rest der Minute ist Pause."],
+  ["Top Set und Back-off", "Erst ein schwerer Satz nahe am Limit, danach leichtere Sätze für Volumen."],
+  ["Feste Lasten (RX)", "Gewichte aus Hunters Zirkeln sind Standard, nicht Pflicht. Nimm so viel, dass jede Runde am Stück geht."],
+  ["Deload und optional", "Zählen nicht für den 1RM. Optionale Einheiten zählen auch nicht zum Plan."],
+  ["Hinweise ⓘ", "Neue Erklärungen stehen offen, bekannte sind auf eine Zeile eingeklappt. Antippen klappt um, „Alle Texte zeigen“ unten öffnet alles."]
+];
 function renderSettings() {
   backBtn.style.display = "";
   titleEl.textContent = "Einstellungen";
@@ -2599,6 +2720,12 @@ function renderSettings() {
           <button class="primary" onclick="manualSync()">Jetzt syncen</button>
           <button onclick="reconnect()">Verbindung ändern</button>
         </div>` : ""}
+      </div>
+    </details>
+    <details class="setsec">
+      <summary><svg class="secic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.01"/></svg>Erklärungen / Basics</summary>
+      <div class="secbody basics">
+        ${BASICS.map(([t, d]) => `<div class="bi"><b>${esc(t)}</b><span>${esc(d)}</span></div>`).join("")}
       </div>
     </details>
     <details class="setsec">
