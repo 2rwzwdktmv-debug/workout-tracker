@@ -121,6 +121,29 @@
   .dayrow .mini .mp { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 9.5px; font-weight: 800; color: var(--muted); }
   .dayrow.done { border-color: color-mix(in srgb, var(--lime) 45%, transparent); }
   .dayrow.done .mini .mp { color: var(--lime); }
+  /* Wochenansicht: Tag als aufklappbare Karte */
+  .dayw { margin-bottom: 10px; }
+  .dayw.done { border-color: color-mix(in srgb, var(--lime) 45%, transparent); }
+  .dayw.done .mini .mp { color: var(--lime); }
+  .dayw > .dayrow {
+    width: 100%; margin: 0; padding: 0; border: none; background: none;
+    color: inherit; font: inherit; text-align: left;
+  }
+  .dayw .chev { color: var(--muted); font-size: 20px; line-height: 1; transition: transform .2s; margin-left: -2px; }
+  .dayw.open .chev { transform: rotate(90deg); }
+  .dayw.open .sess { display: none; }
+  .wo { margin-top: 12px; padding-top: 10px; border-top: 1px dashed #3a4152; }
+  .wo-s + .wo-s { margin-top: 12px; }
+  .wo-h { font-size: 10.5px; text-transform: uppercase; letter-spacing: 1.3px; font-weight: 700; color: var(--muted); }
+  .wo-i { margin-top: 7px; font-size: 13.5px; line-height: 1.35; }
+  .wo-t { font-weight: 650; }
+  .wo-i.done .wo-t { color: var(--muted); text-decoration: line-through; }
+  .wo-d { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+  .wo-go {
+    display: block; width: 100%; margin-top: 14px; padding: 10px; border-radius: 99px;
+    border: 1px solid var(--line); background: var(--surface2); color: var(--ink);
+    font: inherit; font-size: 13.5px; font-weight: 800;
+  }
 
   /* ---------- Day view ---------- */
   .sesshead { display: flex; align-items: center; margin: 22px 2px 10px; gap: 10px; }
@@ -1823,17 +1846,8 @@ function renderPlan() {
   const extras = planExtras(days);
   let html = "";
 
-  // Optionale Einheiten eines Plan-Tages (eingeblendet), als ＋-Zeile bzw. Knopf
-  const optOf = pd => pd ? pd.day.sessions.flatMap(s => s.items).filter(i => i.opt && optShown(i.opt)) : [];
-  const optLbl = it => "optional: " + ((it.exercises || [])[0] || {}).name;
-  const optRows = e => optOf(e.d).map(it => {
-    const done = !!S.checked[it.id];
-    return `<div class="xrow ${done ? "done" : ""}" onclick="event.stopPropagation();location.hash='#d/${e.d.pi}/${e.d.wi}/${e.d.di}'">
-      ＋ ${esc(optLbl(it))}${done ? " ✓" : ""} <span class="q">· zählt nicht zum Plan</span></div>`;
-  }).join("");
-
-  // Zusatz-Zeile(n) für einen projizierten Tag
-  const extraRows = e => optRows(e) + (extras[e.k] || []).map(id => {
+  // Zusatz-Zeile(n) für einen projizierten Tag (optionale Einheiten stehen nur im Tag selbst)
+  const extraRows = e => (extras[e.k] || []).map(id => {
     const tr = trackDef(id); if (!tr) return "";
     const done = trLoggedOn(id, e.k);
     const main = tr.parts[0];
@@ -1858,8 +1872,7 @@ function renderPlan() {
     const tr = trackDef(id); if (!tr) return "";
     const done = trLoggedOn(id, first.k);
     return `<button class="cta xcta ${done ? "done" : ""}" onclick="location.hash='#t/${id}'">＋ ${esc(tr.name)} · Stufe ${trStep(id, tr.parts[0].id)}${done ? " ✓" : ""}</button>`;
-  }).join("") + optOf(first.d).map(it => `<button class="cta xcta ${S.checked[it.id] ? "done" : ""}"
-      onclick="location.hash='#d/${first.d.pi}/${first.d.wi}/${first.d.di}'">＋ ${esc(optLbl(it))}${S.checked[it.id] ? " ✓" : ""}</button>`).join("");
+  }).join("");
 
   if (first.kind === "train") {
     const istQuelle = swapFrom === first.d.key;
@@ -2152,15 +2165,43 @@ function renderWeek(pi, wi) {
     const sessNames = dayPreview(day)
       || day.sessions.map(s => s.label).filter(Boolean).join(" · ");
     const dropped = planState().dropped.indexOf(pi + "." + wi + "." + di) >= 0;
-    html += `<button class="card dayrow ${(!isRest && p === 100) ? "done" : ""}" onclick="location.hash='#d/${pi}/${wi}/${di}'">
-      <div class="info">
+    const k = pi + "/" + wi + "/" + di, open = !isRest && !!WEEK_OPEN[k];
+    const row = `<div class="info">
         <div class="t">${esc(day.label)}</div>
         <div class="sess">${dropped ? "gestrichen" : esc(isRest ? "Full Rest 😴" : sessNames)}</div>
       </div>
-      <div class="mini">${(isRest || dropped) ? "" : ring(p, 40, 4.5)}<div class="mp">${dropped ? "✕" : (isRest ? "—" : (p === 100 ? "✓" : d + "/" + items.length))}</div></div>
-    </button>`;
+      <div class="mini">${(isRest || dropped) ? "" : ring(p, 40, 4.5)}<div class="mp">${dropped ? "✕" : (isRest ? "—" : (p === 100 ? "✓" : d + "/" + items.length))}</div></div>`;
+    if (isRest) {
+      html += `<button class="card dayrow" onclick="location.hash='#d/${k}'">${row}</button>`;
+      return;
+    }
+    // Trainingstag: Tipp klappt die Einheiten auf — kein Seitenwechsel für einen Blick
+    html += `<div class="card dayw ${p === 100 ? "done" : ""}${open ? " open" : ""}">
+      <button class="dayrow" onclick="weekDayToggle('${k}')" aria-expanded="${open}">${row}<span class="chev" aria-hidden="true">›</span></button>
+      ${open ? `<div class="wo">${dayOutline(day)}<button class="wo-go" onclick="location.hash='#d/${k}'">Tag öffnen</button></div>` : ""}
+    </div>`;
   });
   main.innerHTML = html;
+}
+
+/* Wochenansicht: aufgeklappte Tage (nur im Speicher) und ihr Inhalt im Überblick —
+   je Session die Einheiten, darunter das eigentliche Workout: Übungsnamen bzw. die
+   Aufzählung aus dem Plantext. Erklärtext bleibt draußen. */
+let WEEK_OPEN = {};
+window.weekDayToggle = function (k) { WEEK_OPEN[k] = !WEEK_OPEN[k]; render(); };
+function dayOutline(day) {
+  return day.sessions.map(s => {
+    const its = s.items.filter(i => !i.rest && !(i.opt && !optShown(i.opt)));
+    if (!its.length) return "";
+    return `<div class="wo-s">${s.label ? `<div class="wo-h">${esc(s.label)}</div>` : ""}` + its.map(it => {
+      const parts = (it.exercises || []).map(ex => esc(ex.name));
+      if (it.body) bodyBlocks(it.body).forEach(b => { if (b.li) parts.push.apply(parts, b.items); });   // schon escaped
+      return `<div class="wo-i${S.checked[it.id] ? " done" : ""}">
+        <span class="wo-t">${esc(it.sub || it.title)}</span>${it.opt ? ` <span class="optb">optional</span>` : ""}
+        ${parts.length ? `<div class="wo-d">${parts.join(" · ")}</div>` : ""}
+      </div>`;
+    }).join("") + `</div>`;
+  }).join("");
 }
 
 /* Sichtbarkeit der Details erledigter Einheiten. Nichts wird gespeichert: beim
@@ -2207,7 +2248,7 @@ function renderDay(pi, wi, di) {
         <div class="head">
           <button class="cb${POP_ID === item.id ? " pop" : ""}" onclick="toggle('${item.id}')" aria-label="abhaken">✓</button>
           <div style="min-width:0">
-            <div class="tt">${esc(item.title)}${item.opt ? ` <span class="optb">optional · zählt nicht</span>` : ""}</div>
+            <div class="tt">${esc(item.title)}${item.opt ? ` <span class="optb">optional</span>` : ""}</div>
             ${item.sub ? `<div class="st">${esc(item.sub)}</div>` : ""}
           </div>
         </div>
@@ -2357,7 +2398,8 @@ function renderExercise(item, ex) {
     </div>`;
   }
   const pre = prescription(ex);
-  if (pre) h += `<div class="expre">Vorgabe: ${esc(pre)}${ex.noRaise ? ` <span class="exdl">Deload · zählt nicht für den 1RM</span>` : ""}</div>`;
+  // Optionale Einheiten tragen ihr "zählt nicht" schon im Badge — hier nicht nochmal
+  if (pre) h += `<div class="expre">Vorgabe: ${esc(pre)}${ex.noRaise && !item.opt ? ` <span class="exdl">Deload · zählt nicht für den 1RM</span>` : ""}</div>`;
   const nt = splitNote(ex.note).text;
   if (nt) h += tipHtml(item.id + ":ex:" + ex.k, esc(nt), esc(nt), "exnote");
   h += exHistory(ex, rid, !!val);
