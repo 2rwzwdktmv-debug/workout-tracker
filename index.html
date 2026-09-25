@@ -371,11 +371,23 @@
   .blk .ex, .blk .sqsw { margin-left: 38px; }
   .blk .ex, .blk .sqsw { margin-top: 10px; }
   .ex, .ex:first-child { border-top: none; padding-top: 0; }
-  .xr { display: flex; align-items: baseline; gap: 10px; font-size: 14px; }
-  .xs { width: 34px; flex-shrink: 0; color: var(--ink); }
-  .xv { flex: 1; min-width: 0; color: var(--lime); font-weight: 600; }
+  /* Übungszeile: beginnt unter dem Kreis (volle Breite), Felder rechts. Reicht die
+     Breite nicht (≈320 px), rutschen die Felder geschlossen in eine zweite Zeile. */
+  .xr { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; font-size: 14px; white-space: nowrap; }
+  .xs { width: 28px; flex-shrink: 0; text-align: center; color: var(--ink); }
+  .xv { flex: 1 0 auto; color: var(--lime); font-weight: 600; }
   .xp { color: var(--lime); flex-shrink: 0; }
-  .xd { font-size: 12px; color: var(--muted); flex-shrink: 0; }
+  .xin { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+  .xin .exn { width: 54px; height: 34px; padding: 0 7px; }
+  .xin .exn.r { width: 40px; }
+  .xx { font-size: 12px; color: var(--muted); }
+  .exn.ok { border-color: color-mix(in srgb, var(--lime) 70%, transparent); }
+  .exn.no { border-color: color-mix(in srgb, var(--amber) 75%, transparent); }
+  .exs { margin-left: 0; }
+  .exs > .ex.acc, .exs > .sqsw, .blk .ex.acc, .blk .sqsw { margin-left: 38px; }
+  .blk .ex.exl { margin-left: 0; }
+  .ex.exl .tip, .ex.exl .exnote { margin-left: 36px; }
+  .xd { font-size: 12px; color: var(--muted); font-weight: 400; flex-shrink: 0; }
   .xi { display: flex; align-items: center; gap: 6px; margin: 6px 0 0 44px; font-size: 12px; color: var(--muted); }
   .xi .exn { width: 64px; }
   .xi .exn.r { width: 52px; }
@@ -1102,7 +1114,7 @@ function normTxt(s) { return String(s || "").replace(/<[^>]+>/g, " ").replace(/\
 function splitNote(n) {
   const m = String(n || "").match(/(?:^|\s)(\d+(?:\s*[-–]\s*\d+)?)\s*Min\.?\s*Pause\.?\s*$/i);
   if (!m) return { pause: null, text: String(n || "").trim() };
-  return { pause: m[1].replace(/\s*[-–]\s*/, "–") + " Min", text: String(n).slice(0, m.index).trim() };
+  return { pause: m[1].replace(/\s*[-–]\s*/, "–") + "′", text: String(n).slice(0, m.index).trim() };
 }
 function knownTexts() {
   const k = new Set();
@@ -2394,6 +2406,11 @@ function targetWeight(ex, iso) {
 /* Der letzte Eintrag dieser Übung — eine leise Zeile, "Zuletzt Datum: Gewicht × Wdh".
    Solange das Feld leer ist, ist sie antippbar und übernimmt den Wert. Bewusst nicht
    in Akzentfarbe: hervorgehoben ist die Vorgabe, nicht die Vergangenheit. */
+/* Letzter Satz dieser Übung (andere Einheit) als {w, r} — Platzhalter im Feld */
+function lastSet(ex, rid) {
+  const e = (S.results[ex.k] || []).filter(x => x.itemId !== rid).slice(-1)[0];
+  return e ? parseSet(e.value) : null;
+}
 function exHistory(ex, rid, belegt) {
   const e = (S.results[ex.k] || []).filter(x => x.itemId !== rid).slice(-1)[0];
   if (!e) return "";
@@ -2437,16 +2454,19 @@ function renderTrackExercise(item, ex, rid) {
   const last = trLastEntry(tr.id, part.id);
   // Einzelne Leiter-Übung ohne Blockkopf: Name und Stufe stehen in der Zeile
   const solo = exGroups(item).length < 2;
-  let h = `<div class="ex">
+  // "4 Wdh./Min · 10 Minuten — Meilenstein" -> Schema "10′", Vorgabe "4 Wdh./Min"
+  const sm = step && String(step.name).match(/^(.*?)\s*·\s*(\d+)\s*Minuten?\s*(.*)$/);
+  const ok = m ? (geschafft ? " ok" : " no") : "";
+  let h = `<div class="ex exl">
     ${solo ? `<div class="xn">${esc(ex.name)} <button class="xlink" onclick="location.hash='#t/${tr.id}'">Stufe ${cur}/${nSteps} ›</button></div>` : ""}
-    <div class="xr"><span class="xv">${step ? esc(step.name) : "—"}</span></div>
-    <div class="xi">
-      <input class="exn" type="number" inputmode="numeric" placeholder="${step ? step.target : ""}"
-        id="extr-${rid}" value="${m ? esc(m[1]) : ""}"
-        onchange="setTrackResult('${rid}','${tr.id}','${part.id}','${ex.k}')">
-      <span>von ${step ? step.target : "—"} ${esc(u)}</span>
-      ${m ? `<span class="exok ${geschafft ? "yes" : "no"}">${geschafft ? "✓" : "–"}</span>` : ""}
-      ${last ? `<span class="xl">· zuletzt ${esc(String(last.v))}</span>` : ""}
+    <div class="xr"><span class="xs">${sm ? esc(sm[2]) + "′" : ""}</span>
+      <span class="xv">${step ? esc(sm ? sm[1] : step.name) : "—"}${sm && sm[3] ? ` <span class="xd">${esc(sm[3].replace(/^[—–-]\s*/, ""))}</span>` : ""}</span>
+      <span class="xin">
+        <input class="exn${ok}" type="number" inputmode="numeric" placeholder="${last ? esc(String(last.v)) : (step ? step.target : "")}"
+          id="extr-${rid}" value="${m ? esc(m[1]) : ""}"
+          onchange="setTrackResult('${rid}','${tr.id}','${part.id}','${ex.k}')">
+        <span class="xx">von ${step ? step.target : "—"}</span>
+      </span>
     </div>`;
   if (ex.note) h += tipHtml(item.id + ":ex:" + ex.k, esc(ex.note), esc(ex.note), "exnote");
   return h + `</div>`;
@@ -2484,19 +2504,21 @@ function renderExercise(item, ex) {
     const geschafft = cur && tw != null && cur.w >= tw && (tr == null || cur.r >= tr);
     const pz = splitNote(ex.note).pause;
     // Optionale Einheiten tragen ihr "zählt nicht" schon im Badge — hier nicht nochmal
-    return `<div class="ex">
+    // Eine Zeile: Schema · Gewicht · Pause · [kg] × [Wdh]. Die Felder zeigen grau
+    // die Werte vom letzten Mal; nach dem Eintragen: Rand grün = geschafft, gelb = verfehlt.
+    const ls = lastSet(ex, rid), ok = cur ? (geschafft ? " ok" : " no") : "";
+    return `<div class="ex exl">
       <div class="xr"><span class="xs">${esc(schemeOf(ex.name))}</span>
         <span class="xv">${esc(prescribedKg(ex) || "—")}</span>
         ${pz ? `<span class="xp">${esc(pz)}</span>` : ""}
-        ${ex.noRaise && !item.opt ? `<span class="xd">Deload</span>` : ""}</div>
-      <div class="xi">
-        <input class="exn" type="number" inputmode="decimal" step="2.5" placeholder="kg"
-          id="exw-${rid}" value="${cur ? cur.w : ""}" onchange="setExSet('${rid}','${ex.k}')">
-        <span>×</span>
-        <input class="exn r" type="number" inputmode="numeric" placeholder="Wdh."
-          id="exr-${rid}" value="${cur ? cur.r : ""}" onchange="setExSet('${rid}','${ex.k}')">
-        ${cur ? `<span class="exok ${geschafft ? "yes" : "no"}">${geschafft ? "✓" : "–"}</span>` : ""}
-        ${exHistory(ex, rid, !!val)}
+        ${ex.noRaise && !item.opt ? `<span class="xd">Deload</span>` : ""}
+        <span class="xin">
+          <input class="exn${ok}" type="number" inputmode="decimal" step="2.5" placeholder="${ls ? fmtW(ls.w) : "kg"}"
+            id="exw-${rid}" value="${cur ? cur.w : ""}" onchange="setExSet('${rid}','${ex.k}')">
+          <span class="xx">×</span>
+          <input class="exn r${ok}" type="number" inputmode="numeric" placeholder="${ls ? ls.r : "Wdh"}"
+            id="exr-${rid}" value="${cur ? cur.r : ""}" onchange="setExSet('${rid}','${ex.k}')">
+        </span>
       </div>
       ${val && !cur ? `<div class="exnote">bisher eingetragen: ${esc(val)}</div>` : ""}
       ${tip}
@@ -2699,6 +2721,7 @@ window.saveSetup = async function () {
 const BASICS = [
   ["Schwächster Satz", "Bei mehreren Sätzen trägst du den schwächsten ein, meist den letzten. Die Steigerung prüft ihn gegen die Vorgabe."],
   ["Farben", "Grün ist, was du heute tun sollst: Gewicht, Pause, Zielpace. Grau ist Nebeninfo."],
+  ["Übungszeile", "1×6 · 80–85 kg · 4–5′ heißt: ein Satz mit 6 Wiederholungen, 80–85 kg, 4–5 Minuten Pause (′ = Minuten). Graue Zahlen im Feld sind dein Wert vom letzten Mal. Nach dem Eintragen zeigt der Rand: grün geschafft, gelb verfehlt."],
   ["EMOM", "Every minute on the minute: zu jeder vollen Minute ein Satz, der Rest der Minute ist Pause."],
   ["Top Set und Back-off", "Erst ein schwerer Satz nahe am Limit, danach leichtere Sätze für Volumen."],
   ["Feste Lasten (RX)", "Gewichte aus Hunters Zirkeln sind Standard, nicht Pflicht. Nimm so viel, dass jede Runde am Stück geht."],
