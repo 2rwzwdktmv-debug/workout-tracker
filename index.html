@@ -2261,17 +2261,17 @@ function targetWeight(ex, iso) {
   return mround25(base * Math.max.apply(null, ex.pct));
 }
 
-/* Die letzten zwei Einträge dieser Übung — je eine Zeile, "Datum: Gewicht × Wdh".
-   Solange das Feld leer ist, sind die Zeilen antippbar und übernehmen den Wert. */
+/* Der letzte Eintrag dieser Übung — eine leise Zeile, "Zuletzt Datum: Gewicht × Wdh".
+   Solange das Feld leer ist, ist sie antippbar und übernimmt den Wert. Bewusst nicht
+   in Akzentfarbe: hervorgehoben ist die Vorgabe, nicht die Vergangenheit. */
 function exHistory(ex, rid, belegt) {
-  const arr = (S.results[ex.k] || []).filter(e => e.itemId !== rid).slice(-2).reverse();
-  return arr.map(e => {
-    const st = parseSet(e.value);
-    const txt = `${fmtDate(e.date)}: ${st ? fmtW(st.w) + " kg × " + st.r : esc(e.value)}`;
-    return belegt
-      ? `<div class="exhist">${txt}</div>`
-      : `<button class="exhist tap" onclick="fillResult('${rid}','${ex.k}','${String(e.value).replace(/'/g, "\\'")}')">${txt} — setzen</button>`;
-  }).join("");
+  const e = (S.results[ex.k] || []).filter(x => x.itemId !== rid).slice(-1)[0];
+  if (!e) return "";
+  const st = parseSet(e.value);
+  const txt = `Zuletzt ${fmtDate(e.date)}: ${st ? fmtW(st.w) + " kg × " + st.r : esc(e.value)}`;
+  return belegt
+    ? `<div class="exhist">${txt}</div>`
+    : `<button class="exhist" onclick="fillResult('${rid}','${ex.k}','${String(e.value).replace(/'/g, "\\'")}')">${txt}</button>`;
 }
 
 /* Zuletzt protokollierte Einheit dieser Leiter — als Referenz an der Programmstelle. */
