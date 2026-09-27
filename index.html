@@ -507,25 +507,8 @@
     color: var(--sky); font-size: 12.5px; padding: 9px;
   }
   .today .cta.xcta.done { border-color: var(--line); color: var(--muted); }
-  .tcard {
-    background: linear-gradient(145deg, var(--surface2), var(--surface));
-    border: 1px solid var(--line); border-radius: var(--r-lg); padding: 16px 18px; margin-bottom: 4px;
-  }
-  .tcard .thead2 { display: flex; align-items: baseline; gap: 8px; }
-  .tcard .k {
-    flex: 1; min-width: 0; font-size: 11px; letter-spacing: 1.2px; text-transform: uppercase;
-    color: var(--sky); font-weight: 700;
-  }
-  .tcard .q { color: var(--muted); font-size: 11px; flex-shrink: 0; }
-  .tcard .v { font-size: 17px; font-weight: 800; margin: 4px 0 2px; letter-spacing: -.3px; }
-  .tcard .s { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
-  .tcard .s.hi { color: var(--ink); font-weight: 700; margin-top: 7px; }
   .bar { margin-top: 11px; height: 6px; border-radius: 99px; background: rgba(255,255,255,.09); overflow: hidden; }
   .bar div { height: 100%; background: var(--sky); transition: width .3s; }
-  .tnote {
-    font-size: 12px; color: var(--muted); border-left: 2px solid var(--line);
-    padding: 8px 11px; margin: 8px 0 2px;
-  }
   .setrow { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
   .setrow .lbl { font-size: 12.5px; color: var(--muted); width: 52px; flex-shrink: 0; font-weight: 700; }
   .setrow input {
@@ -543,11 +526,47 @@
     display: block; width: 100%; margin-top: 14px; border: none; border-radius: 99px;
     background: var(--lime); color: var(--lime-ink); font-size: 15px; font-weight: 800; padding: 13px;
   }
-  .lrow { display: flex; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); font-size: 13px; }
-  .lrow:first-of-type { border-top: none; }
-  .lrow .q { color: var(--muted); font-size: 11.5px; width: 60px; flex-shrink: 0; }
-  .lrow .vals { color: var(--ink); font-weight: 700; }
-  .lrow .tot { color: var(--muted); font-size: 11.5px; margin-left: 6px; white-space: nowrap; }
+  /* Leiter-Seite: eine Karte pro Teil, Schriftsystem der Tagesansicht (16 · 14 · 13 · 12) */
+  .tk { background: var(--surface); border: 1.5px solid var(--line-strong); border-radius: var(--r-md); padding: 14px; margin-bottom: 12px; }
+  .tkh { display: flex; align-items: baseline; gap: 8px; }
+  .tkt { flex: 1; min-width: 0; font-size: 16px; font-weight: 600; line-height: 1.3; }
+  .tk .xlink { margin-left: 0; }
+  .tkm { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .tk .bar { margin-top: 10px; }
+  .tkp { font-size: 13px; color: var(--ink); margin-top: 6px; }
+  .tkp span { color: var(--muted); }
+  .tkr { margin-top: 12px; flex-wrap: wrap; }
+  .tkr .xs { width: auto; }
+  .tkr .xin { gap: 6px; }
+  .tkr .xin .exn { width: 48px; text-align: center; padding: 0 4px; }
+  .exn.opt { border: 1px dashed var(--line-strong); }
+  .exn::placeholder { color: #5d6474; }
+  .tkf { display: flex; align-items: center; gap: 6px; margin-top: 10px; }
+  .tkf span { font-size: 12px; color: var(--muted); margin-right: auto; }
+  .tkf button { font: inherit; font-size: 13px; color: var(--ink2); background: none; border: 1px solid var(--line); border-radius: 99px; padding: 5px 11px; }
+  .tkf button.on { color: var(--ink); background: var(--surface2); border-color: var(--line-strong); }
+  .tk .tip { margin-top: 10px; }
+  .tk .tip.on { color: var(--ink2); }
+  .tsteps { margin: 12px 0 2px; border-top: 1px solid var(--line); max-height: 60vh; overflow-y: auto; }
+  .tst { display: flex; align-items: baseline; gap: 10px; width: 100%; padding: 8px 0; border: none; border-bottom: 1px solid var(--line);
+    background: none; font: inherit; font-size: 14px; text-align: left; color: var(--ink2); }
+  .tst:last-child { border-bottom: none; }
+  .tst .n { width: 20px; text-align: right; color: var(--muted); font-size: 12px; flex-shrink: 0; }
+  .tst .nm { flex: 1; min-width: 0; }
+  .tst .nm small { display: block; font-size: 12px; color: var(--muted); font-weight: 400; margin-top: 1px; }
+  .tst .d { font-size: 12px; color: var(--muted); flex-shrink: 0; }
+  .tst.done .nm { color: var(--muted); }
+  .tst.cur .nm { color: var(--ink); font-weight: 600; }
+  .tst.cur .n { color: var(--lime); }
+  h2.tkh2 { font-size: 14px; font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--ink); margin: 24px 2px 6px; }
+  .tlog { display: grid; gap: 0 8px; align-items: baseline; font-size: 14px; }
+  .tlog > span { padding: 8px 0; border-top: 1px solid var(--line); white-space: nowrap; }
+  .tlog > .lh, .tlog > span:first-child { font-size: 12px; color: var(--muted); border-top: none; padding: 0 0 4px; }
+  .tlog .q { color: var(--muted); font-size: 12px; }
+  .tlog .tot { color: var(--muted); font-size: 12px; margin-left: 6px; }
+  .more { display: block; margin: 6px 0 0; font-size: 12px; color: var(--muted); background: none; border: none; padding: 4px 0; font-family: inherit; }
+  .chartcard.tkc { margin-top: 14px; }
+  .chartcard.tkc .h { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
   .tsum { display: flex; align-items: center; gap: 8px; }
   .tsum strong { font-size: 22px; font-weight: 800; color: var(--ink); letter-spacing: -.5px; }
   .chartcard > .spark { display: block; margin-top: 10px; width: 100%; height: auto; }
@@ -652,7 +671,7 @@
     box-shadow: 0 1px 2px rgba(0,0,0,.45), 0 10px 24px -14px rgba(0,0,0,.9),
                 inset 0 1px 0 rgba(255,255,255,.055);
   }
-  .hero, .today, .tcard, .motto {
+  .hero, .today, .motto {
     box-shadow: 0 2px 4px rgba(0,0,0,.5), 0 18px 40px -22px rgba(0,0,0,1),
                 inset 0 1px 0 rgba(255,255,255,.07);
   }
@@ -1814,23 +1833,20 @@ function planExtras(days) {
   });
   return out;
 }
-/* Fortschritt einer numerischen Stufe: 0–100 aus dem letzten Protokoll */
+/* Fortschritt einer numerischen Stufe aus dem letzten Protokoll. `sum` ist die
+   Gesamtleistung, jeder Satz höchstens bis zum Ziel gezählt: 240 von 240 s heißt
+   also genau „alle Sätze geschafft“ — dieselbe Bedingung wie der Aufstieg. */
 function trProgress(trackId, part) {
   const step = stepOf(part, trStep(trackId, part.id));
   if (!step || part.gate !== "numeric") return null;
   const sets = step.sets || 1, target = step.target || 1;
   const last = trLastSets(trackId, part.id);
-  let sum = 0, weakest = 0;
-  for (let i = 0; i < sets; i++) {
-    const v = Math.max(0, +(last[i] || 0));
-    sum += Math.min(v, target);
-    if (i === 0 || v < weakest) weakest = v;
-  }
+  let sum = 0;
+  for (let i = 0; i < sets; i++) sum += Math.min(Math.max(0, +(last[i] || 0)), target);
   return {
     step: step, sets: sets, target: target, last: last,
+    sum: sum,
     pct: Math.round(sum / (sets * target) * 100),
-    weakest: weakest,
-    missing: Math.max(0, target - weakest),
     reached: last.length >= sets && last.slice(0, sets).every(v => +v >= target)
   };
 }
@@ -1848,16 +1864,17 @@ function trLastSets(trackId, partId) {
 /* Kürzel der Einheit einer Leiter: Sekunden, Minuten oder Wiederholungen. */
 function trUnit(part) { return part.unit === "s" ? "s" : part.unit === "min" ? "Min" : "Wdh."; }
 function trTotal(vals) { return (vals || []).reduce((a, v) => a + (+v || 0), 0); }
-/* Referenzwert rechts neben dem Feld: der letzte Wert auf dieser Stufe, sonst Wades
-   Einstiegsmarke. Reine Anzeige — die Felder selbst bleiben leer (siehe renderTrack). */
+/* Grauer Platzhalter im Satzfeld: der letzte Wert auf dieser Stufe, sonst Wades
+   Einstiegsmarke bzw. die Ziel-Wdh. Reine Anzeige — die Felder selbst bleiben leer. */
 function trRef(trackId, part, i) {
   const last = trLastSets(trackId, part.id);
   // 0 heißt „damals nicht eingetragen" — dann lieber die Einstiegsmarke zeigen
-  if (last[i]) return "zuletzt " + last[i];
+  if (last[i]) return String(last[i]);
+  if (part.gate === "feel") return String(part.reps || "");
   const step = stepOf(part, trStep(trackId, part.id));
   const nEntry = (step && step.entrySets) || (step && step.sets) || 1;
-  if (step && step.entry && i < nEntry) return "Einstieg " + step.entry;
-  return "—";
+  if (step && step.entry && i < nEntry) return String(step.entry);
+  return "";
 }
 /* Ist der Nebenteil (z. B. Fingerspitzen) diese Woche schon ausgereizt? */
 function partCapLeft(trackId, part, dateK) {
@@ -2113,6 +2130,37 @@ function goContinue() {
   }, 120);
 }
 
+/* Leiter-Seite: eine Karte pro Teil, im Schriftsystem der Tagesansicht.
+   Titel = aktuelle Stufe, rechts „Stufe n/N ›“ (klappt die Leiter auf, ein Tipp auf
+   eine Stufe setzt sie). Darunter Fortschritt, eine Zeile Schema · Pause · Felder,
+   bei Gefühls-Teilen die Gefühlswahl, dann Hinweise (ⓘ). Aufwärmen steht nur an
+   der ersten Übung, die heute dran ist. Zustände hier leben nur im Speicher. */
+let TR_FEEL = {};          // partId -> "schwer" | "okay" | "leicht" (bis zum Speichern)
+let TR_STEPS_OPEN = {};    // partId -> Stufenliste aufgeklappt
+let TR_LOG_ALL = false;    // Verlauf komplett statt der letzten fünf
+const TR_FEELS = ["schwer", "okay", "leicht"];
+function fmtDM(k) { return k.slice(8, 10) + "." + k.slice(5, 7) + "."; }
+/* Teile in Anzeige-Reihenfolge: `first` nach vorn (Fingerspitzen vor dem Hängen, Wade) */
+function trPartsShown(tr) {
+  const ps = tr.parts || [];
+  return ps.filter(p => p.first).concat(ps.filter(p => !p.first));
+}
+/* "2 Minuten" -> { chip: "2′", rest: "" }; ohne Zahl vorne keine Pause-Angabe */
+function trRest(part) {
+  const m = String(part.rest || "").match(/^(\d+(?:\s*[-–]\s*\d+)?)\s*Minuten?\b[\s.,—–-]*(.*)$/);
+  return m ? { chip: m[1].replace(/\s*[-–]\s*/, "–") + "′", rest: m[2].trim() } : { chip: "", rest: "" };
+}
+function trTip(id, text, on) {
+  const open = typeof TIP_OPEN[id] === "boolean" ? TIP_OPEN[id] : on;
+  return `<div class="tip${open ? " on" : ""}" data-tip="${esc(id)}" onclick="tipToggle(this)" role="button" aria-expanded="${open}">${text}</div>`;
+}
+/* Letzte Einträge eines Teils auf seiner aktuellen Stufe, neueste zuerst */
+function trStepLog(trackId, partId) {
+  const cur = trStep(trackId, partId);
+  return trState(trackId).log.filter(l => l.sets && l.sets[partId] && (!l.steps || l.steps[partId] === cur))
+    .sort((a, b) => (a.d < b.d ? 1 : a.d > b.d ? -1 : 0));
+}
+
 function renderTrack(id) {
   const tr = trackDef(id);
   if (!tr) { location.hash = ""; return; }
@@ -2121,92 +2169,99 @@ function renderTrack(id) {
   setNav("home");
   const st = trState(id);
   const todayK = dkey(today0());
-  let html = "";
+  const parts = trPartsShown(tr);
+  let html = "", warmDone = false;
 
-  (tr.parts || []).forEach(part => {
+  parts.forEach(part => {
     const cur = trStep(id, part.id), step = stepOf(part, cur), nSteps = (part.steps || []).length;
     const capLeft = partCapLeft(id, part, todayK);
     const pr = trProgress(id, part);
-    const since = (st.hist.filter(h => h.p === part.id).pop() || {}).d;
+    const feel = part.gate === "feel";
+    const hist = st.hist.filter(h => h.p === part.id);
+    const since = (hist.filter(h => h.to === cur).pop() || {}).d;
+    const known = st.log.some(l => l.sets && l.sets[part.id]);
+    const open = !!TR_STEPS_OPEN[part.id];
 
-    html += `<div class="tcard">
-      <div class="thead2">
-        <div class="k">Stufe ${cur} von ${nSteps}${part.gate === "feel" ? " · nach Gefühl" : ""}</div>
-        ${since ? `<div class="q">seit ${esc(fmtDate(since + "T12:00:00"))}</div>` : ""}
-      </div>
-      <div class="v">${esc(step ? step.name : "—")}</div>
-      ${step && step.desc ? `<div class="s">${esc(step.desc)}</div>` : ""}`;
+    html += `<div class="tk">
+      <div class="tkh"><div class="tkt">${esc(step ? step.name : "—")}</div>
+        <button class="xlink" onclick="trStepsToggle(this,'${part.id}')">Stufe ${cur}/${nSteps} ${open ? "⌄" : "›"}</button></div>`;
+
+    // Die ganze Leiter: geschaffte Stufen mit Datum, aktuelle hervorgehoben
+    html += `<div class="tsteps"${open ? "" : " hidden"}>` + (part.steps || []).map(s => {
+      const up = s.n < cur ? (hist.filter(h => h.from === s.n && h.to > s.n).pop() || {}).d : null;
+      const d = s.n < cur ? "✓" + (up ? " " + fmtDM(up) : "") : s.n === cur && since ? "seit " + fmtDM(since) : "";
+      return `<button class="tst${s.n < cur ? " done" : s.n === cur ? " cur" : ""}" onclick="trPickStep('${id}','${part.id}',${s.n})">
+        <span class="n">${s.n}</span><span class="nm">${esc(s.short || s.name)}${s.n === cur && s.desc ? `<small>${esc(s.desc)}</small>` : ""}</span><span class="d">${d}</span></button>`;
+    }).join("") + `</div>`;
+
+    const meta = [];
+    if (since) meta.push("seit " + fmtDM(since));
+    if (step && step.perLeg) meta.push("pro Bein");
+    if (feel && part.feelUp) meta.push(`weiter nach ${part.feelUp}× „leicht“`);
+    if (capLeft <= 0) meta.push(`diese Woche schon ${part.perWeek}× · heute aussetzen`);
+    if (meta.length) html += `<div class="tkm">${esc(meta.join(" · "))}</div>`;
 
     if (pr) {
-      html += `<div class="s">Ziel: ${part.setLabel ? "" : pr.sets + " " + (pr.sets === 1 ? "Satz" : "Sätze") + " × "}${pr.target} ${trUnit(part)}${step.perLeg ? " pro Bein" : ""}</div>
-        <div class="bar"><div style="width:${Math.min(100, pr.pct)}%"></div></div>
-        <div class="s hi">${pr.reached
-          ? "Ziel erreicht — Stufe abschließen"
-          : (pr.last.length
-            ? `Noch ${pr.missing} ${trUnit(part)} bis Stufe ${cur + 1}`
-            : "Noch keine Einheit auf dieser Stufe protokolliert")}</div>`;
-    } else {
-      html += `<div class="s">Ziel: ~${part.reps || 5} Wdh. pro Einheit</div>`;
+      const sum = pr.sum, full = pr.sets * pr.target;
+      if (pr.last.length) {
+        html += `<div class="bar"><div style="width:${Math.min(100, pr.pct)}%"></div></div>
+          <div class="tkp">${sum} von ${full} ${trUnit(part)} <span>${pr.reached ? "· Ziel erreicht" : "bis Stufe " + (cur + 1)}</span></div>`;
+      } else html += `<div class="tkp"><span>Noch nichts auf dieser Stufe eingetragen</span></div>`;
+    }
+
+    if (capLeft > 0) {
+      // Felder bleiben leer — grau steht der Wert vom letzten Mal (siehe trRef)
+      const rest = trRest(part);
+      const n = pr ? pr.sets : (part.sets || 1), extra = pr ? 0 : (part.extraSets || 0);
+      const u = part.unit === "s" ? " s" : "";
+      // EMOM: die Minuten stehen schon im Stufennamen (Titel) — kein Schema davor
+      const scheme = pr ? (part.unit === "min" ? "" : pr.sets + "×" + pr.target + u) : n + "×" + (part.reps || 5);
+      let fields = "";
+      for (let i = 0; i < n + extra; i++) {
+        fields += `<input class="exn${i >= n ? " opt" : ""}" id="tin-${id}-${part.id}-${i}" type="number" inputmode="numeric" value=""
+          placeholder="${i >= n ? "+" : esc(trRef(id, part, i))}" aria-label="Satz ${i + 1}${i >= n ? " (freiwillig)" : ""}">`;
+      }
+      html += `<div class="xr tkr"><span class="xs">${esc(scheme)}</span>${rest.chip ? `<span class="xp">${rest.chip}</span>` : ""}
+        <span class="xin">${fields}</span></div>`;
+      if (feel) {
+        const f = TR_FEEL[part.id];
+        html += `<div class="tkf"><span>Gefühl</span>${TR_FEELS.map(v =>
+          `<button class="${f === v ? "on" : ""}" onclick="trFeelPick(this,'${part.id}','${v}')">${v}</button>`).join("")}</div>`;
+      }
+      if (!warmDone && part.warmup) {
+        const prev = stepOf(part, cur - 1);
+        const w = part.warmup.split(" · ").filter(s => cur > 1 || s.indexOf("{prev}") < 0)
+          .map(s => s.replace("{prev}", prev ? (prev.name) : "")).join(" · ");
+        html += trTip("tr:" + part.id + ":warm", "Vorher: " + esc(w), !known);
+      }
+      warmDone = true;
+      if (rest.rest) html += trTip("tr:" + part.id + ":rest", "Pause: " + esc(rest.rest), !known);
+      if (part.note) html += trTip("tr:" + part.id + ":note", esc(part.note), !known);
     }
     html += `</div>`;
-
-    if (capLeft <= 0) {
-      html += `<div class="tnote">Diese Woche schon ${part.perWeek}× gemacht — heute aussetzen.</div>`;
-    } else {
-      html += `<h2 class="section">${esc(part.name)} eintragen</h2>`;
-      const pre = [];
-      if (part.warmup) pre.push(`Vorher: ${esc(part.warmup)}`);
-      if (part.rest) pre.push(`Pause: ${esc(part.rest)}`);
-      if (pre.length) html += `<div class="tnote">${pre.join("<br>")}</div>`;
-      // Felder bleiben leer — jede Einheit wird frisch getippt. Der Wert vom letzten Mal
-      // steht rechts als Referenz, damit ein Tipp auf „Speichern" nie eine Einheit erfindet.
-      if (pr) {
-        for (let i = 0; i < pr.sets; i++) {
-          html += `<div class="setrow">
-            <span class="lbl">${esc(part.setLabel || ("Satz " + (i + 1)))}</span>
-            <input id="tin-${id}-${part.id}-${i}" type="number" inputmode="numeric" value="">
-            <span class="u">${trUnit(part)}</span>
-            <span class="q">${trRef(id, part, i)}</span>
-          </div>`;
-        }
-      } else {
-        html += `<div class="setrow">
-          <span class="lbl">Wdh.</span>
-          <input id="tin-${id}-${part.id}-0" type="number" inputmode="numeric" value="">
-          <span class="u">Wdh.</span>
-          <span class="q">${trRef(id, part, 0)}</span>
-        </div>`;
-      }
-      if (part.note) html += `<div class="tnote q">${esc(part.note)}</div>`;
-    }
   });
 
   html += `<button class="tsave" onclick="trSave('${id}')">Einheit speichern</button>`;
 
-  // Stufe von Hand setzen (Einstieg / Korrektur)
-  html += `<h2 class="section">Stufe setzen</h2>`;
-  (tr.parts || []).forEach(part => {
-    html += `<div class="setrow"><span class="lbl" style="width:auto;flex:1">${esc(part.name)}</span>
-      <select onchange="trSetStep('${id}','${part.id}',this.value)">
-        ${(part.steps || []).map(s => `<option value="${s.n}" ${s.n === trStep(id, part.id) ? "selected" : ""}>Stufe ${s.n} — ${esc(s.name)}</option>`).join("")}
-      </select></div>`;
-  });
-
-  // Verlauf
+  // Verlauf: Kopfzeile mit den Teilen, darunter die letzten fünf Einheiten
   if (st.log.length) {
-    html += `<h2 class="section">Verlauf</h2>`;
-    const recent = st.log.slice(-12).reverse();
-    recent.forEach(l => {
-      const cols = (tr.parts || []).map(p => {
+    const cols = parts.map(p => esc(p.short || p.name) + (p.unit === "s" ? " (s)" : p.unit === "min" ? " (Min)" : ""));
+    const grid = `grid-template-columns:50px ${parts.length > 1 ? "repeat(" + (parts.length - 1) + ",92px) " : ""}1fr`;
+    html += `<h2 class="tkh2">Verlauf</h2>
+      <div class="tlog" style="${grid}"><span></span>${cols.map(c => `<span class="lh">${c}</span>`).join("")}`;
+    const all = st.log.slice().reverse();
+    (TR_LOG_ALL ? all : all.slice(0, 5)).forEach(l => {
+      html += `<span class="q">${esc(fmtDM(l.d))}</span>` + parts.map(p => {
         const v = l.sets && l.sets[p.id];
-        if (!v) return "";
-        const unit = p.unit === "s" ? " s" : "";
-        // Bei mehreren Sätzen die Summe mitzeigen — das ist die Zahl, die die Einheit beschreibt
-        const tot = v.length > 1 ? `<span class="tot">= ${trTotal(v)}${unit}</span>` : "";
-        return `<span class="vals">${v.join(" · ")}${unit}</span>${tot}`;
-      }).filter(Boolean).join(" <span class='q'>|</span> ");
-      html += `<div class="lrow"><span class="q">${esc(fmtDate(l.d + "T12:00:00"))}</span>${cols}</div>`;
+        if (!v) return `<span></span>`;
+        const tot = p.gate === "numeric" && v.length > 1 ? `<span class="tot">= ${trTotal(v)}</span>` : "";
+        const fl = l.feel && l.feel[p.id] ? `<span class="tot">${esc(l.feel[p.id])}</span>` : "";
+        return `<span>${v.join("·")}${tot}${fl}</span>`;
+      }).join("");
     });
+    html += `</div>`;
+    if (all.length > 5) html += `<button class="more" onclick="TR_LOG_ALL=!TR_LOG_ALL;render()">${TR_LOG_ALL ? "Weniger zeigen" : `Alle ${all.length} Einheiten ›`}</button>`;
+
     const mainPart = tr.parts[0];
     // Verlauf über die Gesamtleistung einer Einheit, nicht über den besten Einzelsatz:
     // vier saubere Sätze sind mehr wert als ein Ausreißer.
@@ -2218,21 +2273,35 @@ function renderTrack(id) {
       const chip = d > 0 ? `<span class="chip up">+${d}${u}</span>`
         : d < 0 ? `<span class="chip down">−${Math.abs(d)}${u}</span>`
         : `<span class="chip flat">±0</span>`;
-      html += `<div class="chartcard" style="margin-top:12px">
-        <h3>${mainPart.unit === "s" ? "Gesamtzeit" : mainPart.unit === "min" ? "Geschaffte Minuten" : "Gesamt-Wdh."} je Einheit · ${esc(mainPart.name)}</h3>
+      html += `<div class="chartcard tkc">
+        <div class="h">${esc(mainPart.name)} · ${mainPart.unit === "s" ? "Gesamtzeit" : mainPart.unit === "min" ? "Geschaffte Minuten" : "Gesamt-Wdh."} je Einheit</div>
         <div class="tsum"><strong>${cur}${u}</strong>${chip}</div>
         ${spark(pts, 320, 56)}</div>`;
     }
   }
-  if (st.hist.length) {
-    html += `<div class="tnote q" style="margin-top:14px">` + st.hist.slice(-6).reverse().map(h => {
-      const p = (tr.parts || []).find(x => x.id === h.p);
-      return `${esc(p ? p.name : h.p)}: Stufe ${h.from} → ${h.to} am ${esc(fmtDate(h.d + "T12:00:00"))}`;
-    }).join("<br>") + `</div>`;
-  }
   if (tr.source) html += `<div class="foot">${esc(tr.source)}</div>`;
   main.innerHTML = html;
 }
+/* Stufenliste auf/zu ohne Neu-Rendern — sonst wären getippte Werte weg */
+window.trStepsToggle = function (btn, partId) {
+  const on = !TR_STEPS_OPEN[partId];
+  TR_STEPS_OPEN[partId] = on;
+  const list = btn.closest(".tk").querySelector(".tsteps");
+  if (list) list.hidden = !on;
+  btn.textContent = btn.textContent.replace(/[›⌄]$/, on ? "⌄" : "›");
+};
+window.trPickStep = function (id, partId, n) {
+  const tr = trackDef(id), part = tr && tr.parts.find(p => p.id === partId);
+  if (!part || n === trStep(id, partId)) return;
+  const s = stepOf(part, n);
+  if (!confirm(`${part.name}: auf Stufe ${n} — ${s.name} — wechseln?`)) return;
+  trAdvance(id, partId, n);
+  render();
+};
+window.trFeelPick = function (btn, partId, v) {
+  TR_FEEL[partId] = TR_FEEL[partId] === v ? null : v;
+  btn.parentNode.querySelectorAll("button").forEach(b => b.classList.toggle("on", b.textContent === TR_FEEL[partId]));
+};
 
 function renderWeek(pi, wi) {
   const part = PROGRAM[pi], week = part.weeks[wi];
@@ -2957,7 +3026,7 @@ function renderStats() {
     html += `<div class="chartcard" style="margin-bottom:12px"><h3>Stufen</h3>`
       + TRACKS.map(tr => (tr.parts || []).map(part => {
         const cur = trStep(tr.id, part.id), pr = trProgress(tr.id, part);
-        const rest = pr ? (pr.reached ? "Ziel erreicht" : (pr.last.length ? "noch " + pr.missing + (" " + trUnit(part)) : "offen")) : "nach Gefühl";
+        const rest = pr ? (pr.reached ? "Ziel erreicht" : (pr.last.length ? pr.sum + "/" + pr.sets * pr.target + " " + trUnit(part) : "offen")) : "nach Gefühl";
         return `<div class="ts"><span>${esc(tr.name)} · ${esc(part.name)}</span>
           <span><a href="#t/${tr.id}" style="color:var(--sky);text-decoration:none">Stufe ${cur} · ${esc(rest)}</a></span></div>`;
       }).join("")).join("")
@@ -3211,30 +3280,40 @@ function fillDiag() {
 window.trSave = function (id) {
   const tr = trackDef(id); if (!tr) return;
   const todayK = dkey(today0());
-  const sets = {}, steps = {};
+  const sets = {}, steps = {}, feel = {};
   (tr.parts || []).forEach(part => {
     if (partCapLeft(id, part, todayK) <= 0) return;
-    const n = part.gate === "numeric" ? ((stepOf(part, trStep(id, part.id)) || {}).sets || 1) : 1;
-    const vals = [];
+    const n = part.gate === "numeric" ? ((stepOf(part, trStep(id, part.id)) || {}).sets || 1)
+      : (part.sets || 1) + (part.extraSets || 0);
+    let vals = [];
     for (let i = 0; i < n; i++) {
       const el = document.getElementById(`tin-${id}-${part.id}-${i}`);
       const v = el ? parseFloat(el.value) : NaN;
       vals.push(isFinite(v) && v > 0 ? v : 0);
     }
-    if (vals.some(v => v > 0)) { sets[part.id] = vals; steps[part.id] = trStep(id, part.id); }
+    // Gefühls-Teile haben keine feste Satzzahl im Log: leere (auch freiwillige) Felder fallen weg
+    if (part.gate !== "numeric") vals = vals.filter(v => v > 0);
+    if (vals.some(v => v > 0)) {
+      sets[part.id] = vals; steps[part.id] = trStep(id, part.id);
+      if (TR_FEEL[part.id]) feel[part.id] = TR_FEEL[part.id];
+    }
   });
   if (!Object.keys(sets).length) { alert("Nichts eingetragen."); return; }
 
   const st = trState(id);
   const existing = st.log.findIndex(l => l.d === todayK);
   const entry = { d: todayK, sets: sets, steps: steps };
+  if (Object.keys(feel).length) entry.feel = feel;
   if (existing >= 0) {
     // Heutige Einheit ergänzen statt doppelt anlegen
     const old = st.log[existing];
     entry.sets = Object.assign({}, old.sets || {}, sets);
     entry.steps = Object.assign({}, old.steps || {}, steps);
+    const f = Object.assign({}, old.feel || {}, feel);
+    if (Object.keys(f).length) entry.feel = f;
     st.log[existing] = entry;
   } else st.log.push(entry);
+  TR_FEEL = {};
   st.log.sort((a, b) => (a.d < b.d ? -1 : a.d > b.d ? 1 : 0));
   logEv("track", id + "/" + Object.keys(sets).join("+"));
   markDirty();
@@ -3252,6 +3331,18 @@ window.trSave = function (id) {
       if (confirm(`${part.name}: Ziel der Stufe ${trStep(id, part.id)} geschafft.\n\nAuf Stufe ${nxt.n} — ${nxt.name} — wechseln?`))
         trAdvance(id, part.id, trStep(id, part.id) + 1);
     }
+  });
+  // Nach Gefühl: n-mal hintereinander „leicht“ auf dieser Stufe -> Aufstieg anbieten (Wade:
+  // weiter, sobald die Stufe zu leicht wird — nicht über Wiederholungen)
+  (tr.parts || []).forEach(part => {
+    if (part.gate !== "feel" || !part.feelUp || feel[part.id] !== "leicht") return;
+    const recent = trStepLog(id, part.id).slice(0, part.feelUp);
+    if (recent.length < part.feelUp || !recent.every(l => l.feel && l.feel[part.id] === "leicht")) return;
+    const cur = trStep(id, part.id);
+    if (cur >= (part.steps || []).length) return;
+    const nxt = stepOf(part, cur + 1);
+    if (confirm(`${part.name}: ${part.feelUp}× hintereinander leicht.\n\nAuf Stufe ${nxt.n} — ${nxt.name} — wechseln?`))
+      trAdvance(id, part.id, cur + 1);
   });
   render();
 };
