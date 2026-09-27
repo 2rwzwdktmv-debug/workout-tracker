@@ -533,6 +533,7 @@
   .tk .xlink { margin-left: 0; }
   .tkm { font-size: 12px; color: var(--muted); margin-top: 2px; }
   .tk .bar { margin-top: 10px; }
+  .tkmsg { text-align: center; margin-top: 8px; }
   .tkp { font-size: 13px; color: var(--ink); margin-top: 6px; }
   .tkp span { color: var(--muted); }
   .tkr { margin-top: 12px; flex-wrap: wrap; }
@@ -1780,7 +1781,7 @@ function sessCount(pd) { return pd.day.sessions.filter(s => s.items.some(i => !i
 /* Wie viele Einheiten dieses Tracks liegen in der Woche von dateKey schon im Log? */
 function trDoneInWeek(id, dateK) {
   const wk = weekKeyOf(new Date(dateK + "T12:00:00"));
-  return trState(id).log.filter(l => weekKeyOf(new Date(l.d + "T12:00:00")) === wk).length;
+  return trState(id).log.filter(l => trHasSets(l) && weekKeyOf(new Date(l.d + "T12:00:00")) === wk).length;
 }
 /* Zusatzarbeit auf die projizierten Tage verteilen -> { dateKey: [trackId, …] } */
 function planExtras(days) {
@@ -1850,12 +1851,13 @@ function trProgress(trackId, part) {
     reached: last.length >= sets && last.slice(0, sets).every(v => +v >= target)
   };
 }
-function trLastSets(trackId, partId) {
+function trLastSets(trackId, partId, beforeK) {
   const cur = trStep(trackId, partId);
   // nach Datum, nicht nach Array-Position — Einträge können nachträglich ergänzt werden
   const sorted = trState(trackId).log.slice().sort((a, b) => (a.d < b.d ? -1 : a.d > b.d ? 1 : 0));
   for (let i = sorted.length - 1; i >= 0; i--) {
     const e = sorted[i];
+    if (beforeK && e.d >= beforeK) continue;
     if (e.sets && e.sets[partId] && (!e.steps || e.steps[partId] === cur)) return e.sets[partId].slice();
   }
   return [];
@@ -1864,10 +1866,10 @@ function trLastSets(trackId, partId) {
 /* Kürzel der Einheit einer Leiter: Sekunden, Minuten oder Wiederholungen. */
 function trUnit(part) { return part.unit === "s" ? "s" : part.unit === "min" ? "Min" : "Wdh."; }
 function trTotal(vals) { return (vals || []).reduce((a, v) => a + (+v || 0), 0); }
-/* Grauer Platzhalter im Satzfeld: der letzte Wert auf dieser Stufe, sonst Wades
-   Einstiegsmarke bzw. die Ziel-Wdh. Reine Anzeige — die Felder selbst bleiben leer. */
+/* Grauer Platzhalter im Satzfeld: der Wert der letzten Einheit *vor heute* auf dieser
+   Stufe, sonst Wades Einstiegsmarke bzw. die Ziel-Wdh. Reine Anzeige. */
 function trRef(trackId, part, i) {
-  const last = trLastSets(trackId, part.id);
+  const last = trLastSets(trackId, part.id, dkey(today0()));
   // 0 heißt „damals nicht eingetragen" — dann lieber die Einstiegsmarke zeigen
   if (last[i]) return String(last[i]);
   if (part.gate === "feel") return String(part.reps || "");
@@ -1880,11 +1882,12 @@ function trRef(trackId, part, i) {
 function partCapLeft(trackId, part, dateK) {
   if (!part.perWeek) return 99;
   const wk = weekKeyOf(new Date(dateK + "T12:00:00"));
-  const used = trState(trackId).log.filter(l =>
+  const used = trState(trackId).log.filter(l => l.d !== dateK &&
     weekKeyOf(new Date(l.d + "T12:00:00")) === wk && l.sets && l.sets[part.id]).length;
   return part.perWeek - used;
 }
-function trLoggedOn(trackId, dateK) { return trState(trackId).log.some(l => l.d === dateK); }
+function trHasSets(l) { return !!(l && l.sets && Object.keys(l.sets).length); }
+function trLoggedOn(trackId, dateK) { return trState(trackId).log.some(l => l.d === dateK && trHasSets(l)); }
 
 /* ---------- Routing & Views ---------- */
 const main = document.getElementById("main");
@@ -2131,11 +2134,14 @@ function goContinue() {
 }
 
 /* Leiter-Seite: eine Karte pro Teil, im Schriftsystem der Tagesansicht.
+   Jedes Satzfeld und das Gefühl speichern sofort in die heutige Einheit (wie die
+   Übungen der Tagesansicht) — nichts geht verloren, wenn iOS die App schließt.
+   „Einheit abschließen“ prüft nur noch den Aufstieg.
    Titel = aktuelle Stufe, rechts „Stufe n/N ›“ (klappt die Leiter auf, ein Tipp auf
    eine Stufe setzt sie). Darunter Fortschritt, eine Zeile Schema · Pause · Felder,
    bei Gefühls-Teilen die Gefühlswahl, dann Hinweise (ⓘ). Aufwärmen steht nur an
    der ersten Übung, die heute dran ist. Zustände hier leben nur im Speicher. */
-let TR_FEEL = {};          // partId -> "schwer" | "okay" | "leicht" (bis zum Speichern)
+let TR_MSG = null;         // { id, text } — Rückmeldung unter „Einheit abschließen“
 let TR_STEPS_OPEN = {};    // partId -> Stufenliste aufgeklappt
 let TR_LOG_ALL = false;    // Verlauf komplett statt der letzten fünf
 const TR_FEELS = ["schwer", "okay", "leicht"];
@@ -2161,6 +2167,18 @@ function trStepLog(trackId, partId) {
     .sort((a, b) => (a.d < b.d ? 1 : a.d > b.d ? -1 : 0));
 }
 
+/* Die heutige Einheit einer Leiter; mit create wird sie angelegt */
+function trToday(id, create) {
+  const st = trState(id), k = dkey(today0());
+  let e = st.log.find(l => l.d === k) || null;
+  if (!e && create) {
+    e = { d: k, sets: {}, steps: {} };
+    st.log.push(e);
+    st.log.sort((a, b) => (a.d < b.d ? -1 : a.d > b.d ? 1 : 0));
+  }
+  return e;
+}
+
 function renderTrack(id) {
   const tr = trackDef(id);
   if (!tr) { location.hash = ""; return; }
@@ -2170,6 +2188,7 @@ function renderTrack(id) {
   const st = trState(id);
   const todayK = dkey(today0());
   const parts = trPartsShown(tr);
+  const today = trToday(id);
   let html = "", warmDone = false;
 
   parts.forEach(part => {
@@ -2210,7 +2229,9 @@ function renderTrack(id) {
     }
 
     if (capLeft > 0) {
-      // Felder bleiben leer — grau steht der Wert vom letzten Mal (siehe trRef)
+      // Weiß = heute schon gespeichert, grau = letztes Mal (Platzhalter, siehe trRef)
+      const mine = today && today.sets && today.sets[part.id] && today.steps && today.steps[part.id] === cur
+        ? today.sets[part.id] : [];
       const rest = trRest(part);
       const n = pr ? pr.sets : (part.sets || 1), extra = pr ? 0 : (part.extraSets || 0);
       const u = part.unit === "s" ? " s" : "";
@@ -2218,15 +2239,16 @@ function renderTrack(id) {
       const scheme = pr ? (part.unit === "min" ? "" : pr.sets + "×" + pr.target + u) : n + "×" + (part.reps || 5);
       let fields = "";
       for (let i = 0; i < n + extra; i++) {
-        fields += `<input class="exn${i >= n ? " opt" : ""}" id="tin-${id}-${part.id}-${i}" type="number" inputmode="numeric" value=""
+        fields += `<input class="exn${i >= n ? " opt" : ""}" id="tin-${id}-${part.id}-${i}" type="number" inputmode="numeric"
+          value="${mine[i] ? esc(String(mine[i])) : ""}" onchange="trSetVal(this,'${id}','${part.id}',${i})"
           placeholder="${i >= n ? "+" : esc(trRef(id, part, i))}" aria-label="Satz ${i + 1}${i >= n ? " (freiwillig)" : ""}">`;
       }
       html += `<div class="xr tkr"><span class="xs">${esc(scheme)}</span>${rest.chip ? `<span class="xp">${rest.chip}</span>` : ""}
         <span class="xin">${fields}</span></div>`;
       if (feel) {
-        const f = TR_FEEL[part.id];
+        const f = today && today.feel && today.feel[part.id];
         html += `<div class="tkf"><span>Gefühl</span>${TR_FEELS.map(v =>
-          `<button class="${f === v ? "on" : ""}" onclick="trFeelPick(this,'${part.id}','${v}')">${v}</button>`).join("")}</div>`;
+          `<button class="${f === v ? "on" : ""}" onclick="trFeelPick(this,'${id}','${part.id}','${v}')">${v}</button>`).join("")}</div>`;
       }
       if (!warmDone && part.warmup) {
         const prev = stepOf(part, cur - 1);
@@ -2241,22 +2263,24 @@ function renderTrack(id) {
     html += `</div>`;
   });
 
-  html += `<button class="tsave" onclick="trSave('${id}')">Einheit speichern</button>`;
+  html += `<button class="tsave" onclick="trFinish('${id}')">Einheit abschließen</button>`;
+  if (TR_MSG && TR_MSG.id === id) html += `<div class="tkm tkmsg">${esc(TR_MSG.text)}</div>`;
 
   // Verlauf: Kopfzeile mit den Teilen, darunter die letzten fünf Einheiten
-  if (st.log.length) {
+  if (st.log.some(trHasSets)) {
     const cols = parts.map(p => esc(p.short || p.name) + (p.unit === "s" ? " (s)" : p.unit === "min" ? " (Min)" : ""));
     const grid = `grid-template-columns:50px ${parts.length > 1 ? "repeat(" + (parts.length - 1) + ",92px) " : ""}1fr`;
     html += `<h2 class="tkh2">Verlauf</h2>
       <div class="tlog" style="${grid}"><span></span>${cols.map(c => `<span class="lh">${c}</span>`).join("")}`;
-    const all = st.log.slice().reverse();
+    const all = st.log.filter(trHasSets).reverse();
     (TR_LOG_ALL ? all : all.slice(0, 5)).forEach(l => {
       html += `<span class="q">${esc(fmtDM(l.d))}</span>` + parts.map(p => {
         const v = l.sets && l.sets[p.id];
         if (!v) return `<span></span>`;
         const tot = p.gate === "numeric" && v.length > 1 ? `<span class="tot">= ${trTotal(v)}</span>` : "";
         const fl = l.feel && l.feel[p.id] ? `<span class="tot">${esc(l.feel[p.id])}</span>` : "";
-        return `<span>${v.join("·")}${tot}${fl}</span>`;
+        // 0 = (noch) nicht eingetragen
+        return `<span>${v.map(x => x || "–").join("·")}${tot}${fl}</span>`;
       }).join("");
     });
     html += `</div>`;
@@ -2298,10 +2322,47 @@ window.trPickStep = function (id, partId, n) {
   trAdvance(id, partId, n);
   render();
 };
-window.trFeelPick = function (btn, partId, v) {
-  TR_FEEL[partId] = TR_FEEL[partId] === v ? null : v;
-  btn.parentNode.querySelectorAll("button").forEach(b => b.classList.toggle("on", b.textContent === TR_FEEL[partId]));
+window.trFeelPick = function (btn, id, partId, v) {
+  const e = trToday(id, true);
+  e.feel = e.feel || {};
+  if (e.feel[partId] === v) delete e.feel[partId]; else e.feel[partId] = v;
+  if (!Object.keys(e.feel).length) delete e.feel;
+  trTidy(id, e);
+  TR_MSG = null;
+  markDirty();
+  const on = e.feel && e.feel[partId];
+  btn.parentNode.querySelectorAll("button").forEach(b => b.classList.toggle("on", b.textContent === on));
 };
+/* Ein Satzfeld speichern: nur dieser eine Satz, in die heutige Einheit. Kein Neu-Rendern,
+   sonst verlöre das nächste Feld den Fokus. */
+window.trSetVal = function (el, id, partId, i) {
+  const tr = trackDef(id), part = tr && (tr.parts || []).find(p => p.id === partId);
+  if (!part) return;
+  const v = parseFloat(String(el.value).replace(",", "."));
+  const val = isFinite(v) && v > 0 ? v : 0;
+  const cur = trStep(id, partId), numeric = part.gate === "numeric";
+  const e = trToday(id, true);
+  e.sets = e.sets || {}; e.steps = e.steps || {};
+  const fresh = !(e.sets[partId] && e.steps[partId] === cur);
+  const vals = fresh ? [] : e.sets[partId].slice();
+  const n = numeric ? ((stepOf(part, cur) || {}).sets || 1) : i + 1;
+  while (vals.length < Math.max(n, i + 1)) vals.push(0);
+  vals[i] = val;
+  // Gefühls-Teile haben keine feste Satzzahl: leere Felder am Ende fallen weg
+  if (!numeric) while (vals.length && !vals[vals.length - 1]) vals.pop();
+  if (vals.some(x => x > 0)) { e.sets[partId] = vals; e.steps[partId] = cur; }
+  else { delete e.sets[partId]; delete e.steps[partId]; }
+  trTidy(id, e);
+  if (fresh && val) logEv("track", id + "/" + partId);
+  TR_MSG = null;
+  markDirty();
+};
+/* Leere heutige Einheit wieder aus dem Log nehmen */
+function trTidy(id, e) {
+  if (trHasSets(e) || e.feel) return;
+  const st = trState(id), i = st.log.indexOf(e);
+  if (i >= 0) st.log.splice(i, 1);
+}
 
 function renderWeek(pi, wi) {
   const part = PROGRAM[pi], week = part.weeks[wi];
@@ -3277,73 +3338,32 @@ function fillDiag() {
     + ` · Leiste endet bei: ${Math.round(b.bottom)} px (Lücke: ${Math.round(window.innerHeight - b.bottom)} px)`;
 }
 /* ---------- Stufenleitern: Aktionen ---------- */
-window.trSave = function (id) {
+/* „Einheit abschließen“: gespeichert ist schon alles (trSetVal). Hier nur der Aufstieg —
+   angeboten, nie automatisch. Numerisch: alle Sätze am Ziel. Nach Gefühl: feelUp-mal
+   hintereinander „leicht“ auf dieser Stufe (Wade: weiter, sobald die Stufe zu leicht wird). */
+window.trFinish = function (id) {
   const tr = trackDef(id); if (!tr) return;
-  const todayK = dkey(today0());
-  const sets = {}, steps = {}, feel = {};
+  const e = trToday(id);
+  if (!trHasSets(e)) { alert("Noch nichts eingetragen."); return; }
+  let asked = false;
   (tr.parts || []).forEach(part => {
-    if (partCapLeft(id, part, todayK) <= 0) return;
-    const n = part.gate === "numeric" ? ((stepOf(part, trStep(id, part.id)) || {}).sets || 1)
-      : (part.sets || 1) + (part.extraSets || 0);
-    let vals = [];
-    for (let i = 0; i < n; i++) {
-      const el = document.getElementById(`tin-${id}-${part.id}-${i}`);
-      const v = el ? parseFloat(el.value) : NaN;
-      vals.push(isFinite(v) && v > 0 ? v : 0);
+    const vals = e.sets[part.id], cur = trStep(id, part.id);
+    if (!vals || e.steps[part.id] !== cur || cur >= (part.steps || []).length) return;
+    let why = "";
+    if (part.gate === "numeric") {
+      const step = stepOf(part, cur), need = (step && step.sets) || 1, tgt = (step && step.target) || 1;
+      if (vals.length >= need && vals.slice(0, need).every(v => +v >= tgt)) why = `Ziel der Stufe ${cur} geschafft.`;
+    } else if (part.feelUp && e.feel && e.feel[part.id] === "leicht") {
+      const recent = trStepLog(id, part.id).slice(0, part.feelUp);
+      if (recent.length >= part.feelUp && recent.every(l => l.feel && l.feel[part.id] === "leicht"))
+        why = `${part.feelUp}× hintereinander leicht.`;
     }
-    // Gefühls-Teile haben keine feste Satzzahl im Log: leere (auch freiwillige) Felder fallen weg
-    if (part.gate !== "numeric") vals = vals.filter(v => v > 0);
-    if (vals.some(v => v > 0)) {
-      sets[part.id] = vals; steps[part.id] = trStep(id, part.id);
-      if (TR_FEEL[part.id]) feel[part.id] = TR_FEEL[part.id];
-    }
-  });
-  if (!Object.keys(sets).length) { alert("Nichts eingetragen."); return; }
-
-  const st = trState(id);
-  const existing = st.log.findIndex(l => l.d === todayK);
-  const entry = { d: todayK, sets: sets, steps: steps };
-  if (Object.keys(feel).length) entry.feel = feel;
-  if (existing >= 0) {
-    // Heutige Einheit ergänzen statt doppelt anlegen
-    const old = st.log[existing];
-    entry.sets = Object.assign({}, old.sets || {}, sets);
-    entry.steps = Object.assign({}, old.steps || {}, steps);
-    const f = Object.assign({}, old.feel || {}, feel);
-    if (Object.keys(f).length) entry.feel = f;
-    st.log[existing] = entry;
-  } else st.log.push(entry);
-  TR_FEEL = {};
-  st.log.sort((a, b) => (a.d < b.d ? -1 : a.d > b.d ? 1 : 0));
-  logEv("track", id + "/" + Object.keys(sets).join("+"));
-  markDirty();
-
-  // Stufenziel erreicht? -> anbieten, nicht automatisch aufsteigen.
-  // Bewertet werden die eben eingetragenen Werte, nicht ein Umweg über das Log.
-  (tr.parts || []).forEach(part => {
-    if (part.gate !== "numeric" || !sets[part.id]) return;
-    const step = stepOf(part, trStep(id, part.id));
-    const need = (step && step.sets) || 1, tgt = (step && step.target) || 1;
-    const vals = sets[part.id];
-    const reached = vals.length >= need && vals.slice(0, need).every(v => +v >= tgt);
-    if (reached && trStep(id, part.id) < (part.steps || []).length) {
-      const nxt = stepOf(part, trStep(id, part.id) + 1);
-      if (confirm(`${part.name}: Ziel der Stufe ${trStep(id, part.id)} geschafft.\n\nAuf Stufe ${nxt.n} — ${nxt.name} — wechseln?`))
-        trAdvance(id, part.id, trStep(id, part.id) + 1);
-    }
-  });
-  // Nach Gefühl: n-mal hintereinander „leicht“ auf dieser Stufe -> Aufstieg anbieten (Wade:
-  // weiter, sobald die Stufe zu leicht wird — nicht über Wiederholungen)
-  (tr.parts || []).forEach(part => {
-    if (part.gate !== "feel" || !part.feelUp || feel[part.id] !== "leicht") return;
-    const recent = trStepLog(id, part.id).slice(0, part.feelUp);
-    if (recent.length < part.feelUp || !recent.every(l => l.feel && l.feel[part.id] === "leicht")) return;
-    const cur = trStep(id, part.id);
-    if (cur >= (part.steps || []).length) return;
+    if (!why) return;
+    asked = true;
     const nxt = stepOf(part, cur + 1);
-    if (confirm(`${part.name}: ${part.feelUp}× hintereinander leicht.\n\nAuf Stufe ${nxt.n} — ${nxt.name} — wechseln?`))
-      trAdvance(id, part.id, cur + 1);
+    if (confirm(`${part.name}: ${why}\n\nAuf Stufe ${nxt.n} — ${nxt.name} — wechseln?`)) trAdvance(id, part.id, cur + 1);
   });
+  TR_MSG = asked ? null : { id: id, text: "Alles gespeichert." };
   render();
 };
 function trAdvance(id, partId, to) {
