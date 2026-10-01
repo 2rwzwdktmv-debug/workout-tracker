@@ -22,7 +22,7 @@ const BED='22:00', DINNER_BY='20:30';
 
 /* ---------- Zustand ---------- */
 /* Synchronisiert (progress.json): S.food = {days:{datum:{st,sw,extra,water,energy,meds,packed}}, set:{protein,fast}} */
-function FS(){if(!S.food||typeof S.food!=='object')S.food={};if(!S.food.days)S.food.days={};if(!S.food.set)S.food.set={protein:'whey',fast:true};if(!S.food.stock)S.food.stock={};if(!S.food.cart)S.food.cart={};if(!S.food.have)S.food.have={};if(!S.food.pantry)S.food.pantry={};if(!S.food.set.free)S.food.set.free={0:['we']};return S.food;}
+function FS(){if(!S.food||typeof S.food!=='object')S.food={};if(!S.food.days)S.food.days={};if(!S.food.set)S.food.set={protein:'whey',fast:true};if(!S.food.stock)S.food.stock={};if(!S.food.cart)S.food.cart={};if(!S.food.have)S.food.have={};if(!S.food.subst)S.food.subst={};if(!S.food.pantry)S.food.pantry={};if(!S.food.set.free)S.food.set.free={0:['we']};return S.food;}
 /* Nur lokal auf diesem Gerät (Gesundheitsdaten): Haut, Ausnahmen, Heißhunger, Gewicht, Heilungsfenster */
 const HKEY='wt-health-v1';
 let H={days:{},HW:{active:false,start:'',len:7}};
@@ -221,7 +221,7 @@ const scaleAmt=(t,f)=>f===1||!t?t:String(t).replace(/(\d+(?:[.,]\d+)?|½|¼)(\s*
 const scaleRow=(X,label)=>!X.yields||/nur deine Portion/.test(label);
 function recipeHTML(v,i,k,g,lbl){const f=g?2:1;const X=V[v],m=mac(v,i);
   return `<div class="row wrap" style="margin-top:8px"><span class="echip lime">${m.kcal} kcal</span><span class="echip">P ${m.p} g</span><span class="echip">KH ${m.c} g</span><span class="echip">F ${m.f} g</span>${X.time?`<span class="echip">⏱ ${X.time}</span>`:''}</div>
-    <div class="km sec">Zutaten · ${lbl||TL[i]}${f!==1?' · zu zweit':''}</div>${ingHTML(X.ing(i,k).map(r=>g&&scaleRow(X,r[0])?[r[0],scaleAmt(r[1],gFit(r[3])),r[2]]:r),k)}<div class="sub" style="font-size:12px;margin-top:4px">Blau = Baustein, antippen für Details.${g?` Zu zweit: ${gLabel()}. Nährwerte oben gelten für deine Portion.`:''}${f!==1&&X.yields?` Zu zweit bleiben ${X.yields.bolotk-1} statt ${X.yields.bolotk} Portionen für den TK.`:''}</div>
+    <div class="km sec">Zutaten · ${lbl||TL[i]}${f!==1?' · zu zweit':''}</div>${ingHTML(X.ing(i,k).map(r=>{const sb=r[3]&&subOf(r[3]);if(sb)r=[r[0].replace(IT()[r[3]].n,IT()[sb].n),r[1],r[2],sb];return g&&scaleRow(X,r[0])?[r[0],scaleAmt(r[1],gFit(r[3])),r[2]]:r;}),k)}<div class="sub" style="font-size:12px;margin-top:4px">Blau = Baustein, antippen für Details.${g?` Zu zweit: ${gLabel()}. Nährwerte oben gelten für deine Portion.`:''}${f!==1&&X.yields?` Zu zweit bleiben ${X.yields.bolotk-1} statt ${X.yields.bolotk} Portionen für den TK.`:''}</div>
     <div class="km sec">Zubereitung</div><ol class="steps">${X.steps(k).map(x=>`<li>${x}</li>`).join('')}</ol>${X.tip?`<div class="hint amb">${X.tip}</div>`:''}`;}
 EN.guest=(k,id)=>{const g=NS(k).guests;if(g[id])delete g[id];else g[id]=true;R();EN.openMeal(k,id);};
 EN.openMeal=function(k,id){const D=dayOf(k),i=pix(D,id),s=NS(k),v=varOf(D,id),X=V[v],sl=D.slots.find(x=>x[0]===id),at=sl[2],K=`'${k}'`;
@@ -340,11 +340,12 @@ function pWoche(){const ab=days7().map(k=>varOf(dayOf(k),'ab')),cnt=g=>ab.filter
 const IT=()=>C.items||{};
 const STK=()=>FS().stock;
 /* "protein" im Rezept = das Pulver, das an diesem Tag gilt (Heilungsfenster/Einstellung) */
-const itemFor=(it,k)=>it==='protein'?(plantProt(k)?'erbsenprotein':'whey'):it;
+const subOf=it=>{const sb=FS().subst[it];return sb&&IT()[sb]&&hasNow(sb)?sb:null;};
+const itemFor=(it,k)=>it==='protein'?(plantProt(k)?'erbsenprotein':'whey'):(subOf(it)||it);
 /* Grundvorrat: haltbare Artikel des Standardplans (min in nutrition.json) und Gewürze/Öl */
 const season=()=>((C&&C.season)||{})[String(new Date().getMonth()+1)]||'';
 const nameOf=it=>{const I=IT()[it];if(!I)return it;return it==='saisonobst'&&season()?`${I.n} (${season()})`:I.n;};
-const isPantry=it=>{const I=IT()[it];return !!I&&it!=='bolotk'&&(I.unit==='basic'||(I.keep==='lang'&&(I.min||0)>0));};
+const isPantry=it=>{const I=IT()[it];return !!I&&it!=='bolotk'&&(I.unit==='basic'||I.pantry===true||(I.keep==='lang'&&(I.min||0)>0));};
 const pState=it=>FS().pantry[it]||'';   /* '' = noch nicht geprüft */
 /* Bolognese-Portionen im TK, die vor Tag k übrig sind (ab morgen die geplanten Abende) */
 function tkLeft(k){let a=STK().bolotk||0;for(let d=addD(TODAY(),1);d<k;d=addD(d,1)){const D=dayOf(d);if(!mealIds(D).includes('ab')||NS(d).used.ab)continue;
@@ -375,7 +376,7 @@ function shopModel(){const {o,start,end}=occ(),rows=[];
     if(I.keep==='frisch'){const by={};xs.forEach(x=>{by[x.k]=(by[x.k]||0)+x.q;});
       Object.keys(by).sort().forEach(k=>rows.push({id:it+'@'+k,it,q:by[k],k,fresh:true,later:diff(k,start)>=SOON}));}
     else rows.push({id:it,it,q:xs.reduce((a,x)=>a+x.q,0),k:xs.map(x=>x.k).sort()[0],later:false});});
-  Object.keys(IT()).filter(isPantry).forEach(it=>{const st=pState(it);if(st==='da')return;const xs=o[it]||[];
+  Object.keys(IT()).filter(isPantry).forEach(it=>{const st=pState(it);if(st==='da'||IT()[it].noRestock)return;const xs=o[it]||[];
     if(!xs.length&&!st)return;   /* nicht geprüft und diese Woche nicht gebraucht: nicht stören */
     rows.push({id:it,it,q:xs.reduce((a,x)=>a+x.q,0),k:xs.length?xs.map(x=>x.k).sort()[0]:null,pantry:true,state:st});});
   return {rows,start,end};}
@@ -393,6 +394,7 @@ EN.have=id=>{const h=FS().have;if(h[id])delete h[id];else h[id]=TODAY();R();};
 EN.pset=(it,st)=>{FS().pantry[it]=st;R();};
 EN.cart=id=>{const c=FS().cart;if(c[id])delete c[id];else c[id]=1;R();};
 EN.checkout=()=>{const c=FS().cart;Object.keys(c).forEach(id=>{const it=id.split('@')[0];if(isPantry(it))FS().pantry[it]='da';else FS().have[id]=TODAY();});FS().cart={};R();};
+EN.subst=(it,sb)=>{if(sb)FS().subst[it]=sb;else delete FS().subst[it];R();EN.openItem(it);};
 EN.tk=dir=>{const st=STK();st.bolotk=Math.max(0,(st.bolotk||0)+dir);R();};
 const infoBtn=it=>`<button class="btn sm ghost" onclick="event.stopPropagation();EN.openItem('${it}')" aria-label="Details">ⓘ</button>`;
 const staleNote=()=>`<div class="ecard"><div class="sub">Die Artikelliste fehlt in den geladenen Inhalten (veralteter Stand von <b>nutrition.json</b>). Bitte die Seite neu laden.</div><button class="btn ghost" onclick="location.reload()">Neu laden</button></div>`;
@@ -439,6 +441,7 @@ function usage(it){const start=addD(TODAY(),1),out=[];
 EN.openItem=it=>{const I=IT()[it],u=usage(it),sum=u.reduce((a,x)=>a+Math.max(0,x.q),0),st=pState(it);
   sheet(`<div class="km">${I.cat}</div><h3>${nameOf(it)}</h3>${I.packLabel?`<div class="sub">Packung: ${I.packLabel}</div>`:''}
     ${isPantry(it)?`<div class="km sec">Zuhause</div><div class="tri big">${['da','knapp','leer'].map(x=>`<button class="${st===x?'on '+x:''}" onclick="EN.pset('${it}','${x}');EN.openItem('${it}')">${x}</button>`).join('')}</div>`:''}
+    ${(I.subs||[]).length?`<div class="km sec">Ersatz, solange da</div><div class="sub" style="font-size:13px">Ist der Ersatz im Vorrat auf da oder knapp, steht er in den Rezepten statt ${I.n}. Bei leer gilt wieder ${I.n}.</div><div class="tri big">${['',...I.subs].map(sb=>`<button class="${(FS().subst[it]||'')===sb?'on da':''}" onclick="EN.subst('${it}','${sb}')">${sb?IT()[sb].n:'kein Ersatz'}</button>`).join('')}</div>${FS().subst[it]&&!subOf(it)?`<div class="sub" style="font-size:12px;margin-top:4px;color:var(--amber)">${IT()[FS().subst[it]].n} steht im Vorrat nicht auf da, deshalb gilt gerade ${I.n}.</div>`:''}`:''}
     <div class="km sec">Gebraucht in den nächsten 7 Tagen</div>
     ${u.length?`<div class="list">${u.map(x=>`<div class="it"><div style="flex:1;min-width:0">${x.always?'Immer da haben':x.wd+' '+OKT(x.k)+' · '+x.slot}<small>${x.dish}</small></div><span class="meta">${x.q<0?'+'+fmtQ(it,-x.q):fmtQ(it,x.q)}</span></div>`).join('')}</div><div class="between" style="margin-top:6px;font-size:14px"><b>Summe</b><b>${fmtQ(it,sum)}</b></div>`:`<div class="sub">nicht eingeplant</div>`}
     <button class="cancel" onclick="closeSheet()">Fertig</button>`);};
