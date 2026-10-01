@@ -809,6 +809,7 @@
     nav .go:active { transform: translateX(-50%); }
   }
 </style>
+<link rel="stylesheet" href="ernaehrung.css">
 </head>
 <script>
 /* Akzentfarbe aus dem Cache setzen, BEVOR gerendert wird — sonst blitzt
@@ -830,12 +831,13 @@
 <main id="main"><div class="loading">Lade…</div></main>
 <nav id="nav" style="display:none">
   <button id="navHome"><svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>Übersicht</button>
-  <button id="navWeek"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/></svg>Woche</button>
+  <button id="navWeek"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/></svg>Training</button>
   <button class="go" id="navGo" aria-label="Weitermachen"><svg viewBox="0 0 24 24"><path d="M7 4.5 19 12 7 19.5z"/></svg></button>
-  <button id="navStats"><svg viewBox="0 0 24 24"><path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/></svg>Analyse</button>
+  <button id="navStats"><svg viewBox="0 0 24 24"><path d="M7 3v8a2 2 0 0 0 2 2v8"/><path d="M11 3v8a2 2 0 0 1-2 2"/><path d="M17 21V3c-2 0-3.5 2.5-3.5 6s1.5 4 3.5 4"/></svg>Ernährung</button>
   <button id="navSet"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 13.5a7.8 7.8 0 0 0 0-3l2-1.5-2-3.4-2.4 1a7.8 7.8 0 0 0-2.6-1.5L14 2.5h-4l-.4 2.6A7.8 7.8 0 0 0 7 6.6l-2.4-1-2 3.4 2 1.5a7.8 7.8 0 0 0 0 3l-2 1.5 2 3.4 2.4-1a7.8 7.8 0 0 0 2.6 1.5l.4 2.6h4l.4-2.6a7.8 7.8 0 0 0 2.6-1.5l2.4 1 2-3.4z"/></svg>Einstellungen</button>
 </nav>
 
+<script src="ernaehrung.js"></script>
 <script>
 "use strict";
 /* ============================================================
@@ -851,6 +853,7 @@ const CFG_KEY = "wt-config-v1";
 const CACHE_KEY = "wt-progress-cache-v1";
 const DIRTY_KEY = "wt-dirty-v1";
 const DATA_KEY = "wt-data-cache-v1";
+const NUT_KEY = "wt-nutrition-cache-v1";   /* ERNÄHRUNG: Inhalte der Ernährung (privates Repo) */
 
 let PROGRAM = null, PLAN_TITLE = "Workout Tracker", TRACKS = [], PACES = [];
 let TRACKS_ALL = [], DEFAULTS = {};   // TRACKS = sichtbare Leitern, TRACKS_ALL = alle aus dem Plan
@@ -965,6 +968,7 @@ async function boot() {
     if (r.ok) {
       const data = await r.json();
       setData(data);
+      try { const nr = await fetch("./nutrition.json", { cache: "no-store" }); if (nr.ok) EN.load(await nr.json()); } catch (e) {} /* ERNÄHRUNG */ 
       mode = "local";
       const cached = lsGet(CACHE_KEY);
       if (cached) try { S = Object.assign(S, JSON.parse(cached)); } catch (e) {}
@@ -984,6 +988,7 @@ async function boot() {
     try {
       const data = JSON.parse(cachedData);
       setData(data);
+      const cn = lsGet(NUT_KEY); if (cn) try { EN.load(JSON.parse(cn)); } catch (e) {} /* ERNÄHRUNG */ 
       const cached = lsGet(CACHE_KEY);
       if (cached) try { S = Object.assign(S, JSON.parse(cached)); } catch (e) {}
       finishBoot();
@@ -1003,6 +1008,8 @@ async function refreshFromGitHub() {
       setData(data);
       finishBoot();
     }
+    try { const nf = await ghGet("nutrition.json");   /* ERNÄHRUNG */ 
+      if (nf && nf.text !== lsGet(NUT_KEY)) { lsSet(NUT_KEY, nf.text); EN.load(JSON.parse(nf.text)); render(); } } catch (e) {}
     const progFile = await ghGet("progress.json");
     const dirty = !!lsGet(DIRTY_KEY);
     if (progFile) {
@@ -1032,6 +1039,7 @@ async function loadFromGitHub() {
     lsSet(DATA_KEY, dataFile.text);
     const data = JSON.parse(dataFile.text);
     setData(data);
+    try { const nf = await ghGet("nutrition.json"); if (nf) { lsSet(NUT_KEY, nf.text); EN.load(JSON.parse(nf.text)); } } catch (e) {} /* ERNÄHRUNG */ 
 
     const progFile = await ghGet("progress.json");
     const dirty = !!lsGet(DIRTY_KEY);
@@ -1897,7 +1905,7 @@ backBtn.onclick = () => { history.back(); };
 document.getElementById("navHome").onclick = () => { location.hash = ""; };
 document.getElementById("navWeek").onclick = () => { location.hash = "#weeks"; };
 document.getElementById("navGo").onclick = () => goContinue();
-document.getElementById("navStats").onclick = () => { location.hash = "#stats"; };
+document.getElementById("navStats").onclick = () => { location.hash = "#food"; }; /* ERNÄHRUNG: Analyse über die Fortschrittskarte */
 document.getElementById("navSet").onclick = () => { location.hash = "#settings"; };
 let navScroll = false;
 window.addEventListener("hashchange", () => { navScroll = true; if (PROGRAM) render(); });
@@ -1905,7 +1913,7 @@ window.addEventListener("hashchange", () => { navScroll = true; if (PROGRAM) ren
 function setNav(active) {
   document.getElementById("navHome").classList.toggle("active", active === "home");
   document.getElementById("navWeek").classList.toggle("active", active === "week");
-  document.getElementById("navStats").classList.toggle("active", active === "stats");
+  document.getElementById("navStats").classList.toggle("active", active === "food"); /* ERNÄHRUNG */ 
   document.getElementById("navSet").classList.toggle("active", active === "set");
 }
 
@@ -1914,7 +1922,9 @@ function render() {
   applyPrefs();
   const seg = location.hash.replace(/^#/, "").split("/").filter(Boolean);
   const st = window.scrollY;
-  if (seg[0] === "settings") renderSettings();
+  EN.fresh(); /* ERNÄHRUNG */ 
+  if (seg[0] === "settings") { renderSettings(); EN.settings(main); }
+  else if (seg[0] === "food") { backBtn.style.display = seg[1] === "pack" ? "" : "none"; titleEl.textContent = seg[1] === "pack" ? "Packliste" : "Ernährung"; setNav("food"); EN.render(main, seg[1]); } /* ERNÄHRUNG */ 
   else if (seg[0] === "stats") renderStats();
   else if (seg[0] === "weeks") renderWeeks();
   else if (seg[0] === "t") renderTrack(seg[1]);
@@ -1976,6 +1986,7 @@ function renderPlan() {
     return `<button class="cta xcta ${done ? "done" : ""}" onclick="location.hash='#t/${id}'">＋ ${esc(tr.name)} · Stufe ${trStep(id, tr.parts[0].id)}${done ? " ✓" : ""}</button>`;
   }).join("");
 
+  html += EN.hwStrip(); /* ERNÄHRUNG */ 
   if (first.kind === "train") {
     const istQuelle = swapFrom === first.d.key;
     html += `<div class="today ${istQuelle ? "sel" : ""}">
@@ -1985,7 +1996,7 @@ function renderPlan() {
         <span class="dots" onclick="planSheet('${first.k}')">⋯</span>
       </div>
       <div class="v">${esc(dayTitle(first.d))}</div>
-      <div class="s">${esc(daySub(first.d))}</div>
+      <div class="s">${esc(daySub(first.d))}</div>${EN.todayLine(first)}
       ${(swapFrom && !istQuelle)
         ? `<button class="cta" onclick="planSwapWith('${first.d.key}')">Hierher tauschen</button>`
         : `<button class="cta" onclick="location.hash='#d/${first.d.pi}/${first.d.wi}/${first.d.di}'">Training starten</button>`}
@@ -1999,7 +2010,7 @@ function renderPlan() {
         ${first.d ? `<span class="dots" onclick="reDateSheet(${first.d.pi},${first.d.wi},${first.d.di})" title="War nicht heute">⋯</span>` : ""}
       </div>
       <div class="v">${first.d ? esc(dayTitle(first.d)) + " ✓" : "Erledigt ✓"}</div>
-      <div class="s">${nx ? "Als Nächstes: " + esc(dayTitle(nx.d)) : "Weiter geht's demnächst."}</div>
+      <div class="s">${nx ? "Als Nächstes: " + esc(dayTitle(nx.d)) : "Weiter geht's demnächst."}</div>${EN.energyLine()}
       ${first.d ? `<button class="cta ghost" onclick="location.hash='#d/${first.d.pi}/${first.d.wi}/${first.d.di}'">Einheit ansehen</button>` : ""}
       ${xBtns}
     </div>`;
@@ -2021,6 +2032,7 @@ function renderPlan() {
     </div>`;
   }
 
+  html += EN.homeCards(); /* ERNÄHRUNG */ 
   html += `<h2 class="section">Danach</h2>`;
   days.slice(1).forEach(e => {
     const wd = `<div class="dt"><div class="wd">${WD[e.date.getDay()]}</div><div class="dn">${e.date.getDate()}.</div></div>`;
@@ -2078,14 +2090,14 @@ function renderHome() {
     ? `${PROGRAM[next.pi].name} · ${PROGRAM[next.pi].weeks[next.wi].name}`
     : "Alles erledigt! 🎉";
   let html = `
-    <div class="hero">
+    <div class="hero" onclick="location.hash='#stats'" style="cursor:pointer">
       <div class="ringwrap">${ring(p, 108, 10)}
         <div class="mid"><b>${p}%</b><span>gesamt</span></div>
       </div>
       <div class="txt">
         <div class="k">Aktuell</div>
         <div class="v">${esc(posTxt)}</div>
-        <div class="s">${done} von ${total} Parts erledigt</div>
+        <div class="s">${done} von ${total} Parts erledigt</div><div class="s" style="color:var(--sky);font-weight:700;margin-top:3px">Analyse ›</div>
       </div>
     </div>
     <div class="stats">
@@ -2093,6 +2105,7 @@ function renderHome() {
       <div class="stat"><b>${nResults}</b><span>Ergebnisse geloggt</span></div>
     </div>
     <div style="margin-top:22px"></div>` + renderPlan();
+  html += EN.homeBottom(); /* ERNÄHRUNG */ 
   html += `<div class="foot">privater Tracker · ${mode === "github" ? "Sync: GitHub" : "lokaler Modus"}</div>`;
   main.innerHTML = html;
 }
@@ -3535,6 +3548,14 @@ window.doReset = function () {
   }
 };
 
+/* ERNÄHRUNG: nach dem Abhaken prüfen, ob der Tag komplett ist → Energie im Training */
+(function () {
+  const t = window.toggle, g = window.toggleGroup, c = window.checkSession;
+  window.toggle = function (id) { t(id); EN.afterCheck(id); };
+  window.toggleGroup = function (gid, itemId) { g(gid, itemId); EN.afterCheck(itemId); };
+  window.checkSession = function (pi, wi, di, si) { c(pi, wi, di, si);
+    const it = PROGRAM[pi].weeks[wi].days[di].sessions[si].items.find(i => !i.rest && !i.opt); if (it) EN.afterCheck(it.id); };
+})();
 boot();
 </script>
 </body>
