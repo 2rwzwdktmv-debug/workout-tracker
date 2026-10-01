@@ -22,12 +22,12 @@ const BED='22:00', DINNER_BY='20:30';
 
 /* ---------- Zustand ---------- */
 /* Synchronisiert (progress.json): S.food = {days:{datum:{st,sw,extra,water,energy,meds,packed}}, set:{protein,fast}} */
-function FS(){if(!S.food||typeof S.food!=='object')S.food={};if(!S.food.days)S.food.days={};if(!S.food.set)S.food.set={protein:'whey',fast:true};return S.food;}
+function FS(){if(!S.food||typeof S.food!=='object')S.food={};if(!S.food.days)S.food.days={};if(!S.food.set)S.food.set={protein:'whey',fast:true};if(!S.food.stock)S.food.stock={};if(!S.food.cart)S.food.cart={};if(!S.food.have)S.food.have={};if(!S.food.pantry)S.food.pantry={};if(!S.food.set.free)S.food.set.free={0:['we']};return S.food;}
 /* Nur lokal auf diesem Gerät (Gesundheitsdaten): Haut, Ausnahmen, Heißhunger, Gewicht, Heilungsfenster */
 const HKEY='wt-health-v1';
 let H={days:{},HW:{active:false,start:'',len:7}};
 try{const x=JSON.parse(localStorage.getItem(HKEY)||'null');if(x)H=Object.assign(H,x);}catch(e){}
-const HF={exc:[],skin:0,crave:-1,weight:0}, SF={st:{},sw:{},extra:[],water:0,energy:0,energyAsked:false,meds:{},packed:false};
+const HF={exc:[],skin:0,crave:-1,weight:0}, SF={st:{},sw:{},extra:[],water:0,energy:0,energyAsked:false,meds:{},packed:false,used:{}};
 const cl=v=>typeof v==='object'?JSON.parse(JSON.stringify(v)):v;
 /* Ein Tag als ein Objekt; jedes Feld liegt im passenden Speicher */
 function NS(k){return new Proxy({},{
@@ -38,7 +38,7 @@ function NS(k){return new Proxy({},{
 /* leere Einträge nicht mitspeichern */
 const isEmpty=v=>v==null||v===false||v===0||(Array.isArray(v)&&!v.length)||(typeof v==='object'&&!Array.isArray(v)&&!Object.keys(v).length);
 function prune(days,defs){Object.keys(days).forEach(k=>{const d=days[k];Object.keys(d).forEach(p=>{if(isEmpty(d[p])||d[p]===defs[p])delete d[p];});if(!Object.keys(d).length)delete days[k];});}
-const save=()=>{prune(H.days,HF);prune(FS().days,SF);try{localStorage.setItem(HKEY,JSON.stringify(H));}catch(e){}};
+const save=()=>{prune(H.days,HF);prune(FS().days,SF);Object.keys(FS().stock).forEach(it=>{if(it!=='bolotk'||!(FS().stock[it]>0))delete FS().stock[it];});Object.keys(FS().have).forEach(id=>{const at=id.split('@')[1],h=FS().have[id];if(at?at<TODAY():diff(TODAY(),h)>=7)delete FS().have[id];});try{localStorage.setItem(HKEY,JSON.stringify(H));}catch(e){}};
 EN.save=save;
 const ST={get protein(){return FS().set.protein;},set protein(v){FS().set.protein=v;},get fast(){return FS().set.fast!==false;},set fast(v){FS().set.fast=v;}};
 let HW=H.HW;
@@ -57,7 +57,7 @@ EN.load=function(json){try{C=json;TT=C.targets;SL=C.slots;AT=C.at;ALT=C.alt;BASI
   AB_ROT=C.rotation.ab;VMR=C.rotation.vm;hwLen=HWR.defaultDays||7;
   V={};Object.keys(C.dishes).forEach(k=>{const X=C.dishes[k];V[k]=Object.assign({},X,{d:i=>X.d[i],ing:(i,kk)=>X.ing[i].map(r=>[P_(r[0],kk),r[1],r[2]]),steps:kk=>X.steps.map(t=>P_(t,kk))});});
   G={};Object.keys(C.glossary).forEach(k=>{G[k]={n:C.glossary[k].n,t:kk=>P_(C.glossary[k].t,kk)};});
-  SUP=C.supplements||SUP;PACK=C.pack||PACK;SOS=C.sos||[];
+  SUP=C.supplements||SUP;PACK=C.pack||PACK;SOS=(C.sos||[]).map(x=>Array.isArray(x)?{n:x[0],c:x[1],s:x[2],items:[]}:x);
   EXC=C.exceptions.map(e=>[e.n,e.c,e.s,mk(e.p,e.cc,e.f)]);XTRA=C.extras.map(e=>[e.n,mk(e.p,e.c,e.f)]);
 }catch(e){C=null;console.error('nutrition.json',e);}};
 const SIZE={klein:.6,normal:1,'groß':1.5};
@@ -66,20 +66,25 @@ const SIZE={klein:.6,normal:1,'groß':1.5};
 /* Tagestyp: aus der Minuten-Schätzung der Plan-Einheit (dayMinutes). Vorlage: nach Wochentag. */
 const WDL=['So','Mo','Di','Mi','Do','Fr','Sa'];
 let PP=null;
-EN.fresh=()=>{PP=null;};
+EN.fresh=()=>{PP=null;DC={};};
 function plan(){if(!PP){PP={};try{projectPlan(8).forEach(e=>{PP[e.k]=e;});}catch(e){}}return PP;}
 const TODAY=()=>dkey(today0());
-function dayOf(k){const e=plan()[k]||{kind:'empty'},w=D_(k).getDay();
+let DC={};
+function dayOf(k){return DC[k]||(DC[k]=dayOf0(k));}
+function dayOf0(k){const e=plan()[k]||{kind:'empty'},w=D_(k).getDay();
   const isT=e.kind==='train'||e.kind==='donetoday',min=e.d?dayMinutes(e.d.day):0;
   const type=!isT?'rest':min>=120?'hard':min>=45?'train':'active';
   const D={k,wd:WDL[w],e,min,type,off:e.kind==='off',done:e.kind==='donetoday',train:isT?(e.d?dayTitle(e.d):'Training'):null,len:min?'≈ '+min+' min':''};
-  const ab=AB_ROT[w],vm=VMR[w]||VMR.other;
+  let ab=AB_ROT[w];const vm=VMR[w]||VMR.other;
+  if(ab==='boloTK'&&k>=TODAY()&&tkLeft(k)<1)ab='bolo';   /* TK leer → frisch kochen (×4) */
+  else if(ab==='bolo'&&k>TODAY()&&tkLeft(k)>=2)ab='frosta';   /* noch genug im TK → nicht schon wieder vorkochen */
   D.fast=!!ST.fast&&w>=1&&w<=5;   /* Werktags-Fasten: erste Mahlzeit mittags */
   const VM=D.fast?[]:[['vm',vm,'work']],RC=D.fast?['rc','recovShake','gym']:['rc','recov','gym'];
   if(w>=1&&w<=4){D.tpl='Werktag';D.work='7–17';D.slots=[...VM,['mi','oats','work'],['na','pre','work'],...(D.train?[['T'],RC]:[]),['ab',ab,'home']];}
   else if(w===5){D.tpl='Freitag';D.work='7–12';D.slots=[...VM,['mi','oats','home','zuhause'],['na','pre','home',D.train?'1–2 h vor dem Training':'wann es passt'],...(D.train?[['T'],...(D.fast?[RC]:[])]:[]),['ab',ab,'home']];}
   else if(D.train){D.tpl='Wochenende';D.slots=[['vor','preWE','home'],['T'],['fr','brunch','home'],['we','weLunch','home'],['wn','weSnack','home'],['ab',ab,'home','bis ~'+DINNER_BY]];}
   else{D.tpl='Wochenende';D.slots=[['br','brunch','home'],['we','weLunch','home'],['wn','weSnack','home'],['ab',ab,'home','bis ~'+DINNER_BY]];}
+  const fr=(FS().set.free||{})[w]||[];if(fr.length)D.slots=D.slots.filter(sl=>!fr.includes(sl[0]));   /* freie Mahlzeiten (Einstellung) */
   return D;}
 const ti=D=>TT[D.type].i;
 const mac=(v,i)=>mk(V[v].P[i],V[v].C[i],V[v].F[i]);
@@ -161,6 +166,7 @@ function quickRow(D){const s=NS(D.k),N=nextWorkDay(D);
     ${q(s.skin,s.skin?'Haut '+s.skin:'Haut','EN.openSkin()')}
     ${q(s.crave>=0,s.crave>=0?'Heißhunger: '+['nein','etwas','stark'][s.crave]:'Heißhunger','EN.openCrave()')}
     ${N?q(s.packed,s.packed?'🎒 Für '+N.wd+' erledigt':'🎒 Für '+N.wd+': '+todo,`location.hash='#food/pack'`):''}
+    ${(()=>{const hw=homewayToday();return hw.length?q(false,'🛒 Heimweg: '+hw.map(r=>nameOf(r.it)).join(', '),`EN.shopMode('shop');location.hash='#food/einkauf'`):'';})()}
   </div>`;}
 let wv=0;
 EN.openWeight=()=>{const k=TODAY();wv=NS(k).weight||lastWeight(k)||85;drawWeight();};
@@ -178,9 +184,9 @@ EN.setCrave=v=>{NS(TODAY()).crave=v;closeSheet();R();};
 EN.med=(k,m)=>{const s=NS(k);s.meds[m]=!s.meds[m];R();};
 EN.flag=(k,f)=>{const s=NS(k);s[f]=!s[f];R();};
 EN.water=n=>{const s=NS(TODAY());s.water=Math.max(0,s.water+n);R();};
-EN.eat=(k,id)=>{const s=NS(k),D=dayOf(k);s.st[id]='eaten';if(id===addonSlot(D)){s.meds.fish=true;s.meds.crea=true;}closeSheet();R();};
-EN.toggleMeal=(k,id)=>{const s=NS(k);if(s.st[id]){delete s.st[id];R();}else EN.eat(k,id);};
-EN.setSt=(k,id,st)=>{NS(k).st[id]=st;closeSheet();R();};
+EN.eat=(k,id)=>{const s=NS(k),D=dayOf(k);s.st[id]='eaten';applyUse(k,id,1);if(id===addonSlot(D)){s.meds.fish=true;s.meds.crea=true;}closeSheet();R();};
+EN.toggleMeal=(k,id)=>{const s=NS(k);if(s.st[id]){delete s.st[id];applyUse(k,id,0);R();}else EN.eat(k,id);};
+EN.setSt=(k,id,st)=>{NS(k).st[id]=st;applyUse(k,id,st==='eaten'?1:st==='half'?.5:0);closeSheet();R();};
 EN.swap=(k,id,v)=>{NS(k).sw[id]=v;R();EN.openMeal(k,id);};
 
 /* ---------- Training abschließen: Energie-Frage ----------
@@ -234,14 +240,15 @@ function drawExc(){const D=dayOf(exK),h=hwDay(exK);
    ${exSel!==null?`<div class="hint">≈ ${Math.round(EXC[exSel][3].kcal*SIZE[exSize])} kcal (grob) · ${EXC[exSel][1]==='r'&&h?'<b style="color:var(--red)">Trigger im Heilungsfenster</b> · wird im Hautprotokoll markiert':'wird im Hautprotokoll vermerkt'}</div>`:''}
    <button class="btn" onclick="EN.saveExc()">Eintragen</button><button class="cancel" onclick="closeSheet()">Abbrechen</button>`);}
 EN.exS=(f,v)=>{if(f==='sel')exSel=v;if(f==='size')exSize=v;if(f==='slot')exSlot=v;drawExc();};
-EN.saveExc=()=>{if(exSel===null)return;const [n,,,m]=EXC[exSel];NS(exK).exc.push({kind:n,size:exSize,slot:exSlot||'extra',m});closeSheet();R();};
+EN.saveExc=()=>{if(exSel===null)return;const [n,,,m]=EXC[exSel];NS(exK).exc.push({kind:n,size:exSize,slot:exSlot||'extra',m});if(exSlot&&exSlot!=='extra')applyUse(exK,exSlot,0);closeSheet();R();};
 EN.openOther=()=>sheet(`<h3>Etwas anderes gegessen</h3><div class="km sec">Zusätzlich (ein Tipp)</div><div class="egrid">${XTRA.map(([n,m],j)=>`<button class="opt" onclick="EN.addExtra(${j})">${n}<small>${m.kcal} kcal</small></button>`).join('')}</div>
   <button class="btn ghost" onclick="EN.openExc()">Statt einer Mahlzeit oder Ausnahme (Pizza, Bestellt …) ›</button><button class="cancel" onclick="closeSheet()">Abbrechen</button>`);
 EN.openExtra=()=>sheet(`<h3>Extra</h3><div class="sub">Grob, kein Abwiegen. Ein Tipp genügt.</div><div class="egrid">${XTRA.map(([n,m],j)=>`<button class="opt" onclick="EN.addExtra(${j})">${n}<small>${m.kcal} kcal</small></button>`).join('')}</div><button class="cancel" onclick="closeSheet()">Abbrechen</button>`);
 EN.addExtra=j=>{const [n,m]=XTRA[j];NS(TODAY()).extra.push({...m,n});closeSheet();R();};
 EN.openSOS=()=>{const D=dayOf(TODAY()),T=TT[D.type],open=Math.round(T.kcal-totals(D).kcal);
   sheet(`<h3>Lust auf Süßes?</h3><div class="hint">${open>400?`<b>Dir fehlen heute noch ${open} kcal.</b> Heißhunger ist oft einfach Hunger. Iss zuerst die nächste Mahlzeit, dann schau, ob die Lust noch da ist.`:`<b>Du hast heute genug gegessen.</b> Ein Glas Wasser, 10 Minuten warten, oder eine Alternative.`}</div>
-    <div class="km sec">Alternativen</div><div class="egrid">${SOS.map(([n,c,x])=>`<button class="opt"><span class="dot ${c}"></span>${n}<small>${x}</small></button>`).join('')}</div>
+    <div class="km sec">Alternativen</div><div class="egrid">${SOS.filter(o=>!(o.hw===false&&hwDay(TODAY()))).map(o=>{const miss=(o.items||[]).filter(it=>!hasNow(it)).map(nameOf);
+      return `<button class="opt ${miss.length?'miss':''}"><span class="dot ${o.c}"></span>${o.n}<small>${String(o.s).replace('{SEASON}',season())}${miss.length?`<br>fehlt: ${miss.join(', ')}`:''}</small></button>`;}).join('')}</div>
     <button class="btn ghost" onclick="EN.openExc()">Trotzdem → als Ausnahme eintragen</button><button class="cancel" onclick="closeSheet()">Schließen</button>`);};
 
 let hwConfirm=false;
@@ -273,9 +280,9 @@ EN.protToggle=()=>{ST.protein=ST.protein==='plant'?'whey':'plant';R();};
    SEITE „ERNÄHRUNG“ (Planung): Tage · Woche · Rezepte · Einkauf · Vorrat · Packliste
    ===================================================================== */
 let selK=null;
-EN.render=function(main,sub){EN.fresh();if(!C){main.innerHTML='<div class="en"><div class="ecard"><span class="k">Ernährung</span><div class="sub" style="margin-top:6px">Keine Inhalte gefunden: <b>nutrition.json</b> fehlt im Daten-Repo.</div></div></div>';return;}sub=sub||'tage';const tabs=[['tage','Tage'],['woche','Woche'],['rezepte','Rezepte']];
+EN.render=function(main,sub){EN.fresh();if(!C){main.innerHTML='<div class="en"><div class="ecard"><span class="k">Ernährung</span><div class="sub" style="margin-top:6px">Keine Inhalte gefunden: <b>nutrition.json</b> fehlt im Daten-Repo.</div></div></div>';return;}sub=sub||'tage';const tabs=[['tage','Tage'],['woche','Woche'],['einkauf','Einkauf'],['vorrat','Vorrat'],['rezepte','Rezepte']];
   let h=`<div class="en">${sub==='pack'?'':`<div class="seg">${tabs.map(([k,l])=>`<button class="${k===sub?'on':''}" onclick="location.hash='#food/${k}'">${l}</button>`).join('')}</div>`}`;
-  h+=({tage:pTage,woche:pWoche,rezepte:pRezepte,pack:pPack}[sub]||pTage)();
+  h+=({tage:pTage,woche:pWoche,einkauf:pEinkauf,vorrat:pVorrat,rezepte:pRezepte,pack:pPack}[sub]||pTage)();
   main.innerHTML=h+'</div>';};
 const days7=()=>Array.from({length:7},(_,n)=>addD(TODAY(),n));
 EN.sel=k=>{selK=k;render();};
@@ -295,6 +302,122 @@ function pWoche(){const ab=days7().map(k=>varOf(dayOf(k),'ab')),cnt=g=>ab.filter
   let h=`<div class="ecard"><span class="km">Wochenziele</span>${goals.map(([a,b,c])=>`<div class="goal"><span>${a}</span><b class="${c}">${b}</b></div>`).join('')}</div><div class="ecard">`;
   days7().forEach(k=>{const D=dayOf(k),T=TT[D.type];h+=`<div class="wd" onclick="EN.sel('${k}');location.hash='#food/tage'"><div class="between"><b>${D.wd} ${OKT(k)}</b><span class="echip ${D.type==='rest'?'':'lime'}">${T.l} · ${T.kcal}</span></div>${D.train?`<div class="ln"><span style="color:var(--lime)">Training</span><span style="color:var(--lime)">${esc(D.train)}</span></div>`:''}${mealIds(D).map(id=>`<div class="ln"><span>${SL[id][0]}${D.slots.find(x=>x[0]===id)[2]==='work'?' 🎒':''}</span><span>${V[varOf(D,id)].n}</span></div>`).join('')}</div>`;});
   return h+'</div>';}
+/* =====================================================================
+   EINKAUF + VORRAT (einfach, 01.10. abends nach Marcs Vorschlag)
+   Einkauf = „Stell sicher, dass das die nächsten 7 Tage da ist“, mit Tag.
+     Frisches steht pro Tag, an dem es gebraucht wird (Heimweg am Vortag).
+     Zuhause: „hab ich“ antippen (gilt 7 Tage) · Im Laden: abhaken, „Einkauf abschließen“.
+   Vorrat = Grundvorrat (alles Haltbare): da / knapp / leer. Knapp und leer stehen auf der Liste.
+   Keine Grammbuchhaltung. Gezählt werden nur selbst gekochte Bolognese-Portionen.
+   ===================================================================== */
+const IT=()=>C.items||{};
+const STK=()=>FS().stock;
+/* "protein" im Rezept = das Pulver, das an diesem Tag gilt (Heilungsfenster/Einstellung) */
+const itemFor=(it,k)=>it==='protein'?(plantProt(k)?'erbsenprotein':'whey'):it;
+/* Grundvorrat: haltbare Artikel des Standardplans (min in nutrition.json) und Gewürze/Öl */
+const season=()=>((C&&C.season)||{})[String(new Date().getMonth()+1)]||'';
+const nameOf=it=>{const I=IT()[it];if(!I)return it;return it==='saisonobst'&&season()?`${I.n} (${season()})`:I.n;};
+const isPantry=it=>{const I=IT()[it];return !!I&&it!=='bolotk'&&(I.unit==='basic'||(I.keep==='lang'&&(I.min||0)>0));};
+const pState=it=>FS().pantry[it]||'';   /* '' = noch nicht geprüft */
+/* Bolognese-Portionen im TK, die vor Tag k übrig sind (ab morgen die geplanten Abende) */
+function tkLeft(k){let a=STK().bolotk||0;for(let d=addD(TODAY(),1);d<k;d=addD(d,1)){const D=dayOf(d);if(!mealIds(D).includes('ab')||NS(d).used.ab)continue;
+  const v=varOf(D,'ab');if(v==='bolo')a+=3;if(v==='boloTK')a-=1;}return a;}
+/* Beim Abhaken: nur Bolognese-Portionen zählen (gekocht +3, aufgetaut −1) und das Gericht festhalten */
+function applyUse(k,id,f){if(!C)return;const D=dayOf(k),s=NS(k),X=C.dishes[varOf(D,id)];if(!X)return;
+  const old=s.used[id]||0;if(f===old)return;const on=f>=1?1:0,was=old>=1?1:0,st=STK();
+  if(f&&!s.sw[id])s.sw[id]=varOf(D,id);
+  if(on!==was){const sg=on-was;
+    if(X.use&&X.use.bolotk)st.bolotk=Math.max(0,(st.bolotk||0)-sg);
+    if(X.yields&&X.yields.bolotk)st.bolotk=Math.max(0,(st.bolotk||0)+sg*X.yields.bolotk);}
+  if(f)s.used[id]=f;else delete s.used[id];}
+const SHOPN=7,SOON=2;
+/* Ist ein Artikel gerade da? Grundvorrat: Zustand da/knapp; sonst „hab ich“ diese Woche */
+const hasNow=it=>isPantry(it)?['da','knapp'].includes(pState(it)):covered(it);
+/* Wann wird was gebraucht? it → [{k,q}] für die nächsten 7 Tage ab morgen */
+function occ(){const start=addD(TODAY(),1),o={};
+  for(let n=0;n<SHOPN;n++){const k=addD(start,n),D=dayOf(k);
+    mealIds(D).forEach(id=>{const X=C.dishes[varOf(D,id)];if(!X||!X.use)return;const i=pix(D,id);
+      Object.entries(X.use).forEach(([it0,q])=>{const it=itemFor(it0,k),I=IT()[it];if(!I)return;const v=I.unit==='basic'?0:(q[i]||0);
+        if(!v&&I.unit!=='basic')return;(o[it]=o[it]||[]).push({k,q:v});});});}
+  ((C&&C.always)||[]).forEach(a=>{if(IT()[a.it]&&!(a.hw===false&&hwDay(start)))(o[a.it]=o[a.it]||[]).push({k:start,q:a.q,why:a.why});});   /* immer da haben (Lust auf Süßes); Schokolade nicht im Heilungsfenster */
+  return {o,start,end:addD(start,SHOPN-1)};}
+const covered=id=>{const h=FS().have[id];if(!h)return false;const at=id.includes('@')?id.split('@')[1]:null;return at?at>=TODAY():diff(TODAY(),h)<7;};
+/* Liste: Zeilen {id,it,q,k(ab/bis),later,pantry,state} */
+function shopModel(){const {o,start,end}=occ(),rows=[];
+  Object.keys(o).forEach(it=>{const I=IT()[it];if(!I||it==='bolotk'||isPantry(it))return;const xs=o[it];
+    if(I.keep==='frisch'){const by={};xs.forEach(x=>{by[x.k]=(by[x.k]||0)+x.q;});
+      Object.keys(by).sort().forEach(k=>rows.push({id:it+'@'+k,it,q:by[k],k,fresh:true,later:diff(k,start)>=SOON}));}
+    else rows.push({id:it,it,q:xs.reduce((a,x)=>a+x.q,0),k:xs.map(x=>x.k).sort()[0],later:false});});
+  Object.keys(IT()).filter(isPantry).forEach(it=>{const st=pState(it);if(st==='da')return;const xs=o[it]||[];
+    if(!xs.length&&!st)return;   /* nicht geprüft und diese Woche nicht gebraucht: nicht stören */
+    rows.push({id:it,it,q:xs.reduce((a,x)=>a+x.q,0),k:xs.length?xs.map(x=>x.k).sort()[0]:null,pantry:true,state:st});});
+  return {rows,start,end};}
+const fmtQ=(it,q)=>{const I=IT()[it];if(!I||I.unit==='basic'||!q)return '';
+  if(I.unit==='g')return q>=1000?(q/1000).toFixed(1).replace('.',',')+' kg':Math.round(q)+' g';
+  if(I.unit==='ml')return q>=1000?(q/1000).toFixed(1).replace('.',',')+' l':Math.round(q)+' ml';
+  const n=Math.round(q*10)/10,u=I.unit==='Dose'&&n!==1?'Dosen':I.unit==='Packung'&&n!==1?'Packungen':I.unit==='Portion'&&n!==1?'Portionen':I.unit;
+  return n.toString().replace('.',',')+' '+u;};
+const byCat=list=>{const cats=C.shopCats||[],g={};list.forEach(x=>{const c=IT()[x.it].cat;(g[c]=g[c]||[]).push(x);});
+  return Object.keys(g).sort((a,b)=>(cats.indexOf(a)+99)%99-(cats.indexOf(b)+99)%99).map(c=>[c,g[c]]);};
+const dayTag=(r)=>!r.k?'':r.fresh?`bis ${dayOf(r.k).wd}`:`ab ${dayOf(r.k).wd}`;
+let shopMode='home';
+EN.shopMode=m=>{shopMode=m;render();};
+EN.have=id=>{const h=FS().have;if(h[id])delete h[id];else h[id]=TODAY();R();};
+EN.pset=(it,st)=>{FS().pantry[it]=st;R();};
+EN.cart=id=>{const c=FS().cart;if(c[id])delete c[id];else c[id]=1;R();};
+EN.checkout=()=>{const c=FS().cart;Object.keys(c).forEach(id=>{const it=id.split('@')[0];if(isPantry(it))FS().pantry[it]='da';else FS().have[id]=TODAY();});FS().cart={};R();};
+EN.tk=dir=>{const st=STK();st.bolotk=Math.max(0,(st.bolotk||0)+dir);R();};
+const infoBtn=it=>`<button class="btn sm ghost" onclick="event.stopPropagation();EN.openItem('${it}')" aria-label="Details">ⓘ</button>`;
+const staleNote=()=>`<div class="ecard"><div class="sub">Die Artikelliste fehlt in den geladenen Inhalten (veralteter Stand von <b>nutrition.json</b>). Bitte die Seite neu laden.</div><button class="btn ghost" onclick="location.reload()">Neu laden</button></div>`;
+function rowHTML(r,mode){const I=IT()[r.it],cnt=['Stück','Dose','Scheiben','Packung','Portion'].includes(I.unit),q=fmtQ(r.it,cnt?Math.ceil(r.q-1e-9):r.q),tag=dayTag(r);   /* Stückzahlen zum Einkaufen aufrunden */
+  const on=mode==='home'?(r.pantry?false:covered(r.id)):!!FS().cart[r.id];
+  const sub=r.pantry?(r.state==='knapp'?'knapp':r.state==='leer'?'leer':'prüfen')+(q?` · diese Woche ${q}`:''):q;
+  const click=mode==='home'?(r.pantry?`EN.pset('${r.it}','da')`:`EN.have('${r.id}')`):`EN.cart('${r.id}')`;
+  return `<div class="it ${on?'got':''}" onclick="${click}"><span class="ecb ${on?'on':''}"></span><div style="flex:1;min-width:0">${nameOf(r.it)}<small>${sub}</small></div>${tag?`<span class="dtag ${r.later?'late':''}">${tag}</span>`:''}${I.unit==='basic'?'':infoBtn(r.it)}</div>`;}
+function pEinkauf(){if(!Object.keys(IT()).length)return `<div class="ecard"><span class="k">Einkauf</span></div>`+staleNote();
+  const M=shopModel(),home=shopMode==='home',open=M.rows.filter(r=>!(r.pantry?false:covered(r.id)));
+  const now=open.filter(r=>!r.later&&!r.pantry),pan=open.filter(r=>r.pantry),later=open.filter(r=>r.later);
+  let h=`<div class="ecard"><div class="between"><span class="k">Einkauf</span><span class="meta">${dayOf(M.start).wd} ${OKT(M.start)} – ${dayOf(M.end).wd} ${OKT(M.end)}</span></div>
+    <div class="sub" style="margin-top:4px;font-size:13px">Stell sicher, dass das in den nächsten 7 Tagen da ist.</div>
+    <div class="seg" style="margin:10px 0 0"><button class="${home?'on':''}" onclick="EN.shopMode('home')">Zuhause: was ist da?</button><button class="${home?'':'on'}" onclick="EN.shopMode('shop')">Im Laden (${now.length+pan.length})</button></div></div>`;
+  if(home){
+    const all=M.rows.filter(r=>!r.later&&!r.pantry);
+    h+=`<div class="sub" style="margin:0 4px 8px;font-size:13px">Antippen, was du schon hast. Es verschwindet für diese Woche von der Einkaufsliste.</div>`;
+    byCat(all).forEach(([c,xs])=>{h+=`<div class="ecard"><span class="km">${c}</span><div class="list">${xs.map(r=>rowHTML(r,'home')).join('')}</div></div>`;});
+    if(pan.length)h+=`<div class="ecard"><span class="km">Grundvorrat prüfen</span><div class="sub" style="font-size:12px;margin-top:2px">Antippen = ist da. Knapp oder leer stellst du unter <b>Vorrat</b> ein.</div><div class="list">${pan.map(r=>rowHTML(r,'home')).join('')}</div></div>`;
+    if(later.length)h+=`<div class="ecard"><span class="km">Später, frisch</span><div class="list">${later.map(r=>rowHTML(r,'home')).join('')}</div></div>`;}
+  else{if(!now.length&&!pan.length&&!later.length)h+=`<div class="ecard"><div class="sub">Alles da für die nächsten 7 Tage.</div></div>`;
+    byCat(now.concat(pan)).forEach(([c,xs])=>{h+=`<div class="ecard"><span class="km">${c}</span><div class="list">${xs.map(r=>rowHTML(r,'shop')).join('')}</div></div>`;});
+    if(later.length)h+=`<div class="ecard"><span class="km">Später, frisch</span><div class="sub" style="font-size:12px;margin-top:2px">Erst kurz vorher kaufen, am besten auf dem Heimweg am Vortag.</div><div class="list">${later.map(r=>rowHTML(r,'shop')).join('')}</div></div>`;
+    const n=Object.keys(FS().cart).length;if(n)h+=`<button class="btn" onclick="EN.checkout()">Einkauf abschließen · ${n} abgehakt</button>`;}
+  const bolo=[];for(let n=0;n<SHOPN;n++){const k=addD(M.start,n),D=dayOf(k);if(mealIds(D).includes('ab')&&varOf(D,'ab')==='bolo')bolo.push(D.wd);}
+  if(bolo.length)h+=`<div class="hint">Bolognese ×4 kochen am <b>${bolo.join(', ')}</b>, danach liegen 3 Portionen im TK.</div>`;
+  return h;}
+/* Vorrat = Grundvorrat: da / knapp / leer, dazu die selbst gekochten Portionen */
+function pVorrat(){if(!Object.keys(IT()).length)return `<div class="ecard"><span class="k">Vorrat</span></div>`+staleNote();
+  const items=Object.keys(IT()).filter(isPantry).map(it=>({it})),tk=STK().bolotk||0;
+  let h=`<div class="ecard"><span class="k">Vorrat</span><div class="sub" style="margin-top:6px;font-size:13px">Was immer da sein sollte. Knapp und leer kommen automatisch auf die Einkaufsliste.</div></div>
+    <div class="ecard"><span class="km">Selbst gekocht</span><div class="list"><div class="it"><div style="flex:1;min-width:0">Bolognese-Portionen im TK<small>${tk} ${tk===1?'Portion':'Portionen'} · zählt sich beim Kochen und Essen selbst</small></div><span class="row"><button class="btn sm ghost" onclick="EN.tk(-1)">−</button><button class="btn sm ghost" onclick="EN.tk(1)">+</button></span></div></div></div>`;
+  byCat(items).forEach(([c,xs])=>{h+=`<div class="ecard"><span class="km">${c}</span><div class="list">${xs.map(({it})=>{const st=pState(it);
+    return `<div class="it ${st==='leer'?'low':st==='knapp'?'low':''}" onclick="EN.openItem('${it}')"><div style="flex:1;min-width:0">${nameOf(it)}<small>${st||'noch nicht geprüft'}</small></div><span class="tri" onclick="event.stopPropagation()">${['da','knapp','leer'].map(x=>`<button class="${st===x?'on '+x:''}" onclick="EN.pset('${it}','${x}')">${x}</button>`).join('')}</span></div>`;}).join('')}</div></div>`;});
+  return h;}
+/* Artikel-Details: wann und wofür gebraucht, beim Grundvorrat der Zustand */
+function usage(it){const start=addD(TODAY(),1),out=[];
+  for(let n=0;n<SHOPN;n++){const k=addD(start,n),D=dayOf(k);
+    mealIds(D).forEach(id=>{const v=varOf(D,id),X=C.dishes[v];if(!X||!X.use)return;const i=pix(D,id);
+      Object.entries(X.use).forEach(([it0,q])=>{if(itemFor(it0,k)===it&&q[i])out.push({k,wd:D.wd,slot:SL[id][0],dish:V[v].n,q:q[i]});});
+      if(X.yields&&X.yields[it])out.push({k,wd:D.wd,slot:SL[id][0],dish:V[v].n,q:-X.yields[it]});});}
+  ((C&&C.always)||[]).filter(a=>a.it===it&&!(a.hw===false&&hwDay(start))).forEach(a=>out.unshift({k:start,wd:'Immer',slot:'da haben',dish:a.why,q:a.q,always:true}));
+  return out;}
+EN.openItem=it=>{const I=IT()[it],u=usage(it),sum=u.reduce((a,x)=>a+Math.max(0,x.q),0),st=pState(it);
+  sheet(`<div class="km">${I.cat}</div><h3>${nameOf(it)}</h3>${I.packLabel?`<div class="sub">Packung: ${I.packLabel}</div>`:''}
+    ${isPantry(it)?`<div class="km sec">Zuhause</div><div class="tri big">${['da','knapp','leer'].map(x=>`<button class="${st===x?'on '+x:''}" onclick="EN.pset('${it}','${x}');EN.openItem('${it}')">${x}</button>`).join('')}</div>`:''}
+    <div class="km sec">Gebraucht in den nächsten 7 Tagen</div>
+    ${u.length?`<div class="list">${u.map(x=>`<div class="it"><div style="flex:1;min-width:0">${x.always?'Immer da haben':x.wd+' '+OKT(x.k)+' · '+x.slot}<small>${x.dish}</small></div><span class="meta">${x.q<0?'+'+fmtQ(it,-x.q):fmtQ(it,x.q)}</span></div>`).join('')}</div><div class="between" style="margin-top:6px;font-size:14px"><b>Summe</b><b>${fmtQ(it,sum)}</b></div>`:`<div class="sub">nicht eingeplant</div>`}
+    <button class="cancel" onclick="closeSheet()">Fertig</button>`);};
+EN._dbg={dayOf:k=>dayOf(k),varOf:(D,id)=>varOf(D,id),IT:()=>IT(),C:()=>C,shopModel:()=>shopModel()};   /* Diagnose (Konsole) */
+/* Heimweg: frische Zutat, die morgen gebraucht wird und noch nicht da ist */
+function homewayToday(){if(!C)return [];return shopModel().rows.filter(r=>r.fresh&&r.k===addD(TODAY(),1)&&!covered(r.id));}
 function pRezepte(){const it=v=>`<div class="it" onclick="EN.openRecipe('${v}')"><div>${V[v].n}<small>${V[v].time||''}${V[v].recipe?' · Rezept':''}</small></div><span class="go">›</span></div>`;
   return `<div class="ecard"><span class="k">🎒 Arbeit · kalt &amp; mitnehmbar</span><div class="sub" style="margin-top:4px">Kein Kochen, kein Aufwärmen, kein Teller.</div><div class="list">${Object.keys(V).filter(v=>V[v].at!=='home').map(it).join('')}</div></div>
     <div class="ecard"><span class="k">Zuhause</span><div class="list">${Object.keys(V).filter(v=>V[v].at==='home').map(it).join('')}</div></div>
@@ -313,6 +436,7 @@ EN.settings=function(main){const set=main.querySelector('.set');if(!set||!C)retu
     <div class="srow"><div><b>Heilungsfenster</b><small>${HW.active?(h?`läuft · Tag ${h}/${HW.len}`:'geplant')+` · ${OKT(HW.start)}–${OKT(hwEnd())} · endet automatisch`:'aus · für einen akuten Schub'}</small></div><button class="btn sm ghost" onclick="${HW.active?'EN.openHw()':'EN.openHwStart()'}">${HW.active?'verwalten':'starten'}</button></div>
     <div class="km" style="margin-top:14px">Grundeinstellungen</div>
     <div class="srow"><div>Werktags fasten<small>erste Mahlzeit mittags · Vormittag entfällt, Mengen wandern auf Mittag, Snack und Abend</small></div><button class="btn sm ghost" onclick="EN.fastToggle()">${ST.fast?'an':'aus'}</button></div>
+    <div class="srow"><div>Freie Mahlzeiten<small>ohne Plan, zählen nicht in Einkauf und Vorrat</small></div><span class="v">${Object.entries(FS().set.free||{}).flatMap(([w,ids])=>ids.map(id=>WDL[w]+' '+SL[id][0])).join(', ')||'keine'}</span></div>
     <div class="srow"><div>Proteinpulver<small>im Heilungsfenster immer Erbsenprotein</small></div><button class="btn sm ghost" onclick="EN.protToggle()">${ST.protein==='plant'?'Erbsenprotein':'Whey'}</button></div>
     <div class="srow"><div>Supplements<small>hängen am Mittag und werden mit abgehakt</small></div><button class="btn sm ghost">${SUP.names||'keine'}</button></div>
     <div class="srow"><div>Schlafenszeit<small>Abendessen bis 1,5 h vorher, keine Spätmahlzeit</small></div><button class="btn sm ghost">${BED}</button></div>
