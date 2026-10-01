@@ -27,7 +27,7 @@ function FS(){if(!S.food||typeof S.food!=='object')S.food={};if(!S.food.days)S.f
 const HKEY='wt-health-v1';
 let H={days:{},HW:{active:false,start:'',len:7}};
 try{const x=JSON.parse(localStorage.getItem(HKEY)||'null');if(x)H=Object.assign(H,x);}catch(e){}
-const HF={exc:[],skin:0,crave:-1,weight:0}, SF={st:{},sw:{},extra:[],water:0,energy:0,energyAsked:false,meds:{},packed:false,used:{},guests:{}};
+const HF={exc:[],skin:0,crave:-1,weight:0}, SF={st:{},sw:{},extra:[],water:0,energy:0,energyAsked:false,meds:{},packed:false,used:{},guests:{},ing:{}};
 const cl=v=>typeof v==='object'?JSON.parse(JSON.stringify(v)):v;
 /* Ein Tag als ein Objekt; jedes Feld liegt im passenden Speicher */
 function NS(k){return new Proxy({},{
@@ -100,7 +100,7 @@ function addonSlot(D){const ids=mealIds(D);return ['mi','we','fr','br'].find(x=>
 function totals(D){const s=NS(D.k),i=ti(D);let t={kcal:0,p:0,c:0,f:0};const add=(m,f)=>{t.kcal+=m.kcal*f;t.p+=m.p*f;t.c+=m.c*f;t.f+=m.f*f;};
   for(const id of mealIds(D)){if(s.exc.find(e=>e.slot===id))continue;const m=mac(varOf(D,id),pix(D,id));if(s.st[id]==='eaten')add(m,1);if(s.st[id]==='half')add(m,.5);}
   s.exc.forEach(e=>add(e.m,SIZE[e.size]));s.extra.forEach(x=>add(x,1));return t;}
-function basisOf(D){const s=NS(D.k),eb=new Set();mealIds(D).forEach(id=>{if(s.st[id]==='eaten'||s.st[id]==='half')(V[varOf(D,id)].basis||[]).forEach(b=>eb.add(b));});if(s.meds.fish)eb.add('Fisch');return eb;}
+function basisOf(D){const s=NS(D.k),eb=new Set();mealIds(D).forEach(id=>{if(s.st[id]==='eaten'||s.st[id]==='half')(V[varOf(D,id)].basis||[]).forEach(b=>eb.add(b));});if(s.meds.fish)eb.add('Fisch');Object.keys(s.ing||{}).forEach(it=>{const b=(IT()[it]||{}).basis;if(b)eb.add(b);});return eb;}
 function nextWorkDay(D){const n=dayOf(addD(D.k,1));return n.work?n:null;}
 function packData(N){const i=ti(N),prep=[],food=[],other=[];
   shown(N).forEach(sl=>{const id=sl[0];if(id==='T')return;const X=V[varOf(N,id)];
@@ -297,8 +297,13 @@ EN.protToggle=()=>{ST.protein=ST.protein==='plant'?'whey':'plant';R();};
 /* =====================================================================
    SEITE „ERNÄHRUNG“ (Planung): Tage · Woche · Rezepte · Einkauf · Vorrat · Packliste
    ===================================================================== */
-let selK=null,ingOpen=false;
-EN.togIng=()=>{ingOpen=!ingOpen;render();};
+let selK=null;const ingOpen={};
+const isIngOpen=k=>k in ingOpen?ingOpen[k]:k===TODAY();   /* heute offen, andere Tage eingeklappt */
+EN.togIng=()=>{ingOpen[selK]=!isIngOpen(selK);render();};
+EN.ingTick=(k,it)=>{const g=NS(k).ing;if(g[it])delete g[it];else g[it]=true;R();};
+/* Über welche gegessene Mahlzeit ist eine Zutat schon abgedeckt? */
+function ateVia(D,it){const s=NS(D.k);for(const id of mealIds(D)){if(!(s.st[id]==='eaten'||s.st[id]==='half'))continue;const X=C.dishes[varOf(D,id)];if(!X||!X.use)continue;const i=pix(D,id);
+  if(Object.entries(X.use).some(([it0,q])=>itemFor(it0,D.k)===it&&(q[i]||IT()[it].unit==='basic')))return SL[id][0];}return '';}
 /* alle Zutaten eines Tages (mit „zu zweit“), it → Menge */
 function dayIngredients(D){const tot={};mealIds(D).forEach(id=>{const X=C.dishes[varOf(D,id)];if(!X||!X.use)return;const i=pix(D,id),g=isGuest(D.k,id);
   Object.entries(X.use).forEach(([it0,q])=>{const it=itemFor(it0,D.k),I=IT()[it];if(!I)return;const f=g&&(!X.yields||kindOf(it)==='beilage')?gFit(it):1;
@@ -318,9 +323,16 @@ function pTage(){const ks=days7();if(!selK||!ks.includes(selK))selK=ks[0];const 
     const v=varOf(D,id),X=V[v],pi=pix(D,id),m=mac(v,pi),st=NS(D.k).st[id];
     h+=`<div class="slot" onclick="EN.openMeal(${K},'${id}')"><div class="body"><div class="when">${SL[id][0]}${cue(D,id)?` · <span>${cue(D,id)}</span>`:''}${sl[2]==='work'?' · <span>🎒</span>':''}</div><div class="n">${X.n}${st==='eaten'?' ✓':''}</div><div class="d">${X.d(pi)} · ${m.kcal} kcal</div></div><span class="go">›</span></div>`;});
   const eb=basisOf(D);h+=`</div><div class="ecard"><div class="between"><span class="km">Pyramiden-Basis</span><span class="meta">${eb.size} / 7</span></div><div class="basis">${BASIS.map(b=>`<span class="${eb.has(b)?'on':''}">${eb.has(b)?'✓ ':''}${b}</span>`).join('')}</div></div>`;
-  const tot=dayIngredients(D),ids=Object.keys(tot);
-  if(ids.length){h+=`<div class="ecard"><div class="between" style="cursor:pointer" onclick="EN.togIng()"><span class="km">Alle Zutaten für ${D.wd} (${ids.length})</span><span class="meta">${ingOpen?'ausblenden':'anzeigen ›'}</span></div>`;
-    if(ingOpen)byCat(ids.map(it=>({it}))).forEach(([c,xs])=>{h+=`<div class="km" style="margin-top:12px">${c}</div><div class="list">${xs.map(({it})=>`<div class="it" onclick="EN.openItem('${it}')"><div style="flex:1;min-width:0">${nameOf(it)}</div><span class="meta">${fmtQ(it,['Stück','Dose','Scheiben','Packung','Portion'].includes(IT()[it].unit)?Math.ceil(tot[it]-1e-9):tot[it])||''}</span></div>`).join('')}</div>`;});
+  /* Zutaten des Tages, nach Wichtigkeit; heute und vergangene Tage einzeln abhakbar */
+  const tot=dayIngredients(D),ids=Object.keys(tot),can=D.k<=TODAY(),s0=NS(D.k);
+  if(ids.length){const isDone=it=>!!ateVia(D,it)||!!s0.ing[it],nd=ids.filter(isDone).length,open=isIngOpen(D.k);
+    h+=`<div class="ecard"><div class="between" style="cursor:pointer" onclick="EN.togIng()"><span class="km">Zutaten für ${D.k===TODAY()?'heute':D.wd} (${can?nd+' / ':''}${ids.length})</span><span class="meta">${open?'ausblenden':'anzeigen ›'}</span></div>`;
+    if(open){if(can)h+=`<div class="sub" style="font-size:12px;margin-top:4px">Abhaken, was du gegessen hast, auch ohne die ganze Mahlzeit. Zählt für die Pyramiden-Basis.</div>`;
+      const P=(C.prios)||{must:'Must-have',protein:'Protein',veg:'Gemüse & Obst',rest:'Rest'};
+      Object.keys(P).forEach(pr=>{const xs=ids.filter(it=>(IT()[it].prio||'rest')===pr);if(!xs.length)return;
+        h+=`<div class="km hl" style="margin-top:12px">${P[pr]}</div><div class="list">${xs.map(it=>{const via=ateVia(D,it),on=!!via||!!s0.ing[it],
+          q=fmtQ(it,['Stück','Dose','Scheiben','Packung','Portion'].includes(IT()[it].unit)?Math.ceil(tot[it]-1e-9):tot[it])||'',b=IT()[it].basis;
+          return `<div class="it ${on&&can?'got':''}" onclick="${can&&!via?`EN.ingTick('${D.k}','${it}')`:`EN.openItem('${it}')`}">${can?`<span class="ecb ${on?'on':''}"></span>`:''}<div style="flex:1;min-width:0">${nameOf(it)}<small>${[b?'Basis: '+b:'',via?'über '+via:''].filter(Boolean).join(' · ')}</small></div><span class="meta">${q}</span>${infoBtn(it)}</div>`;}).join('')}</div>`;});}
     h+=`</div>`;}
   const N=nextWorkDay(D);if(N)h+=`<button class="btn ghost" onclick="location.hash='#food/pack'">🎒 Packliste für ${N.wd} ${OKT(N.k)}</button>`;
   return h;}
@@ -412,12 +424,12 @@ function pEinkauf(){if(!Object.keys(IT()).length)return `<div class="ecard"><spa
   if(home){
     const all=M.rows.filter(r=>!r.later&&!r.pantry);
     h+=`<div class="sub" style="margin:0 4px 8px;font-size:13px">Antippen, was du schon hast. Es verschwindet für diese Woche von der Einkaufsliste.</div>`;
-    byCat(all).forEach(([c,xs])=>{h+=`<div class="ecard"><span class="km">${c}</span><div class="list">${xs.map(r=>rowHTML(r,'home')).join('')}</div></div>`;});
-    if(pan.length)h+=`<div class="ecard"><span class="km">Grundvorrat prüfen</span><div class="sub" style="font-size:12px;margin-top:2px">Antippen = ist da. Knapp oder leer stellst du unter <b>Vorrat</b> ein.</div><div class="list">${pan.map(r=>rowHTML(r,'home')).join('')}</div></div>`;
-    if(later.length)h+=`<div class="ecard"><span class="km">Später, frisch</span><div class="list">${later.map(r=>rowHTML(r,'home')).join('')}</div></div>`;}
+    byCat(all).forEach(([c,xs])=>{h+=`<div class="ecard"><span class="km hl">${c}</span><div class="list">${xs.map(r=>rowHTML(r,'home')).join('')}</div></div>`;});
+    if(pan.length)h+=`<div class="ecard"><span class="km hl">Grundvorrat prüfen</span><div class="sub" style="font-size:12px;margin-top:2px">Antippen = ist da. Knapp oder leer stellst du unter <b>Vorrat</b> ein.</div><div class="list">${pan.map(r=>rowHTML(r,'home')).join('')}</div></div>`;
+    if(later.length)h+=`<div class="ecard"><span class="km hl">Später, frisch</span><div class="list">${later.map(r=>rowHTML(r,'home')).join('')}</div></div>`;}
   else{if(!now.length&&!pan.length&&!later.length)h+=`<div class="ecard"><div class="sub">Alles da für die nächsten 7 Tage.</div></div>`;
-    byCat(now.concat(pan)).forEach(([c,xs])=>{h+=`<div class="ecard"><span class="km">${c}</span><div class="list">${xs.map(r=>rowHTML(r,'shop')).join('')}</div></div>`;});
-    if(later.length)h+=`<div class="ecard"><span class="km">Später, frisch</span><div class="sub" style="font-size:12px;margin-top:2px">Erst kurz vorher kaufen, am besten auf dem Heimweg am Vortag.</div><div class="list">${later.map(r=>rowHTML(r,'shop')).join('')}</div></div>`;
+    byCat(now.concat(pan)).forEach(([c,xs])=>{h+=`<div class="ecard"><span class="km hl">${c}</span><div class="list">${xs.map(r=>rowHTML(r,'shop')).join('')}</div></div>`;});
+    if(later.length)h+=`<div class="ecard"><span class="km hl">Später, frisch</span><div class="sub" style="font-size:12px;margin-top:2px">Erst kurz vorher kaufen, am besten auf dem Heimweg am Vortag.</div><div class="list">${later.map(r=>rowHTML(r,'shop')).join('')}</div></div>`;
     const n=Object.keys(FS().cart).length;if(n)h+=`<button class="btn" onclick="EN.checkout()">Einkauf abschließen · ${n} abgehakt</button>`;}
   const bolo=[];for(let n=0;n<SHOPN;n++){const k=addD(M.start,n),D=dayOf(k);if(mealIds(D).includes('ab')&&varOf(D,'ab')==='bolo')bolo.push(D.wd);}
   if(bolo.length)h+=`<div class="hint">Bolognese ×4 kochen am <b>${bolo.join(', ')}</b>, danach liegen 3 Portionen im TK.</div>`;
@@ -426,8 +438,8 @@ function pEinkauf(){if(!Object.keys(IT()).length)return `<div class="ecard"><spa
 function pVorrat(){if(!Object.keys(IT()).length)return `<div class="ecard"><span class="k">Vorrat</span></div>`+staleNote();
   const items=Object.keys(IT()).filter(isPantry).map(it=>({it})),tk=STK().bolotk||0;
   let h=`<div class="ecard"><span class="k">Vorrat</span><div class="sub" style="margin-top:6px;font-size:13px">Was immer da sein sollte. Knapp und leer kommen automatisch auf die Einkaufsliste.</div></div>
-    <div class="ecard"><span class="km">Selbst gekocht</span><div class="list"><div class="it"><div style="flex:1;min-width:0">Bolognese-Portionen im TK<small>${tk} ${tk===1?'Portion':'Portionen'} · zählt sich beim Kochen und Essen selbst</small></div><span class="row"><button class="btn sm ghost" onclick="EN.tk(-1)">−</button><button class="btn sm ghost" onclick="EN.tk(1)">+</button></span></div></div></div>`;
-  byCat(items).forEach(([c,xs])=>{h+=`<div class="ecard"><span class="km">${c}</span><div class="list">${xs.map(({it})=>{const st=pState(it);
+    <div class="ecard"><span class="km hl">Selbst gekocht</span><div class="list"><div class="it"><div style="flex:1;min-width:0">Bolognese-Portionen im TK<small>${tk} ${tk===1?'Portion':'Portionen'} · zählt sich beim Kochen und Essen selbst</small></div><span class="row"><button class="btn sm ghost" onclick="EN.tk(-1)">−</button><button class="btn sm ghost" onclick="EN.tk(1)">+</button></span></div></div></div>`;
+  byCat(items).forEach(([c,xs])=>{h+=`<div class="ecard"><span class="km hl">${c}</span><div class="list">${xs.map(({it})=>{const st=pState(it);
     return `<div class="it ${st==='leer'?'low':st==='knapp'?'low':''}" onclick="EN.openItem('${it}')"><div style="flex:1;min-width:0">${nameOf(it)}<small>${st||'noch nicht geprüft'}</small></div><span class="tri" onclick="event.stopPropagation()">${['da','knapp','leer'].map(x=>`<button class="${st===x?'on '+x:''}" onclick="EN.pset('${it}','${x}')">${x}</button>`).join('')}</span></div>`;}).join('')}</div></div>`;});
   return h;}
 /* Artikel-Details: wann und wofür gebraucht, beim Grundvorrat der Zustand */

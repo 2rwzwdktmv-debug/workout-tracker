@@ -168,3 +168,4 @@
 .sheet.en .opt.miss{opacity:.7}
 .sheet.en .guest{margin:10px 0 0;padding:9px 12px;border-radius:99px;font-size:14px;font-weight:800;text-align:center;width:auto;display:inline-block}
 .sheet.en .guest.on{border-color:var(--lime);color:var(--lime)}
+.en .km.hl{color:var(--lime)}
