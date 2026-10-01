@@ -166,3 +166,5 @@
 .en .tri button.on.leer{background:var(--red);border-color:var(--red);color:#fff}
 .en .tri.big{margin-top:6px}.en .tri.big button{flex:1;padding:9px 0;font-size:14px}
 .sheet.en .opt.miss{opacity:.7}
+.sheet.en .guest{margin:10px 0 0;padding:9px 12px;border-radius:99px;font-size:14px;font-weight:800;text-align:center;width:auto;display:inline-block}
+.sheet.en .guest.on{border-color:var(--lime);color:var(--lime)}
