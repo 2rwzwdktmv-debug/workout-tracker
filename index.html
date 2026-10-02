@@ -809,7 +809,7 @@
     nav .go:active { transform: translateX(-50%); }
   }
 </style>
-<link rel="stylesheet" href="ernaehrung.css?v=2026-10-01n">
+<link rel="stylesheet" href="ernaehrung.css?v=2026-10-02a">
 </head>
 <script>
 /* Akzentfarbe aus dem Cache setzen, BEVOR gerendert wird — sonst blitzt
@@ -837,7 +837,7 @@
   <button id="navSet"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 13.5a7.8 7.8 0 0 0 0-3l2-1.5-2-3.4-2.4 1a7.8 7.8 0 0 0-2.6-1.5L14 2.5h-4l-.4 2.6A7.8 7.8 0 0 0 7 6.6l-2.4-1-2 3.4 2 1.5a7.8 7.8 0 0 0 0 3l-2 1.5 2 3.4 2.4-1a7.8 7.8 0 0 0 2.6 1.5l.4 2.6h4l.4-2.6a7.8 7.8 0 0 0 2.6-1.5l2.4 1 2-3.4z"/></svg>Einstellungen</button>
 </nav>
 
-<script src="ernaehrung.js?v=2026-10-01n"></script>
+<script src="ernaehrung.js?v=2026-10-02a"></script>
 <script>
 "use strict";
 /* ============================================================
@@ -1987,59 +1987,51 @@ function renderPlan() {
   }).join("");
 
   html += EN.hwStrip(); /* ERNÄHRUNG */ 
+  /* ERNÄHRUNG 02.10.: Karte „Heute“ = Tagesablauf auf einer Zeitleiste. Mahlzeiten (EN.dayPre/EN.dayPost) und das
+     Training sind gleichrangige Zeilen; Trainingszeit als Chip (EN.tzChip). Inhalt der Trainingszeile wie bisher. */
+  const hk = `Heute · ${WD[first.date.getDay()]} ${esc(fmtDay(first.date))}`;
+  const trRow = (lbl, body, dots, cls) => `<div class="slot train ${cls || ""}"><div class="body"><div class="when">${lbl}</div>${body}</div>${dots ? `<span class="dots tdots" ${dots}>⋯</span>` : ""}</div>`;
   if (first.kind === "train") {
-    const istQuelle = swapFrom === first.d.key;
+    const istQuelle = swapFrom === first.d.key, go = `location.hash='#d/${first.d.pi}/${first.d.wi}/${first.d.di}'`;
     html += `<div class="today ${istQuelle ? "sel" : ""}">
-      <div class="thead">
-        <div class="k">Heute · ${WD[first.date.getDay()]} ${esc(fmtDay(first.date))}</div>
-        ${dayMinutes(first.d.day) ? `<span class="dur">≈ ${dayMinutes(first.d.day)} min</span>` : ""}
-        <span class="dots" onclick="planSheet('${first.k}')">⋯</span>
-      </div>
-      <div class="v">${esc(dayTitle(first.d))}</div>
-      <div class="s">${esc(daySub(first.d))}</div>${EN.todayLine(first)}
-      ${(swapFrom && !istQuelle)
-        ? `<button class="cta" onclick="planSwapWith('${first.d.key}')">Hierher tauschen</button>`
-        : `<button class="cta" onclick="location.hash='#d/${first.d.pi}/${first.d.wi}/${first.d.di}'">Training starten</button>`}
-      ${xBtns}
+      <div class="k">${hk}</div>
+      <div class="en tl">${EN.dayPre(first)}${trRow(`<i class='ic'>🏋️</i>Training · ${EN.tzChip(first)}${dayMinutes(first.d.day) ? ` · <span>≈ ${dayMinutes(first.d.day)} min</span>` : ""}`,
+        `<div class="n">${esc(dayTitle(first.d))}</div>
+        <div class="d">${esc(daySub(first.d))}</div>${EN.todayLine(first)}
+        ${(swapFrom && !istQuelle)
+          ? `<button class="cta" onclick="planSwapWith('${first.d.key}')">Hierher tauschen</button>`
+          : `<button class="cta ${EN.isNext(first) || !EN.ready() ? "" : "ghost"}" onclick="${go}">Training starten</button>`}
+        ${xBtns}`, `onclick="planSheet('${first.k}')"`)}${EN.dayPost(first)}</div>${EN.dayFoot(first)}
     </div>`;
   } else if (first.kind === "donetoday") {
     const nx = days.find(x => x.kind === "train");
-    html += `<div class="today quiet">
-      <div class="thead">
-        <div class="k">Heute · ${WD[first.date.getDay()]} ${esc(fmtDay(first.date))}</div>
-        ${first.d ? `<span class="dots" onclick="reDateSheet(${first.d.pi},${first.d.wi},${first.d.di})" title="War nicht heute">⋯</span>` : ""}
-      </div>
-      <div class="v">${first.d ? esc(dayTitle(first.d)) + " ✓" : "Erledigt ✓"}</div>
-      <div class="s">${nx ? "Als Nächstes: " + esc(dayTitle(nx.d)) : "Weiter geht's demnächst."}</div>${EN.energyLine()}
-      ${first.d ? `<button class="cta ghost" onclick="location.hash='#d/${first.d.pi}/${first.d.wi}/${first.d.di}'">Einheit ansehen</button>` : ""}
-      ${xBtns}
+    html += `<div class="today">
+      <div class="k">${hk}</div>
+      <div class="en tl">${EN.dayPre(first)}${trRow("<i class='ic'>🏋️</i>Training · <span>erledigt ✓</span>",
+        `<div class="n">${first.d ? esc(dayTitle(first.d)) : "Erledigt"}</div>
+        <div class="d">${nx ? "Als Nächstes: " + esc(dayTitle(nx.d)) : "Weiter geht's demnächst."}</div>${EN.energyLine()}
+        ${first.d ? `<div class="lk tlk" onclick="location.hash='#d/${first.d.pi}/${first.d.wi}/${first.d.di}'">Einheit ansehen ›</div>` : ""}
+        ${xBtns}`, first.d ? `onclick="reDateSheet(${first.d.pi},${first.d.wi},${first.d.di})" title="War nicht heute"` : "")}${EN.dayPost(first)}</div>${EN.dayFoot(first)}
     </div>`;
-  } else if (first.kind === "off") {
-    html += `<div class="today quiet">
-      <div class="k">Heute · ${WD[first.date.getDay()]} ${esc(fmtDay(first.date))}</div>
-      <div class="v">Geht nicht</div>
-      <div class="s">Als Ausfalltag markiert — alles rutscht nach hinten.</div>
-      <button class="cta ghost" onclick="planOffToggle('${first.k}')">Doch, geht</button>
-      ${xBtns}
-    </div>`;
-  } else if (first.kind === "rest") {
-    html += `<div class="today quiet">
-      <div class="k">Heute · ${WD[first.date.getDay()]} ${esc(fmtDay(first.date))}</div>
-      <div class="v">Ruhetag</div>
-      <div class="s">${MAX_STREAK} Trainingstage am Stück sind genug.</div>
-      <button class="cta ghost" onclick="planForce('${first.k}')">Trotzdem trainieren</button>
-      ${xBtns}
+  } else if (first.kind === "off" || first.kind === "rest") {
+    const off = first.kind === "off";
+    html += `<div class="today">
+      <div class="k">${hk}</div>
+      <div class="en tl">${trRow("<i class='ic'>🏋️</i>Training",
+        `<div class="n">${off ? "Geht nicht" : "Ruhetag"}</div>
+        <div class="d">${off ? "Als Ausfalltag markiert — alles rutscht nach hinten." : MAX_STREAK + " Trainingstage am Stück sind genug."}</div>
+        <div class="lk tlk" onclick="${off ? `planOffToggle('${first.k}')` : `planForce('${first.k}')`}">${off ? "Doch, geht ›" : "Trotzdem trainieren ›"}</div>
+        ${xBtns}`, "", "quiet")}${EN.dayPost(first)}</div>${EN.dayFoot(first)}
     </div>`;
   }
 
-  html += EN.homeCards(); /* ERNÄHRUNG */ 
   html += `<h2 class="section">Danach</h2>`;
   days.slice(1).forEach(e => {
     const wd = `<div class="dt"><div class="wd">${WD[e.date.getDay()]}</div><div class="dn">${e.date.getDate()}.</div></div>`;
     html += `<div class="pdw">`;
     if (e.kind === "train") {
       const sel = swapFrom === e.d.key;
-      const click = swapFrom ? `planSwapWith('${e.d.key}')` : `location.hash='#d/${e.d.pi}/${e.d.wi}/${e.d.di}'`;
+      const click = swapFrom ? `planSwapWith('${e.d.key}')` : EN.ready() ? `EN.openDay('${e.k}')` /* ERNÄHRUNG: Tagesvorschau */ : `location.hash='#d/${e.d.pi}/${e.d.wi}/${e.d.di}'`;
       const nSess = e.d.day.sessions.filter(s => s.items.some(i => !i.rest)).length;
       html += `<div class="pd ${sel ? "sel" : ""}" onclick="${click}">${wd}
         <div class="inf"><div class="t">${esc(dayTitle(e.d))}</div><div class="s">${esc(daySub(e.d))}</div></div>
