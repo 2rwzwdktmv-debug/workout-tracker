@@ -2291,8 +2291,8 @@ function renderTrack(id) {
     const mainPart = tr.parts[0];
     // Verlauf über die Gesamtleistung einer Einheit, nicht über den besten Einzelsatz:
     // vier saubere Sätze sind mehr wert als ein Ausreißer.
-    const pts = st.log.filter(l => l.sets && l.sets[mainPart.id])
-      .slice(-10).map(l => trTotal(l.sets[mainPart.id]));
+    const ptLog = st.log.filter(l => l.sets && l.sets[mainPart.id]).slice(-10);
+    const pts = ptLog.map(l => trTotal(l.sets[mainPart.id]));
     if (pts.length > 1) {
       const u = " " + trUnit(mainPart);
       const cur = pts[pts.length - 1], d = cur - pts[pts.length - 2];
@@ -2302,7 +2302,7 @@ function renderTrack(id) {
       html += `<div class="chartcard tkc">
         <div class="h">${esc(mainPart.name)} · ${mainPart.unit === "s" ? "Gesamtzeit" : mainPart.unit === "min" ? "Geschaffte Minuten" : "Gesamt-Wdh."} je Einheit</div>
         <div class="tsum"><strong>${cur}${u}</strong>${chip}</div>
-        ${spark(pts, 320, 56)}</div>`;
+        ${sparkAxes(pts, ptLog.map(l => fmtDM(l.d)), trUnit(mainPart))}</div>`;
     }
   }
   if (tr.source) html += `<div class="foot">${esc(tr.source)}</div>`;
@@ -3019,6 +3019,35 @@ function spark(pts, w, h) {
   return `<svg class="spark" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">
     <polyline points="${line}" fill="none" stroke="var(--lime)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
     <circle cx="${x(pts.length - 1).toFixed(1)}" cy="${y(pts[pts.length - 1]).toFixed(1)}" r="3.2" fill="var(--lime)"/>
+  </svg>`;
+}
+/* Verlaufskurve mit Achsen: Y-Raster in runden Schritten eng um die Werte, X = Datum der Einheit */
+function sparkAxes(pts, labels, unit) {
+  if (!pts || pts.length < 2) return `<div class="sparkempty">noch zu wenig Daten</div>`;
+  const W = 320, H = 150, L = 34, R = 10, T = 12, B = 22;
+  const lo0 = Math.min(...pts), hi0 = Math.max(...pts);
+  const step = [1, 2, 5, 10, 20, 50, 100].find(st => Math.ceil(hi0 / st) - Math.floor(lo0 / st) <= 6) || 100;
+  let lo = Math.floor(lo0 / step) * step, hi = Math.ceil(hi0 / step) * step;
+  if (hi === lo) hi = lo + step;
+  const x = i => L + i * (W - L - R) / (pts.length - 1);
+  const y = v => T + (hi - v) * (H - T - B) / (hi - lo);
+  let g = "";
+  for (let v = lo; v <= hi; v += step) {
+    g += `<line x1="${L}" x2="${W - R}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}" stroke="var(--line)" stroke-width="1"/>`
+      + `<text x="${L - 5}" y="${(y(v) + 3.5).toFixed(1)}" text-anchor="end" font-size="10" fill="var(--muted)">${v}</text>`;
+  }
+  // Datumsbeschriftung von rechts her, mit Mindestabstand
+  let lastX = Infinity, xl = "";
+  for (let i = pts.length - 1; i >= 0; i--) {
+    if (lastX - x(i) < 42 && i !== pts.length - 1) continue;
+    xl += `<text x="${x(i).toFixed(1)}" y="${H - 6}" text-anchor="${i === 0 ? "start" : i === pts.length - 1 ? "end" : "middle"}" font-size="10" fill="var(--muted)">${esc(labels[i])}</text>`;
+    lastX = x(i);
+  }
+  const line = pts.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
+  return `<svg class="spark" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Verlauf, Einheit ${esc(unit)}">
+    ${g}${xl}
+    <polyline points="${line}" fill="none" stroke="var(--lime)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    ${pts.map((v, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="${i === pts.length - 1 ? 3.6 : 2.2}" fill="var(--lime)"/>`).join("")}
   </svg>`;
 }
 function weekBars(weeks) {
