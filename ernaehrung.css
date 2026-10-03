@@ -248,3 +248,12 @@
 .hero .txt .s.hs b{font-size:17px;font-weight:800;color:var(--ink)}
 .topc .tc-g>*{white-space:nowrap}
 .topc .tc-g.g3{column-gap:6px}
+
+/* Intra-Workout: eine leise Zeile in Training und Übersicht */
+.en .intra{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:8px 0 2px;padding:8px 10px 8px 12px;border-radius:var(--r-sm);background:rgba(142,197,240,.07);border:1px solid rgba(142,197,240,.25);font-size:13.5px;color:var(--ink2);cursor:pointer}
+.en .intra b{color:var(--ink)}
+.en .intra .ic{font-style:normal;margin-right:4px}
+.en .intra .st{flex:none;width:28px;height:28px;border-radius:50%;border:2px solid var(--line);background:none;color:var(--lime-ink);font-weight:800;padding:0;margin:0}
+.en .intra .st.eaten,.en .intra .st.half{background:var(--lime);border-color:var(--lime)}
+.en .intra.done{opacity:.75}
+.item .en .intra{margin:9px 0 0 42px}

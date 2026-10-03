@@ -809,7 +809,7 @@
     nav .go:active { transform: translateX(-50%); }
   }
 </style>
-<link rel="stylesheet" href="ernaehrung.css?v=2026-10-03d">
+<link rel="stylesheet" href="ernaehrung.css?v=2026-10-03e">
 </head>
 <script>
 /* Akzentfarbe aus dem Cache setzen, BEVOR gerendert wird — sonst blitzt
@@ -837,7 +837,7 @@
   <button id="navSet"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 13.5a7.8 7.8 0 0 0 0-3l2-1.5-2-3.4-2.4 1a7.8 7.8 0 0 0-2.6-1.5L14 2.5h-4l-.4 2.6A7.8 7.8 0 0 0 7 6.6l-2.4-1-2 3.4 2 1.5a7.8 7.8 0 0 0 0 3l-2 1.5 2 3.4 2.4-1a7.8 7.8 0 0 0 2.6 1.5l.4 2.6h4l.4-2.6a7.8 7.8 0 0 0 2.6-1.5l2.4 1 2-3.4z"/></svg>Einstellungen</button>
 </nav>
 
-<script src="ernaehrung.js?v=2026-10-03d"></script>
+<script src="ernaehrung.js?v=2026-10-03e"></script>
 <script>
 "use strict";
 /* ============================================================
@@ -2474,6 +2474,7 @@ function renderDay(pi, wi, di) {
             <div class="tt">${esc(ct.title)}${item.opt ? ` <span class="optb">optional</span>` : ""}</div>
             ${ct.meta ? `<div class="st">${esc(ct.meta)}</div>` : ""}
           </div></div>`}
+        ${EN.intraFor(item, pi, wi, di)}
         ${item.body ? `<div class="body">${fmtBody(item.body, item.id + ":b")}</div>` : ""}
         ${pace ? `<div class="pace"><span>Zielpace</span> ${esc(pace)}${(paceDef(item.paceKey) || {}).unit ? " " + esc(paceDef(item.paceKey).unit) : ""}</div>` : ""}
         ${item.own ? `<div class="own"><span>Meine Regel ·</span> ${esc(item.own)}</div>` : ""}
