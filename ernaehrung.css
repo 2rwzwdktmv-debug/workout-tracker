@@ -257,3 +257,5 @@
 .en .intra .st.eaten,.en .intra .st.half{background:var(--lime);border-color:var(--lime)}
 .en .intra.done{opacity:.75}
 .item .en .intra{margin:9px 0 0 42px}
+
+.en .basis span.np{opacity:.4;border-style:dashed}

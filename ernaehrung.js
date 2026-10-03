@@ -158,6 +158,10 @@ function totals(D){const s=NS(D.k),i=ti(D);let t={kcal:0,p:0,c:0,f:0};const add=
   for(const id of mealIds(D)){if(s.exc.find(e=>e.slot===id))continue;const m=mac(varOf(D,id),pix(D,id));if(s.st[id]==='eaten')add(m,1);if(s.st[id]==='half')add(m,.5);}
   s.exc.forEach(e=>add(e.m,SIZE[e.size]));s.extra.forEach(x=>add(x,1));return t;}
 function basisOf(D){const s=NS(D.k),eb=new Set();mealIds(D).forEach(id=>{if(s.st[id]==='eaten'||s.st[id]==='half')(V[varOf(D,id)].basis||[]).forEach(b=>eb.add(b));});if(s.meds.fish||Object.keys(s.meds).some(n=>s.meds[n]&&/fisch|omega/i.test(n)))eb.add('Fisch');Object.keys(s.ing||{}).forEach(it=>{const b=(IT()[it]||{}).basis;if(b)eb.add(b);});return eb;}
+/* Welche Basis-Lebensmittel stehen heute im Plan (Gerichte, Zutaten, Fischöl als Supplement)? */
+function planBasis(D){const pb=new Set();mealIds(D).forEach(id=>(V[varOf(D,id)].basis||[]).forEach(b=>pb.add(b)));
+  Object.keys(dayIngredients(D)).forEach(it=>{const b=(IT()[it]||{}).basis;if(b)pb.add(b);});
+  if(supOn().some(x=>/fisch|omega/i.test(x.n)))pb.add('Fisch');return pb;}
 function nextWorkDay(D){const n=dayOf(addD(D.k,1));return n.work?n:null;}
 function packData(N){const i=ti(N),prep=[],food=[],other=[];
   shown(N).forEach(sl=>{const id=sl[0];if(id==='T')return;const X=V[varOf(N,id)];
@@ -191,7 +195,7 @@ EN.hwStrip=function(){if(!C)return '';const k=TODAY(),h=hwDay(k);let x='';
    Ganze Mahlzeit gegessen oder halb = alle ihre Zutaten. Einzeln abgehakt (z. B. nur Heidelbeeren) zählt auch.
    Woche und Monat: nur abgeschlossene Tage ab dem ersten Eintrag; Tage ganz ohne Eintrag zählen nicht mit. */
 const logged=k=>{const d=FS().days[k];return !!d&&(Object.keys(d.st||{}).length>0||Object.keys(d.ing||{}).length>0);};
-function dayScore(k){const D=dayOf(k),ids=Object.keys(dayIngredients(D));if(!ids.length)return null;const g=(FS().days[k]||{}).ing||{};
+function dayScore(k){const D=dayOf(k),ids=tickIds(D);if(!ids.length)return null;const g=(FS().days[k]||{}).ing||{};
   return {nd:ids.filter(it=>!!ateVia(D,it)||!!g[it]).length,n:ids.length};}
 const startDay=()=>Object.keys(FS().days).filter(logged).sort()[0]||null;
 function periodScore(from){const st=startDay(),y=addD(TODAY(),-1);let a=0,b=0,n=0;if(!st)return null;
@@ -384,7 +388,7 @@ const macLine=(v,i)=>{const m=mac(v,i),X=V[v];return `<div class="mline">${m.kca
 const BASIC_RE=/öl\b|öl über|salz|pfeffer|oregano|paprikapulver|zimt|ingwer|knoblauch|marinade|zitrone/i;
 function ingGroups(X,rows,k){const I=IT();
   if(rows.some(r=>/^·/.test(r[0]))||!rows.some(r=>r[3]&&I[r[3]]&&I[r[3]].kind==='protein'))return ingHTML(rows,k);
-  const grp=r=>BASIC_RE.test(r[0])?'basic':!X.noSide&&((r[3]&&I[r[3]]&&I[r[3]].kind==='beilage')||/^(Obst|Apfel|Banane)/.test(r[0]))?'side':'main';
+  const grp=r=>/^Ingwer, frisch/.test(r[0])?(X.noSide?'main':'side'):BASIC_RE.test(r[0])?'basic':!X.noSide&&((r[3]&&I[r[3]]&&I[r[3]].kind==='beilage')||/^(Obst|Apfel|Banane)/.test(r[0]))?'side':'main';   /* ein Stück Ingwer isst man, es ist kein Gewürz */
   const by={main:[],side:[],basic:[]};rows.forEach(r=>by[grp(r)].push(r));
   return ingHTML(by.main,k)+[['side','Beilage'],['basic','Öl & Gewürze']].filter(([g])=>by[g].length).map(([g,l])=>`<div class="km ing-sec">${l}</div>${ingHTML(by[g],k)}`).join('');}
 function ingBlock(v,i,k,g,lbl,gBtn){const X=V[v];
@@ -508,6 +512,8 @@ EN.ingTick=(k,it)=>{const g=NS(k).ing;if(g[it])delete g[it];else g[it]=true;R();
 /* Über welche gegessene Mahlzeit ist eine Zutat schon abgedeckt? */
 function ateVia(D,it){const s=NS(D.k);for(const id of mealIds(D)){if(!(s.st[id]==='eaten'||s.st[id]==='half'))continue;const X=C.dishes[varOf(D,id)];if(!X||!X.use)continue;const i=pix(D,id);
   if(Object.entries(X.use).some(([it0,q])=>itemFor(it0,D.k)===it&&(q[i]||IT()[it].unit==='basic')))return SL[id][0];}return '';}
+/* Zum Abhaken und Zählen: ohne Öl, Salz, Gewürze (die isst niemand einzeln, sie kommen mit der Mahlzeit) */
+const tickIds=D=>Object.keys(dayIngredients(D)).filter(it=>(IT()[it]||{}).unit!=='basic');
 /* alle Zutaten eines Tages (mit „zu zweit“), it → Menge */
 function dayIngredients(D){const tot={};mealIds(D).forEach(id=>{const X=C.dishes[varOf(D,id)];if(!X||!X.use)return;const i=pix(D,id),g=isGuest(D.k,id);
   Object.entries(X.use).forEach(([it0,q])=>{const it=itemFor(it0,D.k),I=IT()[it];if(!I)return;const f=g&&(!X.yields||kindOf(it)==='beilage')?gFit(it):1;
@@ -524,9 +530,12 @@ function pTage(){const ks=days7();if(!selK||!ks.includes(selK))selK=ks[0];const 
     <div class="bil">${ringSVG(t.kcal/T.kcal,Math.round(t.kcal),'von '+T.kcal)}${macHTML(t,T)}</div></div>`;
   h+=`<div class="ecard"><span class="km">Tagesablauf</span>`;
   h+=`<div class="en tl">${mealList(D,'pre')}${D.train?`<div class="trainline" onclick="EN.openTime('${D.k}')"><i class="ic">🏋️</i>Training <span class="tzc">${TZL[D.tz]} ⌄</span></div>`:''}${mealList(D,'post')}</div>`;
-  const eb=basisOf(D);h+=`</div><div class="ecard"><div class="between"><span class="km">Pyramiden-Basis</span><span class="meta">${eb.size} / 7</span></div><div class="basis">${BASIS.map(b=>`<span class="${eb.has(b)?'on':''}">${eb.has(b)?'✓ ':''}${b}</span>`).join('')}</div></div>`;
+  const eb=basisOf(D),pb=planBasis(D),pn=BASIS.filter(b=>pb.has(b)),got=BASIS.filter(b=>eb.has(b));
+  h+=`</div><div class="ecard"><div class="between"><span class="km">Pyramiden-Basis</span><span class="meta">${pn.filter(b=>eb.has(b)).length} / ${pn.length} geplant${got.length>pn.filter(b=>eb.has(b)).length?' · +'+(got.length-pn.filter(b=>eb.has(b)).length)+' extra':''}</span></div>
+    <div class="basis">${BASIS.map(b=>`<span class="${eb.has(b)?'on':pb.has(b)?'':'np'}">${eb.has(b)?'✓ ':''}${b}</span>`).join('')}</div>
+    ${BASIS.some(b=>!pb.has(b)&&!eb.has(b))?`<div class="sub" style="font-size:12px;margin-top:6px">Blass = heute nicht im Plan.</div>`:''}</div>`;
   /* Zutaten des Tages, nach Wichtigkeit; heute und vergangene Tage einzeln abhakbar */
-  const tot=dayIngredients(D),ids=Object.keys(tot),can=D.k<=TODAY(),s0=NS(D.k);
+  const tot=dayIngredients(D),ids=tickIds(D),can=D.k<=TODAY(),s0=NS(D.k);
   if(ids.length){const isDone=it=>!!ateVia(D,it)||!!s0.ing[it],nd=ids.filter(isDone).length,open=isIngOpen(D.k);
     h+=`<div class="ecard"><div class="between" style="cursor:pointer" onclick="EN.togIng()"><span class="km">Zutaten für ${D.k===TODAY()?'heute':D.wd} (${can?nd+' / ':''}${ids.length})</span><span class="meta">${open?'ausblenden':'anzeigen ›'}</span></div>`;
     if(open){if(can)h+=`<div class="sub" style="font-size:12px;margin-top:4px">Abhaken, was du gegessen hast, auch ohne die ganze Mahlzeit. Zählt für die Pyramiden-Basis.</div>`;
