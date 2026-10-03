@@ -128,14 +128,14 @@ function placeTraining(D,RC){const md=D.md,tz=D.tz=tzOf(D.k,md),t=tMin(tz,md),M=
   let pos=M.findIndex(s=>mt(s)>=t);if(pos<0)pos=M.length;
   const pre=M[pos-1],gap=pre?t-mt(pre):999,ins=[];
   if(gap>180){const atWork=md==='voll'&&t>=workTime(md)[0]*60&&t<workTime(md)[1]*60;ins.push(['vor','preWE',atWork?'work':'home']);D.cue.vor='30–60 min vorher';}
-  else D.cue[pre[0]]=(['na','wn','vm'].includes(pre[0])?(md==='halb'?'1–2 h':'1–3 h'):'2–3 h')+' vor dem Training';
+  else D.cue[pre[0]]='Pre-Workout · '+(['na','wn','vm'].includes(pre[0])?(md==='halb'?'1–2 h':'1–3 h'):'2–3 h')+' vorher';
   ins.push(['T']);
   if(md==='voll'||(md==='halb'&&(D.fast||tz==='frueh'||tz==='mittag')))ins.push(RC);
   M.splice(pos,0,...ins);
   const nx=M[pos+ins.length];
   if(nx&&nx[0]==='br')nx[0]='fr';   /* Frühstück nach dem Training */
-  if(nx&&md==='frei'&&nx[0]!=='ab')D.cue[nx[0]]='nach dem Training';
-  const ai=M.findIndex(s=>s[0]==='ab');D.abAfter=ai>0&&['T','rc'].includes(M[ai-1][0]);}
+  if(nx&&md==='frei'&&nx[0]!=='ab')D.cue[nx[0]]='Post-Workout';
+  const ai=M.findIndex(s=>s[0]==='ab');D.abAfter=ai>0&&M[ai-1][0]==='T';}   /* nach dem Shake ist das Abendessen kein Post-Workout mehr */
 const ti=D=>TT[D.type].i;
 const mac=(v,i)=>mk(V[v].P[i],V[v].C[i],V[v].F[i]);
 const varOf=(D,id)=>{const s=D.slots.find(x=>x[0]===id);return NS(D.k).sw[id]||s[1];};
@@ -143,7 +143,7 @@ const shown=D=>D.slots.filter(s=>!(s[0]==='rc'&&ti(D)<3&&!D.fast));
 /* Portion pro Mahlzeit: im Fasten-Fenster eine Stufe größer (Vormittag fällt weg) */
 const pix=(D,id)=>D.fast&&['mi','na','ab'].includes(id)?Math.min(ti(D)+1,3):ti(D);
 const slotWhen=(D,s)=>{const c=D.cue[s[0]];if(c)return c;if(s[3])return s[3];if(['na','wn','vm'].includes(s[0]))return 'wann es passt';
-  if(s[0]==='ab')return (D.abAfter?'nach dem Training · ':'')+'bis ~'+DINNER_BY();return SL[s[0]][1];};
+  if(s[0]==='ab')return (D.abAfter?'Post-Workout · ':'')+'bis ~'+DINNER_BY();return SL[s[0]][1];};
 const mealIds=D=>shown(D).filter(s=>s[0]!=='T').map(s=>s[0]);
 const mealDone=(D,id)=>!!NS(D.k).st[id]||!!NS(D.k).exc.find(e=>e.slot===id);
 function nextMeal(D){const ids=mealIds(D);let last=-1;ids.forEach((id,n)=>{if(mealDone(D,id))last=n;});const n=ids.findIndex((id,j)=>j>last&&!mealDone(D,id));return n<0?null:ids[n];}
