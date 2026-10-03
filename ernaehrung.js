@@ -321,9 +321,17 @@ const scaleAmt=(t,f)=>f===1||!t?t:String(t).replace(/(\d+(?:[.,]\d+)?|½|¼)(\s*
 const scaleRow=(X,label)=>!X.yields||/nur deine Portion/.test(label);
 /* Detailansicht schlank: Nährwerte als eine Zeile, Status als Leiste, Tauschen als eine Zeile, Zubereitung zugeklappt */
 const macLine=(v,i)=>{const m=mac(v,i),X=V[v];return `<div class="mline">${m.kcal} kcal · P ${m.p} · KH ${m.c} · F ${m.f}${X.time?' · ⏱ '+X.time:''}</div>`;};
+/* Zutaten gruppiert: Gericht · Beilage · Öl & Gewürze. Nur bei Gerichten mit Eiweißquelle; Snacks und Boxen (· Unterzeilen)
+   bleiben eine Liste. noSide in nutrition.json: Beilage gehört zum Gericht (Kartoffel-Ei-Pfanne, Wrap). */
+const BASIC_RE=/öl\b|öl über|salz|pfeffer|oregano|paprikapulver|zimt|ingwer|knoblauch|marinade|zitrone/i;
+function ingGroups(X,rows,k){const I=IT();
+  if(rows.some(r=>/^·/.test(r[0]))||!rows.some(r=>r[3]&&I[r[3]]&&I[r[3]].kind==='protein'))return ingHTML(rows,k);
+  const grp=r=>BASIC_RE.test(r[0])?'basic':!X.noSide&&((r[3]&&I[r[3]]&&I[r[3]].kind==='beilage')||/^(Obst|Apfel|Banane)/.test(r[0]))?'side':'main';
+  const by={main:[],side:[],basic:[]};rows.forEach(r=>by[grp(r)].push(r));
+  return ingHTML(by.main,k)+[['side','Beilage'],['basic','Öl & Gewürze']].filter(([g])=>by[g].length).map(([g,l])=>`<div class="km ing-sec">${l}</div>${ingHTML(by[g],k)}`).join('');}
 function ingBlock(v,i,k,g,lbl,gBtn){const X=V[v];
   const rows=X.ing(i,k).map(r=>{const sb=r[3]&&subOf(r[3]);if(sb)r=[r[0].replace(IT()[r[3]].n,IT()[sb].n),r[1],r[2],sb];return g&&scaleRow(X,r[0])?[r[0],scaleAmt(r[1],gFit(r[3])),r[2]]:r;});
-  return `<div class="between sec2"><span class="km">Zutaten${lbl?' · '+lbl:''}</span>${gBtn||''}</div>${ingHTML(rows,k)}
+  return `<div class="between sec2"><span class="km">Zutaten${lbl?' · '+lbl:''}</span>${gBtn||''}</div>${ingGroups(X,rows,k)}
     ${g?`<div class="sub" style="font-size:12px;margin-top:4px">Zu zweit: ${gLabel()}${X.yields?` · ${X.yields.bolotk-1} statt ${X.yields.bolotk} Portionen für den TK`:''}</div>`:''}`;}
 function stepsBlock(v,k,open){const X=V[v],st=X.steps(k);if(!st.length&&!X.tip)return '';
   return `<details class="stp2" ${open?'open':''}><summary><span class="km">Zubereitung</span><span class="meta">${st.length} ${st.length===1?'Schritt':'Schritte'} ›</span></summary><ol class="steps">${st.map(x=>`<li>${x}</li>`).join('')}</ol>${X.tip?`<div class="hint amb">${X.tip}</div>`:''}</details>`;}
