@@ -809,7 +809,7 @@
     nav .go:active { transform: translateX(-50%); }
   }
 </style>
-<link rel="stylesheet" href="ernaehrung.css?v=2026-10-03c">
+<link rel="stylesheet" href="ernaehrung.css?v=2026-10-03d">
 </head>
 <script>
 /* Akzentfarbe aus dem Cache setzen, BEVOR gerendert wird — sonst blitzt
@@ -837,7 +837,7 @@
   <button id="navSet"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 13.5a7.8 7.8 0 0 0 0-3l2-1.5-2-3.4-2.4 1a7.8 7.8 0 0 0-2.6-1.5L14 2.5h-4l-.4 2.6A7.8 7.8 0 0 0 7 6.6l-2.4-1-2 3.4 2 1.5a7.8 7.8 0 0 0 0 3l-2 1.5 2 3.4 2.4-1a7.8 7.8 0 0 0 2.6 1.5l.4 2.6h4l.4-2.6a7.8 7.8 0 0 0 2.6-1.5l2.4 1 2-3.4z"/></svg>Einstellungen</button>
 </nav>
 
-<script src="ernaehrung.js?v=2026-10-03c"></script>
+<script src="ernaehrung.js?v=2026-10-03d"></script>
 <script>
 "use strict";
 /* ============================================================
@@ -2089,13 +2089,10 @@ function renderHome() {
       <div class="txt">
         <div class="k">Aktuell</div>
         <div class="v">${esc(posTxt)}</div>
-        <div class="s">${done} von ${total} Parts erledigt</div><div class="s" style="color:var(--sky);font-weight:700;margin-top:3px">Analyse ›</div>
-      </div>
+        <div class="s hs"><b>${done}</b> von ${total} Parts</div><div class="s hs"><b>${nResults}</b> Ergebnisse geloggt</div>
+      </div><span class="hero-a">Analyse ›</span>
     </div>
-    <div class="stats">
-      <div class="stat"><b>${done}</b><span>Parts erledigt</span></div>
-      <div class="stat"><b>${nResults}</b><span>Ergebnisse geloggt</span></div>
-    </div>
+    <div class="topc">${EN.topFood()}</div> <!-- ERNÄHRUNG 03.10.: Nach Plan -->
     <div style="margin-top:22px"></div>` + renderPlan();
   html += EN.homeBottom(); /* ERNÄHRUNG */ 
   html += `<div class="foot">privater Tracker · ${mode === "github" ? "Sync: GitHub" : "lokaler Modus"}</div>`;

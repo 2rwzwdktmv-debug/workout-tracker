@@ -44,7 +44,7 @@ function FS(){if(!S.food||typeof S.food!=='object')S.food={};if(!S.food.days)S.f
 const HKEY='wt-health-v1';
 let H={days:{},HW:{active:false,start:'',len:7}};
 try{const x=JSON.parse(localStorage.getItem(HKEY)||'null');if(x)H=Object.assign(H,x);}catch(e){}
-const HF={exc:[],skin:0,crave:-1,weight:0,waist:0}, SF={st:{},sw:{},extra:[],water:0,energy:0,energyAsked:false,meds:{},packed:false,used:{},guests:{},ing:{}};
+const HF={exc:[],skin:0,haut:0,skinAt:[],crave:-1,weight:0,waist:0}, SF={st:{},sw:{},extra:[],water:0,energy:0,energyAsked:false,meds:{},packed:false,used:{},guests:{},ing:{}};
 const cl=v=>typeof v==='object'?JSON.parse(JSON.stringify(v)):v;
 /* Ein Tag als ein Objekt; jedes Feld liegt im passenden Speicher */
 function NS(k){return new Proxy({},{
@@ -95,7 +95,9 @@ function plan(){if(!PP){PP={};try{projectPlan(8).forEach(e=>{PP[e.k]=e;});}catch
 const TODAY=()=>dkey(today0());
 let DC={};
 function dayOf(k){return DC[k]||(DC[k]=dayOf0(k));}
-function dayOf0(k){const e=plan()[k]||{kind:'empty'},w=D_(k).getDay();
+/* Vergangene Tage (für „Nach Plan“): trainiert laut Log, sonst Ausfall- oder Ruhetag */
+function pastEntry(k){if(k>=TODAY())return null;try{const d=dayWorkedOn(k);if(d)return {kind:'donetoday',d};if(planState().off.includes(k))return {kind:'off'};}catch(e){}return null;}
+function dayOf0(k){const e=plan()[k]||pastEntry(k)||{kind:'empty'},w=D_(k).getDay();
   const isT=e.kind==='train'||e.kind==='donetoday',min=e.d?dayMinutes(e.d.day):0;
   const type=!isT?'rest':min>=120?'hard':min>=45?'train':'active';
   const D={k,wd:WDL[w],e,min,type,off:e.kind==='off',done:e.kind==='donetoday',train:isT?(e.d?dayTitle(e.d):'Training'):null,len:min?'≈ '+min+' min':''};
@@ -175,10 +177,38 @@ EN.close=()=>closeSheet();
 /* =====================================================================
    ÜBERSICHT · Ergänzungen (die Original-Karten bleiben unverändert)
    ===================================================================== */
-EN.hwStrip=function(){if(!C)return '';const k=TODAY(),h=hwDay(k);
-  if(h)return `<div class="en"><div class="hwstrip" onclick="EN.openHw()"><span>Heilungsfenster · Tag ${h}/${HW.len}</span><span>Regeln ›</span></div></div>`;
-  if(HW.active&&k<HW.start)return `<div class="en"><div class="hwstrip" onclick="EN.openHw()"><span>Heilungsfenster startet ${diff(HW.start,k)===1?'morgen':'am '+OKT(HW.start)}</span><span>Was ist das? ›</span></div></div>`;
-  return '';};
+/* Oben auf der Übersicht: Heilungsfenster (wenn aktiv) · Nach Plan · fällige Messung */
+EN.hwStrip=function(){if(!C)return '';const k=TODAY(),h=hwDay(k);let x='';
+  if(h)x+=`<div class="hwstrip" onclick="EN.openHw()"><span>Heilungsfenster · Tag ${h}/${HW.len}</span><span>Regeln ›</span></div>`;
+  else if(HW.active&&k<HW.start)x+=`<div class="hwstrip" onclick="EN.openHw()"><span>Heilungsfenster startet ${diff(HW.start,k)===1?'morgen':'am '+OKT(HW.start)}</span><span>Was ist das? ›</span></div>`;
+  return x?`<div class="en">${x}</div>`:'';};
+
+/* ---------- Nach Plan: abgehakte Zutaten / geplante Zutaten (dieselbe Liste wie Ernährung → Tage) ----------
+   Ganze Mahlzeit gegessen oder halb = alle ihre Zutaten. Einzeln abgehakt (z. B. nur Heidelbeeren) zählt auch.
+   Woche und Monat: nur abgeschlossene Tage ab dem ersten Eintrag; Tage ganz ohne Eintrag zählen nicht mit. */
+const logged=k=>{const d=FS().days[k];return !!d&&(Object.keys(d.st||{}).length>0||Object.keys(d.ing||{}).length>0);};
+function dayScore(k){const D=dayOf(k),ids=Object.keys(dayIngredients(D));if(!ids.length)return null;const g=(FS().days[k]||{}).ing||{};
+  return {nd:ids.filter(it=>!!ateVia(D,it)||!!g[it]).length,n:ids.length};}
+const startDay=()=>Object.keys(FS().days).filter(logged).sort()[0]||null;
+function periodScore(from){const st=startDay(),y=addD(TODAY(),-1);let a=0,b=0,n=0;if(!st)return null;
+  for(let k=from<st?st:from;k<=y;k=addD(k,1)){if(!logged(k))continue;const s=dayScore(k);if(!s)continue;a+=s.nd;b+=s.n;n++;}
+  return b?{p:Math.round(100*a/b),n}:null;}
+const pct=s=>s?s.p+' %':'–';
+/* Übersicht: Ernährung nach Plan · heute · letzte 7 · letzte 30 Tage (abgeschlossene Tage, ohne heute) */
+EN.topFood=function(){if(!C)return '';const k=TODAY(),t=dayScore(k),tp=t?Math.round(100*t.nd/t.n)+' %':'–',st=startDay();
+  /* erst anzeigen, wenn seit dem Start so viele Tage vergangen sind */
+  const per=n=>st&&diff(k,st)>=n?`<b>${pct(periodScore(addD(k,-n)))}</b>`:`<i>${st?'ab '+D_(addD(st,n)).getDate()+'.'+(D_(addD(st,n)).getMonth()+1)+'.':'–'}</i>`;
+  const due=['weight','waist'].filter(f=>showMeasure(f,k)&&!NS(k)[f]);
+  return `<div class="tc-sec" onclick="EN.openScore()"><div class="tc-h"><span>Ernährung nach Plan</span><span class="tc-l">›</span></div>
+    <div class="tc-g g3"><span>heute</span><b class="ok">${tp}</b><span>7 Tage</span>${per(7)}<span>30 Tage</span>${per(30)}</div></div>
+    ${due.length?`<div class="tc-due" onclick="EN.openMeasure('${due[0]}')"><span>Heute messen: ${due.map(f=>f==='weight'?'Gewicht':'Taille').join(' und ')}</span><span>›</span></div>`:''}`;};
+EN.openScore=()=>{const st=startDay(),ws=addD(TODAY(),-7);
+  const rows=Array.from({length:8},(_,n)=>addD(ws,n)).filter(k=>!st||k>=st).reverse().map(k=>{const s=k>=(st||k)&&(logged(k)||k===TODAY())?dayScore(k):null,p=s?Math.round(100*s.nd/s.n):null;
+    return `<div class="it"><div style="flex:1">${dayOf(k).wd} ${OKT(k)}${k===TODAY()?' · heute':''}<small>${s?s.nd+' von '+s.n+' Zutaten':st&&k<st?'vor dem Start':'nichts eingetragen, zählt nicht'}</small></div><span class="meta">${p===null?'–':p+' %'}</span></div>`;}).join('');
+  sheet(`<h3>Nach Plan</h3><div class="sub">Wie viele Zutaten aus deinem Plan du gegessen hast.</div>
+    <div class="list" style="margin-top:10px">${rows}</div>
+    <div class="hint">Eine ganze Mahlzeit abhaken zählt alle ihre Zutaten. Isst du nur einen Teil, etwa nur die Heidelbeeren, hakst du sie unter <b>Ernährung → Tage → Zutaten für heute</b> einzeln ab. 7 und 30 Tage zählen nur abgeschlossene Tage (ohne heute)${st?' seit deinem Start ('+OKT(st)+')':''}. Tage ganz ohne Eintrag zählen nicht mit.</div>
+    <button class="btn" onclick="closeSheet();selK=null;location.hash='#food/tage'">Zutaten für heute ›</button><button class="cancel" onclick="closeSheet()">Fertig</button>`);};
 /* In der Original-Karte „Heute“ nur, was sonst nirgends steht: Hinweis bei harter Einheit im Heilungsfenster */
 EN.todayLine=function(first){if(!C)return '';const D=dayOf(first.k);
   return hwDay(D.k)&&D.type==='hard'?`<div class="en"><div class="tfood amb">Heilungsfenster: Ist die Rötung noch da, heute lieber locker.</div></div>`:'';};
@@ -258,7 +288,7 @@ function quickRow(D){const s=NS(D.k),N=nextWorkDay(D);
   return `<div class="qrow">
     ${showMeasure('weight',D.k)?q(s.weight,s.weight?'⚖️ '+fmtKg(s.weight):'⚖️ Gewicht','EN.openMeasure(\'weight\')',!s.weight):''}
     ${showMeasure('waist',D.k)?q(s.waist,s.waist?'📏 '+fmtCm(s.waist):'📏 Taille','EN.openMeasure(\'waist\')',!s.waist):''}
-    ${q(s.skin,s.skin?'Haut '+s.skin:'Haut','EN.openSkin()')}
+    ${q(s.haut,s.haut?'Haut '+s.haut:'Haut','EN.openSkin()')}
     ${q(s.crave>=0,s.crave>=0?'Heißhunger: '+['nein','etwas','stark'][s.crave]:'Heißhunger','EN.openCrave()')}
     ${N?q(s.packed,s.packed?'🎒 Für '+N.wd+' erledigt':'🎒 Für '+N.wd+': '+todo,`location.hash='#food/pack'`):''}
     ${(()=>{const hw=homewayToday();return hw.length?q(false,'🛒 Heimweg: '+hw.map(r=>nameOf(r.it)).join(', '),`EN.shopMode('shop');location.hash='#food/einkauf'`):'';})()}
@@ -275,11 +305,22 @@ function drawMeasure(){const M=MS[mf];sheet(`<h3>${M.t}</h3><div class="sub">${M
 const mRead=()=>{const x=parseFloat(String((document.getElementById('mIn')||{}).value||'').replace(',','.'));if(x>0)mv=x;};
 EN.mAdj=n=>{mRead();mv=Math.round((mv+n*MS[mf].step)*10)/10;drawMeasure();};
 EN.mSave=del=>{const s=NS(TODAY());if(del)delete s[mf];else{mRead();s[mf]=Math.round(mv*10)/10;}closeSheet();R();};
-EN.openSkin=()=>{const s=NS(TODAY());sheet(`<h3>Haut</h3><div class="sub">1 = Schub · 5 = ruhig</div>${mini(['1','2','3','4','5'],s.skin,'EN.setSkin',1)}
-  ${s.skin&&s.skin<=2&&!hwDay(TODAY())?`<button class="btn ghost" onclick="EN.openHwStart()">Schub? Heilungsfenster starten</button>`:''}<button class="cancel" onclick="closeSheet()">Fertig</button>`);};
+/* Haut 1–5: höher = schlimmer. Bewertet wird der ganze Körper, die schlimmste Stelle setzt die Stufe. */
+const SKIN=[['Ruhig','nichts Entzündetes · höchstens ein winziger Pickel'],
+  ['Leicht','ein paar normale Pickel, egal wo'],
+  ['Deutlich','viele normale Pickel oder ein tiefer, entzündeter Knoten'],
+  ['Stark','großer, schmerzhafter Knoten oder Abszess, oder mehrere Knoten'],
+  ['Schub','breitet sich aus oder schwillt an · sehr schmerzhaft · Arzt nötig']];
+const SKAT=['Gesicht','Hals/Nacken','Schulter/Rücken','Brust','Achsel','Leiste/Po','andere'];
+EN.openSkin=()=>{const s=NS(TODAY()),at=s.skinAt;sheet(`<h3>Haut</h3><div class="sub">Ganzer Körper · die schlimmste Stelle zählt</div>
+  <div class="list skl">${SKIN.map(([n,t],i)=>`<div class="it ${s.haut===i+1?'got':''}" onclick="EN.setSkin(${i+1})"><span class="skn">${i+1}</span><div style="flex:1;min-width:0">${n}<small>${t}</small></div></div>`).join('')}</div>
+  ${s.haut>=2?`<div class="km sec">Wo? <span class="meta">optional</span></div><div class="chips">${SKAT.map(x=>`<button class="${at.includes(x)?'on':''}" onclick="EN.skinAt('${x}')">${x}</button>`).join('')}</div>`:''}
+  <div class="hint"><b>Pickel:</b> klein, oberflächlich, oft mit weißem Kopf, weg nach ein paar Tagen. <b>Knoten:</b> tief unter der Haut, fühlt sich an wie eine Erbse, tut weh, kommt gern an derselben Stelle wieder. Mehrere Knoten gleichzeitig: eine Stufe höher.</div>
+  ${s.haut>=4&&!hwDay(TODAY())?`<button class="btn ghost" onclick="EN.openHwStart()">Schub? Heilungsfenster starten</button>`:''}<button class="cancel" onclick="closeSheet()">Fertig</button>`);};
+EN.skinAt=x=>{const a=NS(TODAY()).skinAt,i=a.indexOf(x);if(i<0)a.push(x);else a.splice(i,1);R();EN.openSkin();};
 EN.openCrave=()=>sheet(`<h3>Heißhunger heute?</h3>${mini(['nein','etwas','stark'],NS(TODAY()).crave,'EN.setCrave',0)}<button class="cancel" onclick="closeSheet()">Fertig</button>`);
 
-EN.setSkin=v=>{NS(TODAY()).skin=v;R();EN.openSkin();};
+EN.setSkin=v=>{NS(TODAY()).haut=v;R();EN.openSkin();};
 EN.setCrave=v=>{NS(TODAY()).crave=v;closeSheet();R();};
 EN.med=(k,m)=>{const s=NS(k);s.meds[m]=!s.meds[m];R();};
 EN.flag=(k,f)=>{const s=NS(k);s[f]=!s[f];R();};
@@ -383,7 +424,7 @@ EN.openSOS=()=>{const D=dayOf(TODAY()),T=TT[D.type],open=Math.round(T.kcal-total
 let hwConfirm=false;
 EN.openHw=function(){const k=TODAY(),h=hwDay(k);
   if(hwConfirm)return sheet(`<h3>Heilungsfenster beenden?</h3><div class="sub" style="margin-top:6px">Danach gilt wieder Stufe 1 (hinzufügen statt weglassen). Milch und Süßes sind dann wieder normale Ausnahmen, die die App nur sichtbar macht.</div>
-    <div class="hint amb"><b>Faustregel:</b> erst beenden, wenn die Haut an 3 Tagen in Folge bei 4 oder 5 liegt und die Rötung deutlich abgeklungen ist.</div>
+    <div class="hint amb"><b>Faustregel:</b> erst beenden, wenn die Haut an 3 Tagen in Folge bei 1 oder 2 liegt und die Rötung deutlich abgeklungen ist.</div>
     <button class="btn warn" onclick="EN.hwEnd()">Ja, heute beenden</button><button class="cancel" onclick="EN.hwC(false)">Abbrechen</button>`);
   sheet(`<div class="km" style="color:var(--amber)">Heilungsfenster · ${h?`Tag ${h}/${HW.len}`:HW.active?'ab '+OKT(HW.start):'aus'}</div><h3>Was ist das?</h3>
     <div class="ink2" style="margin-top:6px">Ein <b>befristeter Schutzmodus für einen akuten Schub</b>. ${HW.len} Tage lang gelten strengere Regeln, damit die Entzündung schneller abklingt. Danach geht es automatisch mit Stufe 1 weiter.</div>

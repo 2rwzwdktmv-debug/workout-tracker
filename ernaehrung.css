@@ -217,3 +217,34 @@
 .sheet.en details.stp2[open] summary{margin-bottom:8px}
 .sheet.en .tl{margin-top:8px}
 .sheet.en .ing-sec{margin:14px 0 2px;font-size:10.5px}
+
+/* 03.10.: Nach Plan · Haut-Skala */
+/* Fortschrittsblock oben: Training + Ernährung in einer Karte (steht außerhalb von .en) */
+.topc{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg,20px);padding:2px 16px;margin-top:12px}
+.topc .tc-sec{padding:11px 0;cursor:pointer}
+.topc .tc-sec+.tc-sec{border-top:1px solid var(--line)}
+.topc .tc-h{display:flex;justify-content:space-between;font-size:11.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.topc .tc-l{color:var(--sky);letter-spacing:0;text-transform:none;font-size:13px}
+.topc .tc-g{display:grid;grid-template-columns:auto 1fr auto 1fr;gap:2px 8px;align-items:baseline;margin-top:9px;font-size:13px}
+.topc .tc-g.g3{grid-template-columns:auto 1fr auto 1fr auto 1fr}
+.topc .tc-g span{color:var(--muted);font-weight:700;font-size:12px}
+.topc .tc-g b{font-weight:800;color:var(--ink)}
+.topc .tc-g.g3 b{font-size:17px}
+.topc .tc-g b.ok{color:var(--lime)}
+.topc .tc-due{display:flex;justify-content:space-between;padding:9px 0 11px;border-top:1px solid var(--line);font-size:13px;font-weight:800;color:var(--amber);cursor:pointer}
+.en .skl .it{align-items:center;gap:12px;cursor:pointer}
+.en .skl .skn{width:28px;height:28px;flex:none;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;background:var(--surface2);border:1px solid var(--line)}
+.en .skl .it.got .skn{background:var(--lime);color:var(--lime-ink);border-color:var(--lime)}
+.en .list.skl .it.got>div{color:var(--ink);text-decoration:none;font-weight:800}
+.en .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.en .chips button{margin:0;padding:6px 11px;border-radius:99px;background:var(--surface2);border:1px solid var(--line);font-size:13px;font-weight:700;color:var(--ink2)}
+.en .chips button.on{background:var(--lime);color:var(--lime-ink);border-color:var(--lime)}
+.en .chips button{width:auto;display:inline-block;flex:none}
+.topc .tc-g i{font-style:normal;font-size:12px;font-weight:700;color:var(--muted)}
+/* Übersicht: Analyse oben rechts, Zahlen präsenter (Original-Karte) */
+.hero{position:relative}
+.hero .hero-a{position:absolute;top:16px;right:18px;font-size:13px;font-weight:700;color:var(--sky)}
+.hero .txt .s.hs{font-size:14px;color:var(--ink2);margin-top:2px}
+.hero .txt .s.hs b{font-size:17px;font-weight:800;color:var(--ink)}
+.topc .tc-g>*{white-space:nowrap}
+.topc .tc-g.g3{column-gap:6px}
