@@ -1,0 +1,62 @@
+/* Apple-naher Look — gemessen an Marcs Screenshots aus Apple Fitness (03./04.10.2026)
+   Wird als letztes Stylesheet geladen und überschreibt nur Aussehen, keine Logik.
+   1. Gewichte: Titel 700, Zahlen 600, Text 400 (die 800er setzt mockup-bauen.py herunter)
+   2. Schrift: SF Pro für Text, SF Rounded nur für Zahlen
+   3. Überschriften: normal geschrieben, weiß, groß statt kleiner grauer Versalien
+   4. Flächen: neutrales Grau ohne Blaustich, flach, ohne Rahmen und Schatten
+   5. Messwerte: farbige Zahl + Einheit in Versalien, etwas kleiner, gleiche Farbe        */
+:root {
+  --surface: #1c1c1e; --surface2: #2c2c2e;
+  --ink: #ffffff; --ink2: #d1d1d6; --muted: #98989d;
+  --line: rgba(255,255,255,.09); --line-strong: #48484a;
+  --fx-yellow: #ffe620; --fx-blue: #00b6ff; --fx-teal: #3ae9e5; --fx-red: #ff3719;
+}
+body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif; }
+
+/* 2. Zahlen rund */
+.hero .mid b, .hero .txt .v, .stat b, .lift .lv, .lstat .lv, .chip, .lauf .ls b,
+.lsheet .lr b, .ts span:last-child, .en .enring .mid b {
+  font-family: ui-rounded, -apple-system, "SF Pro Rounded", sans-serif;
+}
+
+/* 3. Überschriften wie bei Apple */
+h2.section { text-transform: none; letter-spacing: 0; font-size: 22px; font-weight: 700; color: var(--ink); }
+.chartcard h3 { text-transform: none; letter-spacing: 0; font-size: 17px; font-weight: 600; color: var(--ink); }
+.sesshead h3 { text-transform: none; letter-spacing: 0; font-size: 20px; font-weight: 700; color: var(--ink); }
+.hero .txt .k { text-transform: none; letter-spacing: 0; font-size: 15px; font-weight: 400; }
+.hero .mid span, .en .enring .mid span { text-transform: none; letter-spacing: 0; font-size: 12px; }
+.today .k, .en .k, .en .km, .topc .tc-h { text-transform: none; letter-spacing: 0; font-size: 17px; font-weight: 600; }
+.en .km, .topc .tc-h { color: var(--ink); }
+.wo-h, .exsec, .ghead span, .own b, .pace b, .en .fr.cur .when, .en .slot .when {
+  text-transform: none; letter-spacing: 0; font-size: 13px; font-weight: 600;
+}
+.item .tt { font-size: 17px; font-weight: 600; }
+.lift .ln { font-size: 15px; font-weight: 400; color: var(--ink); }
+.hero .txt .v { font-weight: 700; }
+
+/* 4. Flach und neutral */
+.stat, .card, .lift, .chartcard, .setsec, .hero, .today, .motto { box-shadow: none; }
+.stat, .card, .lift, .chartcard, .setsec, .hero, .today { border-color: transparent; }
+
+/* 5. Messwerte mit Einheit */
+.u { font-size: .62em; font-weight: 600; margin-left: 3px; letter-spacing: .02em; }
+.lift .lv { color: var(--lime); font-size: 26px; font-weight: 600; letter-spacing: 0; }
+.lstat .lv { font-size: 30px; font-weight: 600; }
+.lstat .lv.teal, .lauf .ls .teal, .ts .teal { color: var(--fx-teal); }
+.lstat .lv.blue, .lauf .ls .blue, .ts .blue { color: var(--fx-blue); }
+.ts .yellow { color: var(--fx-yellow); }
+.ts { font-size: 15px; }
+.lstat .lsub { font-size: 13px; }
+
+/* Lauf-Felder in den Farben der Watch: Zeit gelb, Strecke blau, HF rot */
+.lauf input[id^="lt-"], .lauf input[id^="xm-"], .lauf input[id^="xk-"] { color: var(--fx-yellow); }
+.lauf input[id^="lk-"], .lauf input[id^="tm-"], .lauf input[id^="xr-"] { color: var(--fx-blue); }
+.lauf input[id^="lh-"], .lauf input[id^="th-"] { color: var(--fx-red); }
+.lauf input { font-family: ui-rounded, -apple-system, sans-serif; font-weight: 600; }
+
+/* Karten ohne Verlauf und ohne Rahmen */
+.hero, .today { background: var(--surface); }
+.topc, .en .ecard { border-color: transparent; }
+/* Verlaufslinie in der Farbe des Messwerts, wie in Apple Fitness */
+.lstat.teal .spark polyline { stroke: var(--fx-teal); }
+.lstat.blue .spark polyline { stroke: var(--fx-blue); }
