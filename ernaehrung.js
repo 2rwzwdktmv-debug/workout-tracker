@@ -511,7 +511,7 @@ EN.wMode=(w,m)=>{const o=FS().set.work||(FS().set.work={});o[w]=WM[m];RS();EN.op
 EN.wT=(m,i,n)=>{const o=FS().set.wt||(FS().set.wt={}),t=workTime(m).slice();t[i]=Math.max(4,Math.min(22,t[i]+n));if(t[0]<t[1]){o[m]=t;RS();}EN.openWork();};
 /* Freie Mahlzeiten */
 const rolesOf=w=>workMode(w)==='frei'?['fr','mi','na','ab']:[...(ST.fast?[]:['vm']),'mi','na','ab'];
-EN.openFree=()=>sheet(`<h3>Freie Mahlzeiten</h3><div class="sub">Ohne Plan, z. B. Essen mit Freunden. Sie zählen nicht in Einkauf und Vorrat.</div>
+EN.openFree=()=>sheet(`<h3>Freie Mahlzeiten</h3><div class="sub">Ohne Plan, z. B. Essen mit Freunden. Sie zählen nicht in Bedarf und Vorrat.</div>
   ${WO.map(w=>`<div class="drow"><b>${WDL[w]}</b><div class="mini">${rolesOf(w).map(r=>`<button class="${freeOf(w).includes(r)?'on':''}" onclick="EN.freeT(${w},'${r}')">${RN[r]}</button>`).join('')}</div></div>`).join('')}
   <button class="cancel" onclick="closeSheet()">Fertig</button>`);
 EN.freeT=(w,r)=>{const f=FS().set.free||(FS().set.free={}),l=freeOf(w);f[w]=l.includes(r)?l.filter(x=>x!==r):[...l,r];if(!f[w].length)delete f[w];RS();EN.openFree();};
@@ -546,7 +546,7 @@ function dayIngredients(D){const tot={};mealIds(D).forEach(id=>{const X=C.dishes
   const n=X.yields&&X.yields.bolotk?X.yields.bolotk+1:1,batch=n>1?new Set(X.ing[i].filter(r=>r[3]&&!/nur deine Portion/.test(r[0])).map(r=>r[3])):null;
   Object.entries(X.use).forEach(([it0,q])=>{const it=itemFor(it0,D.k),I=IT()[it];if(!I)return;const f=(g&&(!X.yields||kindOf(it)==='beilage')?gFit(it):1)/(batch&&batch.has(it0)?n:1);
     if(I.unit!=='basic'&&!q[i])return;tot[it]=(tot[it]||0)+(I.unit==='basic'?0:qB(it0,q[i])*f);});});return tot;}
-EN.render=function(main,sub){EN.fresh();if(!C){main.innerHTML='<div class="en"><div class="ecard"><span class="k">Ernährung</span><div class="sub" style="margin-top:6px">Keine Inhalte gefunden: <b>nutrition.json</b> fehlt im Daten-Repo.</div></div></div>';return;}sub=sub||'tage';const tabs=[['tage','Tage'],['woche','Woche'],['einkauf','Einkauf'],['vorrat','Vorrat'],['rezepte','Rezepte']];
+EN.render=function(main,sub){EN.fresh();if(!C){main.innerHTML='<div class="en"><div class="ecard"><span class="k">Ernährung</span><div class="sub" style="margin-top:6px">Keine Inhalte gefunden: <b>nutrition.json</b> fehlt im Daten-Repo.</div></div></div>';return;}sub=sub||'tage';const tabs=[['tage','Tage'],['woche','Woche'],['einkauf','Bedarf'],['vorrat','Vorrat'],['rezepte','Rezepte']];
   if(sub==='pack'){sub='tage';setTimeout(EN.openPack,0);}   /* alte Adresse #food/pack: Packen ist jetzt ein Sheet */
   let h=`<div class="en">${`<div class="seg">${tabs.map(([k,l])=>`<button class="${k===sub?'on':''}" onclick="location.hash='#food/${k}'">${l}</button>`).join('')}</div>`}`;
   h+=({tage:pTage,woche:pWoche,einkauf:pEinkauf,vorrat:pVorrat,rezepte:pRezepte}[sub]||pTage)();
@@ -659,9 +659,9 @@ function rowHTML(r,done,ks){const I=IT()[r.it],cnt=['Stück','Dose','Scheiben','
   return `<div class="it ${done?'got':''}" onclick="EN.have('${r.id}','${r.until}')"><span class="ecb ${done?'on':''}"></span><div style="flex:1;min-width:0">${q?`<b class="qty">${qS(q)}</b> `:''}${nameOf(r.it)}${r.state?`<small>Vorrat: ${r.state}</small>`:''}</div>${done?'':dSlots(r,ks)}</div>`;}
 /* Einkauf (04.10.): oben was konkret für die nächsten 3 bzw. 7 Tage gebraucht wird (Gesamtmenge, abhaken = ist da),
    dann frisch, dann „immer ausreichend da“ ohne Abhaken. Abgehaktes wandert nach „Erledigt“. */
-function pEinkauf(){if(!Object.keys(IT()).length)return `<div class="ecard"><span class="k">Einkauf</span></div>`+staleNote();
+function pEinkauf(){if(!Object.keys(IT()).length)return `<div class="ecard"><span class="k">Bedarf</span></div>`+staleNote();
   const M=shopList(shopDays),ks=Array.from({length:shopDays},(_,n)=>addD(M.start,n)),done=M.rows.filter(isGot),open=M.rows.filter(r=>!isGot(r)),now=open.filter(r=>!r.later),later=open.filter(r=>r.later);
-  let h=`<div class="ecard"><div class="between"><span class="k">Einkauf</span><span class="meta">${open.length?open.length+' offen':'alles da'}</span></div>
+  let h=`<div class="ecard"><div class="between"><span class="k">Bedarf</span><span class="meta">${open.length?open.length+' offen':'alles da'}</span></div>
     <div class="sub" style="margin-top:4px;font-size:13px">Was bis ${dayOf(M.end).wd} ${OKT(M.end)} da sein muss. Antippen, wenn du es hast oder gekauft hast.</div>
     <div class="seg" style="margin:10px 0 0">${[3,7].map(n=>`<button class="${shopDays===n?'on':''}" onclick="EN.shopDays(${n})">${n} Tage</button>`).join('')}</div></div>`;
   if(!open.length)h+=`<div class="ecard"><div class="sub">Alles da bis ${dayOf(M.end).wd}.</div></div>`;
@@ -678,7 +678,7 @@ function pEinkauf(){if(!Object.keys(IT()).length)return `<div class="ecard"><spa
 /* Vorrat = Grundvorrat: da / knapp / leer, dazu die selbst gekochten Portionen */
 function pVorrat(){if(!Object.keys(IT()).length)return `<div class="ecard"><span class="k">Vorrat</span></div>`+staleNote();
   const items=Object.keys(IT()).filter(isPantry).map(it=>({it})),tk=STK().bolotk||0;
-  let h=`<div class="ecard"><span class="k">Vorrat</span><div class="sub" style="margin-top:6px;font-size:13px">Was immer da sein sollte. Knapp und leer kommen automatisch auf die Einkaufsliste.</div></div>
+  let h=`<div class="ecard"><span class="k">Vorrat</span><div class="sub" style="margin-top:6px;font-size:13px">Was immer da sein sollte. Knapp und leer kommen automatisch unter Bedarf.</div></div>
     <div class="ecard"><span class="km hl">Selbst gekocht</span><div class="list"><div class="it"><div style="flex:1;min-width:0">Bolognese-Portionen im TK<small>${tk} ${tk===1?'Portion':'Portionen'} · zählt sich beim Kochen und Essen selbst</small></div><span class="row"><button class="btn sm ghost" onclick="EN.tk(-1)">−</button><button class="btn sm ghost" onclick="EN.tk(1)">+</button></span></div></div></div>`;
   byCat(items).forEach(([c,xs])=>{h+=`<div class="ecard"><span class="km hl">${c}</span><div class="list">${xs.map(({it})=>{const st=pState(it);
     return `<div class="it ${st==='leer'?'low':st==='knapp'?'low':''}" onclick="EN.openItem('${it}')"><div style="flex:1;min-width:0">${nameOf(it)}<small>${st||'noch nicht geprüft'}</small></div><span class="tri" onclick="event.stopPropagation()">${['da','knapp','leer'].map(x=>`<button class="${st===x?'on '+x:''}" onclick="EN.pset('${it}','${x}')">${x}</button>`).join('')}</span></div>`;}).join('')}</div></div>`;});
@@ -715,7 +715,7 @@ EN.settings=function(main){const set=main.querySelector('.set');if(!set||!C)retu
     <div class="srow"><div><b>Heilungsfenster</b><small>${HW.active?(h?`läuft · Tag ${h}/${HW.len}`:'geplant')+` · ${OKT(HW.start)}–${OKT(hwEnd())} · endet automatisch`:'aus · für einen akuten Schub'}</small></div><button class="btn sm ghost" onclick="${HW.active?'EN.openHw()':'EN.openHwStart()'}">${HW.active?'verwalten':'starten'}</button></div>
     <div class="km" style="margin-top:14px">Grundeinstellungen</div>
     <div class="srow"><div>Werktags fasten<small>erste Mahlzeit mittags · Vormittag entfällt, Mengen wandern auf Mittag, Snack und Abend</small></div><button class="btn sm ghost" onclick="EN.fastToggle()">${ST.fast?'an':'aus'}</button></div>
-    <div class="srow" onclick="EN.openFree()" style="cursor:pointer"><div>Freie Mahlzeiten<small>${WO.flatMap(w=>freeOf(w).map(r=>WDL[w]+' '+RN[r])).join(', ')||'keine'} · ohne Plan, nicht in Einkauf und Vorrat</small></div><span class="v">ändern ›</span></div>
+    <div class="srow" onclick="EN.openFree()" style="cursor:pointer"><div>Freie Mahlzeiten<small>${WO.flatMap(w=>freeOf(w).map(r=>WDL[w]+' '+RN[r])).join(', ')||'keine'} · ohne Plan, nicht in Bedarf und Vorrat</small></div><span class="v">ändern ›</span></div>
     <div class="srow" onclick="EN.openGuest()" style="cursor:pointer"><div>Zu zweit<small>${gLabel()}</small></div><span class="v">ändern ›</span></div>
     <div class="srow"><div>Proteinpulver<small>im Heilungsfenster immer Erbsenprotein</small></div><button class="btn sm ghost" onclick="EN.protToggle()">${ST.protein==='plant'?'Erbsenprotein':'Whey'}</button></div>
     <div class="srow"><div>Brot<small>Scheiben werden umgerechnet</small></div><button class="btn sm ghost" onclick="EN.breadToggle()">${toastOn()?'Vollkorntoast':'Roggenbrot'}</button></div>
