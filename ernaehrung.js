@@ -39,7 +39,7 @@ const dayRanges=ws=>{const out=[];let a=-1,b=-1;const flush=()=>{if(a<0)return;c
 
 /* ---------- Zustand ---------- */
 /* Synchronisiert (progress.json): S.food = {days:{datum:{st,sw,extra,water,energy,meds,packed}}, set:{protein,fast}} */
-function FS(){if(!S.food||typeof S.food!=='object')S.food={};if(!S.food.days)S.food.days={};if(!S.food.set)S.food.set={protein:'whey',fast:true};if(!S.food.stock)S.food.stock={};if(!S.food.cart)S.food.cart={};if(!S.food.have)S.food.have={};if(!S.food.subst)S.food.subst={};if(!S.food.pantry)S.food.pantry={};if(!S.food.set.free)S.food.set.free={0:['we']};if(!S.food.tt)S.food.tt={};return S.food;}
+function FS(){if(!S.food||typeof S.food!=='object')S.food={};if(!S.food.days)S.food.days={};if(!S.food.set)S.food.set={protein:'whey',fast:true};if(!S.food.stock)S.food.stock={};if(!S.food.cart)S.food.cart={};if(!S.food.have)S.food.have={};if(!S.food.subst)S.food.subst={};if(!S.food.pantry)S.food.pantry={};if(!S.food.set.free)S.food.set.free={};if(!S.food.set.freeV2){if(JSON.stringify(S.food.set.free)==='{"0":["we"]}')S.food.set.free={};S.food.set.freeV2=1;}   /* Standard: jede Mahlzeit im Plan; früheres „So Mittag frei“ einmalig zurück */if(!S.food.tt)S.food.tt={};return S.food;}
 /* Nur lokal auf diesem Gerät (Gesundheitsdaten): Haut, Ausnahmen, Heißhunger, Gewicht, Heilungsfenster */
 const HKEY='wt-health-v1';
 let H={days:{},HW:{active:false,start:'',len:7}};
