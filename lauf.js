@@ -2,10 +2,12 @@
    Läufe bekommen statt des freien Textfelds feste Felder. Gespeichert wird weiter
    ein Text in results/resultsByItem — alte Einträge bleiben lesbar.
      Dauerlauf:  "1:25:06 · 14,07 km · HF 158"
-     Tempo:      "1720 m @ 165 · 1700 m @ 168"
+     Tempo:      "1720 m @ 165 (P 150) · 1700 m @ 168"   (@ = Ø-HF, P = Meter in der Pause danach)
    Vergleichszahl Dauerlauf: Meter pro Herzschlag = (m/min) / Ø-HF, nur innerhalb
    der Gruppe (locker = HF-Deckel 142, lang = Long Runs + HF 155–160).
-   Vergleichszahl Tempo: Ø-Meter je 8-min-Intervall (die Anzahl wechselt).
+   Vergleichszahl Tempo: Ø-Meter je 8-min-Intervall (die Anzahl wechselt). Die Pausen
+   (2 min) zählen nicht in die Zahl, stehen aber daneben: wer trabt statt geht, läuft
+   die Intervalle danach meist etwas langsamer — das soll man sehen können.
    Tests: Bestwert wie beim 1RM.
      Road Test:  "6,51 km"        Meile: "6:58" (alt: "Pace 4:20" = min/km)
      1000 m:     "4:02 · 3:59 · 4:05"                                          */
@@ -73,19 +75,20 @@ function parseD(v) {
 }
 function mps(p) { return p.t && p.km && p.hf ? (p.km * 1000 / p.t) / p.hf : null; }
 
-/* Tempo-Text → [{m, hf}] */
+/* Tempo-Text → [{m, hf, p}] */
 function parseT(v) {
   return String(v || "").split("·").map(x => x.trim()).filter(Boolean).map(tok => {
-    const m = tok.match(/^([\d.]+)\s*m?\s*(?:@\s*(\d+))?/);
-    return m ? { m: parseFloat(m[1].replace(/\./g, "")), hf: m[2] ? parseInt(m[2], 10) : null } : null;
+    const m = tok.match(/^([\d.]+)\s*m?\s*(?:@\s*(\d+))?\s*(?:\(P\s*(\d+)\))?/);
+    return m ? { m: parseFloat(m[1].replace(/\./g, "")), hf: m[2] ? parseInt(m[2], 10) : null, p: m[3] ? parseInt(m[3], 10) : null } : null;
   }).filter(x => x && x.m > 0);
 }
 function tempoSum(rows) {
   if (!rows.length) return null;
   const avg = rows.reduce((a, r) => a + r.m, 0) / rows.length;
-  const hfs = rows.filter(r => r.hf);
+  const hfs = rows.filter(r => r.hf), ps = rows.filter(r => r.p);
   return { n: rows.length, avg, pace: TEMPO_MIN / (avg / 1000),
-           hf: hfs.length ? Math.round(hfs.reduce((a, r) => a + r.hf, 0) / hfs.length) : null };
+           hf: hfs.length ? Math.round(hfs.reduce((a, r) => a + r.hf, 0) / hfs.length) : null,
+           pause: ps.length ? Math.round(ps.reduce((a, r) => a + r.p, 0) / ps.length) : null };
 }
 
 /* "4:20" → 4,33 min (immer m:ss, nie h:mm) */
@@ -165,7 +168,7 @@ function lineT(item) {
   const last = before(item, "tempo").slice(-1)[0];
   let html = "";
   if (s) {
-    html = `<b class="blue">Ø ${thou(s.avg)} m</b> · <span class="teal">${fmtPace(s.pace)}/km</span>${s.hf ? ` · HF ${s.hf}` : ""}`;
+    html = `<b class="blue">Ø ${thou(s.avg)} m</b> · <span class="teal">${fmtPace(s.pace)}/km</span>${s.hf ? ` · HF ${s.hf}` : ""}${s.pause ? ` · <span class="ref">Pause Ø ${s.pause} m</span>` : ""}`;
     if (last) {
       const d = Math.round(s.avg - last.val);
       html += ` ${arrow(s.avg, last.val, 0.002)} <span class="ref">${d > 0 ? "+" : ""}${d} m</span>`;
@@ -225,13 +228,14 @@ function fieldsD(item) {
 function rowT(id, i, r) {
   return `<div class="tr"><span class="nr">${i + 1}</span>
     <input id="tm-${id}-${i}" inputmode="numeric" value="${r && r.m ? r.m : ""}" onchange="LAUF.saveT('${id}')">
+    <input id="tp-${id}-${i}" inputmode="numeric" value="${r && r.p ? r.p : ""}" onchange="LAUF.saveT('${id}')">
     <input id="th-${id}-${i}" inputmode="numeric" value="${r && r.hf ? r.hf : ""}" onchange="LAUF.saveT('${id}')"></div>`;
 }
 const T_MAX = 4;
 function fieldsT(item) {
   const rows = parseT(S.resultsByItem[item.id]);
   const n = Math.min(T_MAX, Math.max(2, rows.length + 1));   // immer eine leere Zeile mehr, bis 4
-  let h = `<div class="tf" id="tf-${item.id}"><div class="tr th"><span></span><span>Meter in 8 min</span><span>Ø-HF</span></div>`;
+  let h = `<div class="tf" id="tf-${item.id}"><div class="tr th"><span></span><span>Meter</span><span>Pause (m)</span><span>Ø-HF</span></div>`;
   for (let i = 0; i < n; i++) h += rowT(item.id, i, rows[i]);
   return h + `</div>`;
 }
@@ -276,7 +280,8 @@ const LAUF = window.LAUF = {
     const rows = [];
     for (let i = 0; i < T_MAX; i++) {
       const m = parseInt(val(`tm-${id}-${i}`).replace(/\./g, ""), 10), hf = parseInt(val(`th-${id}-${i}`), 10);
-      if (m > 0) rows.push(m + " m" + (hf ? " @ " + hf : ""));
+      const pz = parseInt(val(`tp-${id}-${i}`), 10);
+      if (m > 0) rows.push(m + " m" + (hf ? " @ " + hf : "") + (pz > 0 ? ` (P ${pz})` : ""));
     }
     commit(id, rows.join(" · "));
     const box = document.getElementById("tf-" + id), have = box ? box.querySelectorAll(".tr:not(.th)").length : 0;
@@ -288,10 +293,10 @@ const LAUF = window.LAUF = {
     const rows = last.map(x => isTest(g)
       ? `<div class="lr"><span>${dShort(x.e.date)}</span><span>${detailX(g, x.x)}</span><span></span><b>${fmtV(x)}</b></div>`
       : g === "tempo"
-      ? `<div class="lr"><span>${dShort(x.e.date)}</span><span>${x.s.n} × · ${fmtPace(x.s.pace)}/km</span><span>${x.s.hf ? "HF " + x.s.hf : ""}</span><b>${fmtV(x)}</b></div>`
+      ? `<div class="lr"><span>${dShort(x.e.date)}</span><span>${x.s.n} × · ${fmtPace(x.s.pace)}/km</span><span>${x.s.pause ? "P " + x.s.pause + " m" : x.s.hf ? "HF " + x.s.hf : ""}</span><b>${fmtV(x)}</b></div>`
       : `<div class="lr"><span>${dShort(x.e.date)}</span><span>${dec(x.p.km, 1)} km · ${fmtPace(x.p.t / x.p.km)}/km</span><span>HF ${x.p.hf}</span><b>${fmtV(x)}</b></div>`).join("");
     const what = isTest(g) ? TWAS[g] : g === "tempo"
-      ? "Verglichen wird die Ø-Strecke pro Intervall, nicht die Summe – die Zahl der Intervalle wechselt. Mehr Meter bei gleichem Gefühl heißt: schneller geworden."
+      ? "Verglichen wird die Ø-Strecke pro Intervall, nicht die Summe – die Zahl der Intervalle wechselt. Mehr Meter bei gleichem Gefühl heißt: schneller geworden. P = Ø Meter in den 2-min-Pausen: mehr heißt getrabt statt gegangen, die Einheit war also härter."
       : `Tempo geteilt durch Ø-HF: wie viel Strecke du pro Herzschlag schaffst. Steigt die Zahl, bist du ausdauernder geworden. ${GWER[g]} Einzelne Läufe (Punkte) schwanken mit Hitze, Schlaf und Hügeln – es zählt die Linie, der Schnitt der letzten 3.`;
     const wrap = document.createElement("div");
     wrap.className = "sheetwrap";

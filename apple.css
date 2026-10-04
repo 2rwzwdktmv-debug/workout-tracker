@@ -42,15 +42,15 @@ h2.section { text-transform: none; letter-spacing: 0; font-size: 22px; font-weig
 .u { font-size: .62em; font-weight: 600; margin-left: 3px; letter-spacing: .02em; }
 .lift .lv { color: var(--lime); font-size: 26px; font-weight: 600; letter-spacing: 0; }
 .lstat .lv { font-size: 30px; font-weight: 600; }
-.lstat .lv.teal, .lauf .ls .teal, .ts .teal { color: var(--fx-teal); }
-.lstat .lv.blue, .lauf .ls .blue, .ts .blue { color: var(--fx-blue); }
-.ts .yellow { color: var(--fx-yellow); }
+.lstat .lv.teal, .lauf .ls .teal, .ts span.teal { color: var(--fx-teal); }
+.lstat .lv.blue, .lauf .ls .blue, .ts span.blue { color: var(--fx-blue); }
+.ts span.yellow { color: var(--fx-yellow); }
 .ts { font-size: 15px; }
 .lstat .lsub { font-size: 13px; }
 
 /* Lauf-Felder in den Farben der Watch: Zeit gelb, Strecke blau, HF rot */
 .lauf input[id^="lt-"], .lauf input[id^="xm-"], .lauf input[id^="xk-"] { color: var(--fx-yellow); }
-.lauf input[id^="lk-"], .lauf input[id^="tm-"], .lauf input[id^="xr-"] { color: var(--fx-blue); }
+.lauf input[id^="lk-"], .lauf input[id^="tm-"], .lauf input[id^="tp-"], .lauf input[id^="xr-"] { color: var(--fx-blue); }
 .lauf input[id^="lh-"], .lauf input[id^="th-"] { color: var(--fx-red); }
 .lauf input { font-family: ui-rounded, -apple-system, sans-serif; font-weight: 600; }
 
