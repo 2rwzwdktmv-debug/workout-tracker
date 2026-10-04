@@ -1,0 +1,42 @@
+/* Lauf-Fortschritt: Eingabe an Läufen, Sheet mit Verlauf, Abschnitt in der Analyse */
+
+.lauf .lf { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 8px; }
+.lauf label { display: block; min-width: 0; font-size: 11.5px; color: var(--muted); }
+.lauf label input { margin-top: 3px; }
+.lauf .tf { display: flex; flex-direction: column; gap: 6px; }
+.lauf .tr { display: grid; grid-template-columns: 16px 1fr 1fr; gap: 8px; align-items: center; }
+.lauf .tr .nr { font-size: 12px; color: var(--muted); text-align: center; }
+.lauf .tr.th { font-size: 11.5px; color: var(--muted); margin-bottom: -3px; }
+.lauf input { min-width: 0; }
+
+.lauf .ls {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 6px; width: 100%;
+  margin-top: 8px; padding: 0; border: none; background: none; text-align: left;
+  font-size: 13px; color: var(--ink2);
+}
+.lauf .ls b { color: var(--ink); font-weight: 700; }
+.lauf .ls .ref { color: var(--muted); }
+.lauf .ls .up { color: var(--lime); font-weight: 800; }
+.lauf .ls .dn { color: var(--muted); font-weight: 800; }
+.lauf .ls .chev { margin-left: auto; color: var(--muted); }
+
+.lsheet .lspark { display: block; width: 100%; height: auto; margin: 0 0 12px; }
+.lsheet .ll { display: flex; flex-direction: column; margin-bottom: 6px; }
+.lsheet .lr {
+  display: grid; grid-template-columns: 46px 1fr auto minmax(44px, auto); gap: 8px; align-items: baseline;
+  padding: 7px 0; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted);
+}
+.lsheet .lr b { color: var(--ink); text-align: right; }
+
+.lauf .kh { font-size: 11.5px; color: var(--muted); margin-bottom: 3px; }
+.lauf .kf { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px 8px; }
+.lauf .kf label { display: grid; grid-template-columns: 12px 1fr; gap: 6px; align-items: center; font-size: 12px; }
+.lauf .kf label input { margin-top: 0; padding: 8px 10px; }
+
+/* Analyse */
+.lstat { margin-top: 12px; cursor: pointer; }
+.lstat .lhd { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.lstat .lv { font-size: 24px; font-weight: 800; line-height: 1.1; }
+.lstat .lsub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.lstat > .spark { display: block; margin-top: 10px; width: 100%; height: auto; }
+.lstat .ref { color: var(--muted); }

@@ -771,6 +771,8 @@
   :root[data-accent="lime"]    { --lime: #d7f651; --lime-ink: #12150a; }
   :root[data-accent="amber"]   { --lime: #fbbf24; --lime-ink: #2a1c00; }
   :root[data-accent="mint"]    { --lime: #4ade80; --lime-ink: #052c14; }
+  /* Grün des Trainieren-Rings aus Apple Fitness */
+  :root[data-accent="fitness"] { --lime: #a6ff00; --lime-ink: #121c00; }
   :root[data-accent="violet"]  { --lime: #a78bfa; --lime-ink: #160a2e; }
   /* Cyan/Blau: --sky weicht aus, sonst stehen zwei gleiche Töne nebeneinander */
   :root[data-accent="ice"]     { --lime: #22d3ee; --lime-ink: #04232a; --sky: #a7b4c6; }
@@ -838,6 +840,8 @@
 </nav>
 
 <script src="ernaehrung.js?v=2026-10-04b"></script>
+<link rel="stylesheet" href="lauf.css?v=2026-10-04a">
+<script src="lauf.js?v=2026-10-04a"></script>
 <script>
 "use strict";
 /* ============================================================
@@ -1179,8 +1183,9 @@ const ACCENTS = [
   ["lime",    "Lime",      "#d7f651"], ["red",     "Signalrot", "#ff3b4e"],
   ["crimson", "Crimson",   "#f43f5e"], ["coral",   "Koralle",   "#ff6b6b"],
   ["magenta", "Magenta",   "#ff4d8d"], ["amber",   "Amber",     "#fbbf24"],
-  ["mint",    "Mint",      "#4ade80"], ["ice",     "Ice",       "#22d3ee"],
-  ["blue",    "Blue",      "#5b8cff"], ["violet",  "Violett",   "#a78bfa"]
+  ["mint",    "Mint",      "#4ade80"], ["fitness", "Fitness",   "#a6ff00"],
+  ["ice",     "Ice",       "#22d3ee"], ["blue",    "Blue",      "#5b8cff"],
+  ["violet",  "Violett",   "#a78bfa"]
 ];
 const ERR_AMBER = "#f5c344", SKY_NEUTRAL = "#a7b4c6";
 
@@ -2695,6 +2700,7 @@ function renderExercises(item) {
 }
 
 function renderResult(item) {
+  if (window.LAUF && LAUF.handles(item)) return LAUF.render(item);   /* Läufe: feste Felder statt Freitext */
   const val = S.resultsByItem[item.id] || "";
   const last = lastResult(item.key, item.id);
   const hist = (S.results[item.key] || []).slice(-4, -1).reverse();
@@ -3171,6 +3177,7 @@ function renderStats() {
     </div>`;
   }).join("");
   if (liftCards) html += `<h2 class="section">Kraftentwicklung · <em>1RM</em></h2><div class="liftgrid">${liftCards}</div>`;
+  if (window.LAUF) html += LAUF.stats();   /* Laufentwicklung direkt unter der Kraft */
 
   // Top-Set-Trends aus tatsächlich eingetragenen Gewichten
   const keyLabel = {};
