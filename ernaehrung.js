@@ -515,8 +515,11 @@ function ateVia(D,it){const s=NS(D.k);for(const id of mealIds(D)){if(!(s.st[id]=
 /* Zum Abhaken und Zählen: ohne Öl, Salz, Gewürze (die isst niemand einzeln, sie kommen mit der Mahlzeit) */
 const tickIds=D=>Object.keys(dayIngredients(D)).filter(it=>(IT()[it]||{}).unit!=='basic');
 /* alle Zutaten eines Tages (mit „zu zweit“), it → Menge */
+/* Was du an dem Tag isst. Beim Vorkochen (Bolognese ×4) nur deine Portion, nicht die ganze Menge im Topf;
+   der Einkauf rechnet weiter mit der ganzen Menge. */
 function dayIngredients(D){const tot={};mealIds(D).forEach(id=>{const X=C.dishes[varOf(D,id)];if(!X||!X.use)return;const i=pix(D,id),g=isGuest(D.k,id);
-  Object.entries(X.use).forEach(([it0,q])=>{const it=itemFor(it0,D.k),I=IT()[it];if(!I)return;const f=g&&(!X.yields||kindOf(it)==='beilage')?gFit(it):1;
+  const n=X.yields&&X.yields.bolotk?X.yields.bolotk+1:1,batch=n>1?new Set(X.ing[i].filter(r=>r[3]&&!/nur deine Portion/.test(r[0])).map(r=>r[3])):null;
+  Object.entries(X.use).forEach(([it0,q])=>{const it=itemFor(it0,D.k),I=IT()[it];if(!I)return;const f=(g&&(!X.yields||kindOf(it)==='beilage')?gFit(it):1)/(batch&&batch.has(it0)?n:1);
     if(I.unit!=='basic'&&!q[i])return;tot[it]=(tot[it]||0)+(I.unit==='basic'?0:qB(it0,q[i])*f);});});return tot;}
 EN.render=function(main,sub){EN.fresh();if(!C){main.innerHTML='<div class="en"><div class="ecard"><span class="k">Ernährung</span><div class="sub" style="margin-top:6px">Keine Inhalte gefunden: <b>nutrition.json</b> fehlt im Daten-Repo.</div></div></div>';return;}sub=sub||'tage';const tabs=[['tage','Tage'],['woche','Woche'],['einkauf','Einkauf'],['vorrat','Vorrat'],['rezepte','Rezepte']];
   let h=`<div class="en">${sub==='pack'?'':`<div class="seg">${tabs.map(([k,l])=>`<button class="${k===sub?'on':''}" onclick="location.hash='#food/${k}'">${l}</button>`).join('')}</div>`}`;
