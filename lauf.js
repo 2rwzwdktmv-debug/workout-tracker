@@ -118,6 +118,8 @@ const TCOL = { road: "blue", mile: "yellow", k1000: "teal" };
 function fmtXu(g, v) {
   return g === "road" ? dec(v, 2) + `<span class="u">KM</span>` : g === "mile" ? fmtPace(v) : fmtPace(v) + `<span class="u">/KM</span>`;
 }
+/* Meile immer mit Pace, weil die genauso motiviert wie die Zeit */
+function fmtXp(g, v) { return g === "mile" ? `${fmtPace(v)} (${fmtPace(v / MILE)}/km)` : fmtX(g, v); }
 function detailX(g, x) {
   return g === "road" ? fmtPace(30 / x.km) + "/km" : g === "mile" ? fmtPace(x.t / MILE) + "/km" : x.ts.length + " ×";
 }
@@ -199,11 +201,11 @@ function lineX(item) {
     html = `<b>${g === "k1000" ? "Ø " : ""}${fmtX(g, cur.val)}</b> · ${detailX(g, cur)}`;
     if (best) {
       const better = lb ? cur.val < best.val - 1e-6 : cur.val > best.val + 1e-6;
-      html += better ? ` <span class="up">↑</span> <span class="ref">Bestwert bisher ${fmtX(g, best.val)}</span>`
-                     : ` <span class="ref">Bestwert ${fmtX(g, best.val)}</span>`;
+      html += better ? ` <span class="up">↑</span> <span class="ref">Bestwert bisher ${fmtXp(g, best.val)}</span>`
+                     : ` <span class="ref">Bestwert ${fmtXp(g, best.val)}</span>`;
     }
   } else if (best) {
-    html = `<span class="ref">Bestwert</span> <b>${fmtX(g, best.val)}</b> · <span class="ref">${dShort(best.e.date)}</span>`;
+    html = `<span class="ref">Bestwert</span> <b>${fmtX(g, best.val)}</b>${g === "mile" ? ` · <span class="teal">${fmtPace(best.val / MILE)}/km</span>` : ""} · <span class="ref">${dShort(best.e.date)}</span>`;
   }
   return html ? `<button class="ls" id="ls-${item.id}" onclick="LAUF.sheet('${g}')">${html}<span class="chev">›</span></button>`
               : `<div id="ls-${item.id}"></div>`;
@@ -219,7 +221,8 @@ function fieldsX(item) {
   if (g === "road") return `<div class="lf"><label>km<input id="xr-${id}" inputmode="decimal" placeholder="6,50"
       value="${x ? dec(x.km, 2) : ""}" onchange="LAUF.saveX('${id}')"></label></div>`;
   if (g === "mile") return `<div class="lf"><label>Zeit<input id="xm-${id}" inputmode="numeric" placeholder="6:50"
-      value="${x ? fmtPace(x.t) : ""}" onchange="LAUF.saveX('${id}')"></label></div>`;
+      value="${x ? fmtPace(x.t) : ""}" onchange="LAUF.mile('${id}','t')"></label><label>Pace /km<input id="xp-${id}" inputmode="numeric" placeholder="4:15"
+      value="${x ? fmtPace(x.t / MILE) : ""}" onchange="LAUF.mile('${id}','p')"></label></div>`;
   const n = parseInt((String(item.sub || "").match(/(\d+)\s*[×x]/) || [])[1], 10) || 6;
   let h = `<div class="kh">Zeit je 1000 m</div><div class="kf">`;
   for (let i = 0; i < n; i++) h += `<label>${i + 1}<input id="xk-${id}-${i}" inputmode="numeric"
@@ -265,6 +268,13 @@ const LAUF = window.LAUF = {
   render(item) {
     const g = group(item.id);
     return `<div class="res lauf">${g === "tempo" ? fieldsT(item) : isTest(g) ? fieldsX(item) : fieldsD(item)}${lineFor(item)}</div>`;
+  },
+  /* Meile: Zeit oder Pace eintragen, das andere Feld rechnet sich mit */
+  mile(id, from) {
+    const tEl = document.getElementById("xm-" + id), pEl = document.getElementById("xp-" + id);
+    if (from === "p") { const pc = mmss(pEl.value); tEl.value = pc ? fmtPace(pc * MILE) : ""; }
+    else { const t = mmss(tEl.value); pEl.value = t ? fmtPace(t / MILE) : ""; }
+    LAUF.saveX(id);
   },
   saveX(id) {
     const g = group(id);
@@ -383,7 +393,7 @@ function testCard() {
     const list = entries(g);
     if (!list.length) return `<div class="ts"><span>${GNAME[g]}</span><span class="ref">—</span></div>`;
     const lb = lowerBetter(g), best = list.reduce((b, x) => (lb ? x.val < b.val : x.val > b.val) ? x : b);
-    return `<div class="ts" onclick="LAUF.sheet('${g}')"><span>${GNAME[g]}</span><span><span class="${TCOL[g]}">${fmtXu(g, best.val)}</span> <span class="ref">· ${dShort(best.e.date)}</span></span></div>`;
+    return `<div class="ts" onclick="LAUF.sheet('${g}')"><span>${GNAME[g]}</span><span><span class="${TCOL[g]}">${fmtXu(g, best.val)}</span>${g === "mile" ? ` <span class="teal">${fmtPace(best.val / MILE)}</span><span class="u teal">/KM</span>` : ""} <span class="ref">· ${dShort(best.e.date)}</span></span></div>`;
   }).join("");
   return `<div class="chartcard lstat"><h3>Tests · Bestwerte</h3>${rows}</div>`;
 }

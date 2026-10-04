@@ -269,7 +269,41 @@ function nwReset() {
 }
 function nwLater(wk) { P().nwSkip = wk; demoOff(); markDirty(); render(); }
 
+/* ---------- Felder an Plan-Läufen ohne eigenes Ergebnis ----------
+   Warm-up, Cool-down, Easy Run, Recovery Run … stehen im Plan ohne key, hatten also kein Feld.
+   Jetzt: Warm-up/Cool-down → Zeit + km; Easy/Recovery → Zeit + km + Ø-HF (zählt ab 30 min auch
+   bei den lockeren Läufen in der Analyse). Gespeichert als S.xruns-Eintrag mit item = Plan-ID,
+   Datum = Tag des Häkchens (sonst heute). Zählt in der Laufwoche.                              */
+const WARM_RX = /warm.?up|cool.?down/i;
+const RUN_RX = /\b(run|jog|lauf)/i;
+const runKind = it => { if (it.key || it.rest) return null; const t = (it.title || "") + " " + (it.sub || ""); return !RUN_RX.test(t) ? null : WARM_RX.test(t) ? "warmup" : "locker"; };
+const fmtMin = t => { const m = Math.floor(t), sec = Math.round((t - m) * 60); return sec === 60 ? (m + 1) + ":00" : m + ":" + String(sec).padStart(2, "0"); };
+const dec2 = v => String(Math.round(v * 100) / 100).replace(".", ",");
+function runField(item) {
+  const kind = runKind(item);
+  if (!kind) return "";
+  const x = XR().find(r => r.item === item.id) || {}, id = item.id, on = `onchange="WOCHE.saveField('${id}')"`;
+  return `<div class="res lauf"><div class="lf">
+    <label>Zeit<input id="wu-t-${id}" inputmode="numeric" placeholder="${kind === "warmup" ? "10:00" : "45:00"}" value="${x.t ? fmtMin(x.t) : ""}" ${on}></label>
+    <label>km<input id="wu-k-${id}" inputmode="decimal" placeholder="${kind === "warmup" ? "1,6" : "6,5"}" value="${x.km ? dec2(x.km) : ""}" ${on}></label>
+    ${kind === "locker" ? `<label>Ø-HF<input id="wu-h-${id}" inputmode="numeric" placeholder="135" value="${x.hf || ""}" ${on}></label>` : ""}
+  </div></div>`;
+}
+function saveField(id) {
+  const it = ITEM_INDEX[id], kind = runKind(it);
+  const g = s => { const el = document.getElementById(s + id); return el ? el.value : ""; };
+  const t = mins(g("wu-t-")), km = num(g("wu-k-")), hf = parseInt(g("wu-h-"), 10) || null;
+  const list = XR(), i = list.findIndex(r => r.item === id);
+  if (i >= 0) list.splice(i, 1);
+  if (t || km) {
+    const c = S.checked[id], d = typeof c === "string" ? dkey(new Date(c)) : T();
+    list.push({ d, kind, t: t ? Math.round(t * 10) / 10 : 0, km: km || 0, hf, item: id });
+  }
+  markDirty();   // kein Neuaufbau: der Fokus bleibt im nächsten Feld
+}
+
 window.WOCHE = {
+  runField, saveField,
   card, nwCard, runSheet, saveRun, otherSheet, saveOther, delOther, offInf, offClick, todayOff,
   rk: k => { RK = k; runSheet(); }, rd: i => { RD = i; runSheet(); },
   on: n => { ON = n; if (n === "Wettkampf") OL = "hart"; otherSheet(OK); }, ol: l => { OL = l; otherSheet(OK); },

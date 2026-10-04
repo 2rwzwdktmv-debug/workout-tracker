@@ -859,11 +859,11 @@
 </nav>
 
 <script src="ernaehrung.js?v=2026-10-04d"></script>
-<link rel="stylesheet" href="lauf.css?v=2026-10-04d">
-<link rel="stylesheet" href="apple.css?v=2026-10-04b">   <!-- Apple-naher Look, zuletzt geladen -->
-<link rel="stylesheet" href="woche.css?v=2026-10-04a">
-<script src="woche.js?v=2026-10-04a"></script>   <!-- Laufwoche · Anderes Training · Neue Woche -->
-<script src="lauf.js?v=2026-10-04d"></script>
+<link rel="stylesheet" href="lauf.css?v=2026-10-04e">
+<link rel="stylesheet" href="apple.css?v=2026-10-04e">   <!-- Apple-naher Look, zuletzt geladen -->
+<link rel="stylesheet" href="woche.css?v=2026-10-04e">
+<script src="woche.js?v=2026-10-04e"></script>   <!-- Laufwoche · Anderes Training · Neue Woche -->
+<script src="lauf.js?v=2026-10-04e"></script>
 <script>
 "use strict";
 /* ============================================================
@@ -2509,7 +2509,7 @@ function renderDay(pi, wi, di) {
         ${item.orig ? `<div class="orig"><b>Im Plan steht hier</b>${esc(item.orig)}</div>` : ""}
         ${renderExercises(item)}
         ${item.after ? `<div class="body">${fmtBody(item.after, item.id + ":a")}</div>` : ""}
-        ${item.key ? renderResult(item) : ""}
+        ${item.key ? renderResult(item) : WOCHE.runField(item)}
       </div>`;
     });
   });

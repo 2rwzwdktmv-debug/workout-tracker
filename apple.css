@@ -60,3 +60,8 @@ h2.section { text-transform: none; letter-spacing: 0; font-size: 22px; font-weig
 /* Verlaufslinie in der Farbe des Messwerts, wie in Apple Fitness */
 .lstat.teal .spark polyline { stroke: var(--fx-teal); }
 .lstat.blue .spark polyline { stroke: var(--fx-blue); }
+.lauf input[id^="xp-"] { color: var(--fx-teal); }
+.lauf input[id^="wu-t-"] { color: var(--fx-yellow); }
+.lauf input[id^="wu-k-"] { color: var(--fx-blue); }
+.lauf input[id^="wu-h-"] { color: var(--fx-red); }
+.ts .u.teal { color: var(--fx-teal); }
