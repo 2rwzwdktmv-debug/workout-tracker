@@ -39,12 +39,12 @@ const dayRanges=ws=>{const out=[];let a=-1,b=-1;const flush=()=>{if(a<0)return;c
 
 /* ---------- Zustand ---------- */
 /* Synchronisiert (progress.json): S.food = {days:{datum:{st,sw,extra,water,energy,meds,packed}}, set:{protein,fast}} */
-function FS(){if(!S.food||typeof S.food!=='object')S.food={};if(!S.food.days)S.food.days={};if(!S.food.set)S.food.set={protein:'whey',fast:true};if(!S.food.stock)S.food.stock={};if(!S.food.cart)S.food.cart={};if(!S.food.have)S.food.have={};if(!S.food.subst)S.food.subst={};if(!S.food.pantry)S.food.pantry={};if(!S.food.set.free)S.food.set.free={};if(!S.food.set.freeV2){if(JSON.stringify(S.food.set.free)==='{"0":["we"]}')S.food.set.free={};S.food.set.freeV2=1;}   /* Standard: jede Mahlzeit im Plan; früheres „So Mittag frei“ einmalig zurück */if(!S.food.tt)S.food.tt={};return S.food;}
+function FS(){if(!S.food||typeof S.food!=='object')S.food={};if(!S.food.days)S.food.days={};if(!S.food.set)S.food.set={protein:'whey',fast:true};if(!S.food.stock)S.food.stock={};if(!S.food.cart)S.food.cart={};if(!S.food.have)S.food.have={};if(!S.food.got)S.food.got={};if(!S.food.subst)S.food.subst={};if(!S.food.pantry)S.food.pantry={};if(!S.food.set.free)S.food.set.free={};if(!S.food.set.freeV2){if(JSON.stringify(S.food.set.free)==='{"0":["we"]}')S.food.set.free={};S.food.set.freeV2=1;}   /* Standard: jede Mahlzeit im Plan; früheres „So Mittag frei“ einmalig zurück */if(!S.food.tt)S.food.tt={};return S.food;}
 /* Nur lokal auf diesem Gerät (Gesundheitsdaten): Haut, Ausnahmen, Heißhunger, Gewicht, Heilungsfenster */
 const HKEY='wt-health-v1';
 let H={days:{},HW:{active:false,start:'',len:7}};
 try{const x=JSON.parse(localStorage.getItem(HKEY)||'null');if(x)H=Object.assign(H,x);}catch(e){}
-const HF={exc:[],skin:0,haut:0,skinAt:[],crave:-1,weight:0,waist:0}, SF={st:{},sw:{},extra:[],water:0,energy:0,energyAsked:false,meds:{},packed:false,used:{},guests:{},ing:{}};
+const HF={exc:[],skin:0,haut:0,skinAt:[],crave:-1,weight:0,waist:0}, SF={st:{},sw:{},extra:[],water:0,energy:0,energyAsked:false,meds:{},packed:false,pk:{},used:{},guests:{},ing:{}};
 const cl=v=>typeof v==='object'?JSON.parse(JSON.stringify(v)):v;
 /* Ein Tag als ein Objekt; jedes Feld liegt im passenden Speicher */
 function NS(k){return new Proxy({},{
@@ -55,7 +55,7 @@ function NS(k){return new Proxy({},{
 /* leere Einträge nicht mitspeichern */
 const isEmpty=v=>v==null||v===false||v===0||(Array.isArray(v)&&!v.length)||(typeof v==='object'&&!Array.isArray(v)&&!Object.keys(v).length);
 function prune(days,defs){Object.keys(days).forEach(k=>{const d=days[k];Object.keys(d).forEach(p=>{if(isEmpty(d[p])||d[p]===defs[p])delete d[p];});if(!Object.keys(d).length)delete days[k];});}
-const save=()=>{prune(H.days,HF);prune(FS().days,SF);Object.keys(FS().stock).forEach(it=>{if(it!=='bolotk'||!(FS().stock[it]>0))delete FS().stock[it];});Object.keys(FS().have).forEach(id=>{const at=id.split('@')[1],h=FS().have[id];if(at?at<TODAY():diff(TODAY(),h)>=7)delete FS().have[id];});try{localStorage.setItem(HKEY,JSON.stringify(H));}catch(e){}};
+const save=()=>{prune(H.days,HF);prune(FS().days,SF);Object.keys(FS().stock).forEach(it=>{if(it!=='bolotk'||!(FS().stock[it]>0))delete FS().stock[it];});Object.keys(FS().have).forEach(id=>{const at=id.split('@')[1],h=FS().have[id];if(at?at<TODAY():diff(TODAY(),h)>=7)delete FS().have[id];});Object.keys(FS().got).forEach(id=>{if(FS().got[id]<TODAY())delete FS().got[id];});try{localStorage.setItem(HKEY,JSON.stringify(H));}catch(e){}};
 EN.save=save;
 const ST={get protein(){return FS().set.protein;},set protein(v){FS().set.protein=v;},get fast(){return FS().set.fast!==false;},set fast(v){FS().set.fast=v;}};
 let HW=H.HW;
@@ -163,15 +163,27 @@ function planBasis(D){const pb=new Set();mealIds(D).forEach(id=>(V[varOf(D,id)].
   Object.keys(dayIngredients(D)).forEach(it=>{const b=(IT()[it]||{}).basis;if(b)pb.add(b);});
   if(supOn().some(x=>/fisch|omega/i.test(x.n)))pb.add('Fisch');return pb;}
 function nextWorkDay(D){const n=dayOf(addD(D.k,1));return n.work?n:null;}
-function packData(N){const i=ti(N),prep=[],food=[],other=[];
-  shown(N).forEach(sl=>{const id=sl[0];if(id==='T')return;const X=V[varOf(N,id)];
-    if(sl[2]==='work'){food.push([`${SL[id][0]}: ${X.n}`,B_(X.pack)||X.d(pix(N,id))]);(X.prep||[]).forEach(p=>prep.push([p,`für ${SL[id][0]}`]));}
-    if(sl[2]==='gym')other.push([B_(X.pack),'direkt nach dem Training']);
-    if(id==='ab'&&X.prepAb)prep.push([X.prepAb,`für ${N.wd} abends`]);});
-  if(supOn().length&&shown(N).some(s=>s[2]==='work'&&s[0]==='mi'))other.push(['Supplements fürs Mittag',supOn().map(x=>x.n+(x.d?' '+x.d:'')).join(' · ')]);
-  PACK.food.forEach(x=>food.push(x));PACK.other.forEach(x=>other.push(x));
-  if(N.train&&PACK.training)other.push(PACK.training);
-  return {prep,food,other};}
+/* Packliste (04.10.): was morgen mit zur Arbeit / ins Gym muss.
+   Lebensmittel als Gesamtliste mit Mengen (aus den 🎒-Mahlzeiten, egal für welche Mahlzeit), ein Lebensmittel pro Zeile;
+   Dinge (Trinkflasche, Sporttasche, Shaker) getrennt; Aufgaben für heute Abend (ansetzen, auftauen) vorneweg. */
+function packModel(N){const tasks=[],food={},res={},things=[],add=(it,q,rs)=>{food[it]=(food[it]||0)+q;if(rs)res[it]=(res[it]||0)+q;};
+  shown(N).forEach(sl=>{const id=sl[0];if(id==='T')return;const v=varOf(N,id),X=V[v],R0=C.dishes[v],i=pix(N,id);
+    if(id==='ab'&&X.prepAb)tasks.push(['t:'+X.prepAb,X.prepAb,`für ${N.wd} abends`]);
+    if(sl[2]!=='work'&&sl[2]!=='gym')return;
+    (X.prep||[]).forEach(p=>tasks.push(['t:'+p,p,`für ${SL[id][0]}`]));
+    if(R0&&R0.use)Object.entries(R0.use).forEach(([it0,q])=>{const it=itemFor(it0,N.k),I=IT()[it];if(!I||I.unit==='basic'||!q[i])return;add(it,qB(it0,q[i]));});
+    if(R0&&R0.shaker&&((R0.use||{}).protein||[])[i])things.push('Shaker');
+    if(sl[2]==='gym')things.push(PACK.training?PACK.training[0]:'Sporttasche');});
+  (PACK.foodItems||[]).forEach(x=>{if(IT()[x.it])add(x.it,x.q,true);});
+  const sup=shown(N).some(s=>s[2]==='work'&&s[0]==='mi')?supOn().filter(x=>!(/fisch|omega/i.test(x.n)&&food.fischoel)):[];
+  PACK.other.forEach(x=>things.push(x[0]));if(N.train&&PACK.training)things.push(PACK.training[0]);
+  const cnt=it=>['Stück','Dose','Scheiben','Packung','Portion'].includes(IT()[it].unit),G={};
+  const where=it=>({'Kühlregal':'Aus Kühlschrank & TK','Tiefkühl':'Aus Kühlschrank & TK','Obst & Gemüse':'Obst','Drogerie':'Pulver & Supplements'})[IT()[it].cat]||'Aus dem Schrank';
+  Object.keys(food).sort((a,b)=>nameOf(a).localeCompare(nameOf(b))).forEach(it=>(G[where(it)]=G[where(it)]||[]).push(['f:'+it,nameOf(it),res[it]?(res[it]>=food[it]-1e-9?'Reserve':'inkl. '+qS(fmtQ(it,res[it]))+' Reserve'):'',fmtQ(it,cnt(it)?Math.ceil(food[it]-1e-9):food[it])]));
+  sup.forEach(x=>(G['Pulver & Supplements']=G['Pulver & Supplements']||[]).push(['s:'+x.n,x.n,'',x.d||'']));
+  return [['Heute Abend erledigen',tasks.map(x=>[x[0],x[1],x[2]])],
+    ...['Aus dem Schrank','Obst','Pulver & Supplements','Aus Kühlschrank & TK'].filter(g=>G[g]).map(g=>[g,G[g],'food']),
+    ['Sachen',[...new Set(things)].map(x=>['d:'+x,x,'',''])]].filter(g=>g[1].length);}
 const R=()=>{save();markDirty();render();};
 EN.R=R;
 
@@ -268,7 +280,23 @@ function mealRow(D,sl,fn){const id=sl[0],v=varOf(D,id),X=V[v],s=NS(D.k),st=s.st[
 const mealList=(D,part,fn)=>mealsOf(D,part).map(sl=>mealRow(D,sl,fn)).join('');
 EN.dayPre=e=>C?mealList(dayOf(e.k),'pre'):'';
 /* Übersicht: Intra-Workout steht nicht als eigene Zeile, sondern leise in der Trainingszeile (EN.todayLine) */
-EN.dayPost=e=>{if(!C)return '';const D=dayOf(e.k);return mealsOf(D,'post').filter(s=>s[0]!=='uw').map(sl=>mealRow(D,sl)).join('');};
+EN.dayPost=e=>{if(!C)return '';const D=dayOf(e.k);return mealsOf(D,'post').filter(s=>s[0]!=='uw').map(sl=>mealRow(D,sl)).join('')+packRow(D);};
+/* ---------- Packen für morgen (04.10.): letzte Zeile im Tagesablauf, Liste im Sheet ----------
+   Steht nur heute und nur, wenn morgen gearbeitet wird. Abgehakt wird pro Punkt (S.food.days[heute].pk),
+   „gepackt“ ist der Tag, wenn alles abgehakt ist oder „Alles gepackt“ gedrückt wurde. */
+function packRow(D){if(D.k!==TODAY())return '';const N=nextWorkDay(D);if(!N)return '';const s=NS(D.k),gs=packModel(N),all=[].concat(...gs.map(g=>g[1])),nd=all.filter(x=>s.pk[x[0]]).length;
+  if(s.packed)return `<div class="slot done" onclick="EN.openPack()"><div class="body"><span class="l"><i class="ic">🎒</i>Für ${N.wd}</span>gepackt</div><button class="st eaten" onclick="event.stopPropagation();EN.openPack()">✓</button></div>`;
+  const nf=gs.filter(g=>g[2]==='food').reduce((a,g)=>a+g[1].length,0),th=(gs.find(g=>g[0]==='Sachen')||[0,[]])[1].map(x=>x[1]),tk=(gs.find(g=>g[0]==='Heute Abend erledigen')||[0,[]])[1].length;
+  const what=[nf?nf+' Lebensmittel':'',...th,tk?tk+(tk===1?' Aufgabe':' Aufgaben'):''].filter(Boolean).join(' · ');
+  return `<div class="slot" onclick="EN.openPack()"><div class="body"><div class="when"><i class="ic">🎒</i>Heute Abend · <span>für ${N.wd} packen</span></div><div class="n">${nd?nd+' von '+all.length+' erledigt':all.length+' zu packen'}</div><div class="d">${what}</div></div><span class="go">›</span></div>`;}
+EN.openPack=()=>{const D=dayOf(TODAY()),N=nextWorkDay(D);if(!N)return;const s=NS(D.k),gs=packModel(N);
+  sheet(`<div class="between"><span class="km">🎒 Für ${N.wd} ${OKT(N.k)}</span>${N.work?`<span class="echip">Arbeit ${N.work}</span>`:''}</div><h3>Packen</h3>
+    ${gs.map(([t,xs])=>`<div class="km sec">${t}</div>${xs.map(x=>{const on=!!s.pk[x[0]];return `<div class="check" onclick="EN.pk('${x[0].replace(/'/g,"\\'")}')"><span class="ecb ${on?'on':''}"></span><div style="flex:1;min-width:0">${x[3]?`<b class="qty">${qS(x[3])}</b> `:''}${x[1]}${x[2]?`<small>${x[2]}</small>`:''}</div></div>`;}).join('')}`).join('')}
+    <button class="btn" onclick="EN.packAll()">${s.packed?'✓ Gepackt':'Alles gepackt'}</button>
+    <button class="cancel" onclick="closeSheet()">Schließen</button>`);};
+EN.pk=key=>{const D=dayOf(TODAY()),N=nextWorkDay(D);if(!N)return;const s=NS(D.k),all=[].concat(...packModel(N).map(g=>g[1]));
+  if(s.pk[key])delete s.pk[key];else s.pk[key]=1;s.packed=all.every(x=>s.pk[x[0]]);save();markDirty();render();EN.openPack();};
+EN.packAll=()=>{const s=NS(TODAY());s.packed=!s.packed;if(!s.packed)s.pk={};save();markDirty();closeSheet();render();};
 EN.dayFoot=e=>C?`<div class="en">${dayFoot(dayOf(e.k))}</div>`:'';
 EN.tzChip=e=>{if(!C)return '';const D=dayOf(e.k);return D.train?`<span class="tzc" onclick="event.stopPropagation();EN.openTime('${D.k}')">${TZL[D.tz]} ⌄</span>`:'';};
 function dayFoot(D){const T=TT[D.type],t=totals(D),s=NS(D.k),goal=Math.round((T.kcal+(T.i>=2?750:0))/250);
@@ -302,17 +330,14 @@ function lastOf(f,k){const ks=Object.keys(H.days).filter(x=>x<=k&&H.days[x][f]).
 const MEASURE={weight:3,waist:6};
 function sinceLast(f,k){const ks=Object.keys(H.days).filter(x=>x<k&&H.days[x][f]).sort();return ks.length?diff(k,ks[ks.length-1]):999;}
 const showMeasure=(f,k)=>!!NS(k)[f]||sinceLast(f,k)>=MEASURE[f];
-function quickRow(D){const s=NS(D.k),N=nextWorkDay(D);
-  /* Rucksack immer sichtbar, wenn morgen gearbeitet wird; Label nennt, was heute Abend zu tun ist */
-  const todo=N?['packen',...(packData(N).prep.some(p=>/TK|auftauen/i.test(p[0]))?['auftauen']:[]),...(packData(N).prep.some(p=>/Eier kochen/.test(p[0]))?['Eier kochen']:[])].join(' · '):'';
+function quickRow(D){const s=NS(D.k);
   const q=(on,label,fn,due)=>`<button class="q ${on?'on':''}${due?' due':''}" onclick="${fn}">${label}</button>`;
   return `<div class="qrow">
     ${showMeasure('weight',D.k)?q(s.weight,s.weight?'⚖️ '+fmtKg(s.weight):'⚖️ Gewicht','EN.openMeasure(\'weight\')',!s.weight):''}
     ${showMeasure('waist',D.k)?q(s.waist,s.waist?'📏 '+fmtCm(s.waist):'📏 Taille','EN.openMeasure(\'waist\')',!s.waist):''}
     ${q(s.haut,s.haut?'Haut '+s.haut:'Haut','EN.openSkin()')}
     ${q(s.crave>=0,s.crave>=0?'Heißhunger: '+['nein','etwas','stark'][s.crave]:'Heißhunger','EN.openCrave()')}
-    ${N?q(s.packed,s.packed?'🎒 Für '+N.wd+' erledigt':'🎒 Für '+N.wd+': '+todo,`location.hash='#food/pack'`):''}
-    ${(()=>{const hw=homewayToday();return hw.length?q(false,'🛒 Heimweg: '+hw.map(r=>nameOf(r.it)).join(', '),`EN.shopMode('shop');location.hash='#food/einkauf'`):'';})()}
+    ${(()=>{const hw=homewayToday();return hw.length?q(false,'🛒 Heimweg: '+hw.map(r=>nameOf(r.it)).join(', '),`location.hash='#food/einkauf'`):'';})()}
   </div>`;}
 /* Gewicht und Taille: Zahl direkt eintippen oder mit − / + anpassen */
 const MS={weight:{t:'Gewicht',sub:'morgens, nüchtern, nach der Toilette',step:.1,def:85,fmt:fmtKg,u:'kg'},
@@ -522,8 +547,9 @@ function dayIngredients(D){const tot={};mealIds(D).forEach(id=>{const X=C.dishes
   Object.entries(X.use).forEach(([it0,q])=>{const it=itemFor(it0,D.k),I=IT()[it];if(!I)return;const f=(g&&(!X.yields||kindOf(it)==='beilage')?gFit(it):1)/(batch&&batch.has(it0)?n:1);
     if(I.unit!=='basic'&&!q[i])return;tot[it]=(tot[it]||0)+(I.unit==='basic'?0:qB(it0,q[i])*f);});});return tot;}
 EN.render=function(main,sub){EN.fresh();if(!C){main.innerHTML='<div class="en"><div class="ecard"><span class="k">Ernährung</span><div class="sub" style="margin-top:6px">Keine Inhalte gefunden: <b>nutrition.json</b> fehlt im Daten-Repo.</div></div></div>';return;}sub=sub||'tage';const tabs=[['tage','Tage'],['woche','Woche'],['einkauf','Einkauf'],['vorrat','Vorrat'],['rezepte','Rezepte']];
-  let h=`<div class="en">${sub==='pack'?'':`<div class="seg">${tabs.map(([k,l])=>`<button class="${k===sub?'on':''}" onclick="location.hash='#food/${k}'">${l}</button>`).join('')}</div>`}`;
-  h+=({tage:pTage,woche:pWoche,einkauf:pEinkauf,vorrat:pVorrat,rezepte:pRezepte,pack:pPack}[sub]||pTage)();
+  if(sub==='pack'){sub='tage';setTimeout(EN.openPack,0);}   /* alte Adresse #food/pack: Packen ist jetzt ein Sheet */
+  let h=`<div class="en">${`<div class="seg">${tabs.map(([k,l])=>`<button class="${k===sub?'on':''}" onclick="location.hash='#food/${k}'">${l}</button>`).join('')}</div>`}`;
+  h+=({tage:pTage,woche:pWoche,einkauf:pEinkauf,vorrat:pVorrat,rezepte:pRezepte}[sub]||pTage)();
   main.innerHTML=h+'</div>';};
 const days7=()=>Array.from({length:7},(_,n)=>addD(TODAY(),n));
 EN.sel=k=>{selK=k;render();};
@@ -548,7 +574,7 @@ function pTage(){const ks=days7();if(!selK||!ks.includes(selK))selK=ks[0];const 
           q=fmtQ(it,['Stück','Dose','Scheiben','Packung','Portion'].includes(IT()[it].unit)?Math.ceil(tot[it]-1e-9):tot[it])||'',b=IT()[it].basis;
           return `<div class="it ${on&&can?'got':''}" onclick="${can&&!via?`EN.ingTick('${D.k}','${it}')`:`EN.openItem('${it}')`}">${can?`<span class="ecb ${on?'on':''}"></span>`:''}<div style="flex:1;min-width:0">${nameOf(it)}<small>${[b?'Basis: '+b:'',via?'über '+via:''].filter(Boolean).join(' · ')}</small></div><span class="meta">${q}</span>${infoBtn(it)}</div>`;}).join('')}</div>`;});}
     h+=`</div>`;}
-  const N=nextWorkDay(D);if(N)h+=`<button class="btn ghost" onclick="location.hash='#food/pack'">🎒 Packliste für ${N.wd} ${OKT(N.k)}</button>`;
+  const N=nextWorkDay(D);if(N&&D.k===TODAY())h+=`<button class="btn ghost" onclick="EN.openPack()">🎒 Packen für ${N.wd} ${OKT(N.k)}</button>`;
   return h;}
 function pWoche(){const ab=days7().map(k=>varOf(dayOf(k),'ab')),cnt=g=>ab.filter(v=>(GROUPS[g]||[]).includes(v)).length;
   const goals=[['Fisch abends',cnt('fish')+' / 3',cnt('fish')>=3?'ok':'warn'],['Rotes Fleisch',cnt('red')+' / max. 3',cnt('red')<=3?'ok':'warn']];
@@ -587,25 +613,7 @@ function applyUse(k,id,f){if(!C)return;const D=dayOf(k),s=NS(k),X=C.dishes[varOf
 const SHOPN=7,SOON=2;
 /* Ist ein Artikel gerade da? Grundvorrat: Zustand da/knapp; sonst „hab ich“ diese Woche */
 const hasNow=it=>isPantry(it)?['da','knapp'].includes(pState(it)):covered(it);
-/* Wann wird was gebraucht? it → [{k,q}] für die nächsten 7 Tage ab morgen */
-function occ(){const start=addD(TODAY(),1),o={};
-  for(let n=0;n<SHOPN;n++){const k=addD(start,n),D=dayOf(k);
-    mealIds(D).forEach(id=>{const X=C.dishes[varOf(D,id)];if(!X||!X.use)return;const i=pix(D,id),g=isGuest(k,id);
-      Object.entries(X.use).forEach(([it0,q])=>{const it=itemFor(it0,k),I=IT()[it];if(!I)return;const f=g&&(!X.yields||kindOf(it)==='beilage')?gFit(it):1,v=I.unit==='basic'?0:qB(it0,q[i]||0)*f;
-        if(!v&&I.unit!=='basic')return;(o[it]=o[it]||[]).push({k,q:v});});});}
-  ((C&&C.always)||[]).forEach(a=>{if(IT()[a.it]&&!(a.hw===false&&hwDay(start)))(o[a.it]=o[a.it]||[]).push({k:start,q:a.q,why:a.why});});   /* immer da haben (Lust auf Süßes); Schokolade nicht im Heilungsfenster */
-  return {o,start,end:addD(start,SHOPN-1)};}
-const covered=id=>{const h=FS().have[id];if(!h)return false;const at=id.includes('@')?id.split('@')[1]:null;return at?at>=TODAY():diff(TODAY(),h)<7;};
-/* Liste: Zeilen {id,it,q,k(ab/bis),later,pantry,state} */
-function shopModel(){const {o,start,end}=occ(),rows=[];
-  Object.keys(o).forEach(it=>{const I=IT()[it];if(!I||it==='bolotk'||isPantry(it))return;const xs=o[it];
-    if(I.keep==='frisch'){const by={};xs.forEach(x=>{by[x.k]=(by[x.k]||0)+x.q;});
-      Object.keys(by).sort().forEach(k=>rows.push({id:it+'@'+k,it,q:by[k],k,fresh:true,later:diff(k,start)>=SOON}));}
-    else rows.push({id:it,it,q:xs.reduce((a,x)=>a+x.q,0),k:xs.map(x=>x.k).sort()[0],later:false});});
-  Object.keys(IT()).filter(isPantry).forEach(it=>{const st=pState(it);if(st==='da'||IT()[it].noRestock)return;const xs=o[it]||[];
-    if(!xs.length&&!st)return;   /* nicht geprüft und diese Woche nicht gebraucht: nicht stören */
-    rows.push({id:it,it,q:xs.reduce((a,x)=>a+x.q,0),k:xs.length?xs.map(x=>x.k).sort()[0]:null,pantry:true,state:st});});
-  return {rows,start,end};}
+const covered=id=>{const g=FS().got[id];return !!g&&g>=TODAY();};
 const fmtQ=(it,q)=>{const I=IT()[it];if(!I||I.unit==='basic'||!q)return '';
   if(I.unit==='g')return q>=1000?(q/1000).toFixed(1).replace('.',',')+' kg':Math.round(q)+' g';
   if(I.unit==='ml')return q>=1000?(q/1000).toFixed(1).replace('.',',')+' l':Math.round(q)+' ml';
@@ -614,38 +622,57 @@ const fmtQ=(it,q)=>{const I=IT()[it];if(!I||I.unit==='basic'||!q)return '';
 const byCat=list=>{const cats=C.shopCats||[],g={};list.forEach(x=>{const c=IT()[x.it].cat;(g[c]=g[c]||[]).push(x);});
   return Object.keys(g).sort((a,b)=>(cats.indexOf(a)+99)%99-(cats.indexOf(b)+99)%99).map(c=>[c,g[c]]);};
 const dayTag=(r)=>!r.k?'':r.fresh?`bis ${dayOf(r.k).wd}`:`ab ${dayOf(r.k).wd}`;
-let shopMode='home';
-EN.shopMode=m=>{shopMode=m;render();};
-EN.have=id=>{const h=FS().have;if(h[id])delete h[id];else h[id]=TODAY();R();};
+/* Zeitraum der Liste: 3 oder 7 Tage ab morgen (pro Gerät gemerkt) */
+let shopDays=(()=>{try{return +localStorage.getItem('wt-shopdays-v1')===7?7:3;}catch(e){return 3;}})(),doneOpen=false;
+EN.shopDays=n=>{shopDays=n;try{localStorage.setItem('wt-shopdays-v1',String(n));}catch(e){}render();};
+EN.doneTog=()=>{doneOpen=!doneOpen;render();};
+/* „Ist da“ gilt bis zum letzten Tag, für den der Artikel gerade gebraucht wird (S.food.got[id] = Datum).
+   Kommt später ein weiterer Bedarf dazu, steht er wieder auf der Liste. */
+EN.have=(id,until)=>{const g=FS().got;if(g[id]&&g[id]>=until)delete g[id];else g[id]=until;R();};
 EN.pset=(it,st)=>{FS().pantry[it]=st;R();};
-EN.cart=id=>{const c=FS().cart;if(c[id])delete c[id];else c[id]=1;R();};
-EN.checkout=()=>{const c=FS().cart;Object.keys(c).forEach(id=>{const it=id.split('@')[0];if(isPantry(it))FS().pantry[it]='da';else FS().have[id]=TODAY();});FS().cart={};R();};
 EN.subst=(it,sb)=>{if(sb)FS().subst[it]=sb;else delete FS().subst[it];R();EN.openItem(it);};
 EN.tk=dir=>{const st=STK();st.bolotk=Math.max(0,(st.bolotk||0)+dir);R();};
 const infoBtn=it=>`<button class="btn sm ghost" onclick="event.stopPropagation();EN.openItem('${it}')" aria-label="Details">ⓘ</button>`;
 const staleNote=()=>`<div class="ecard"><div class="sub">Die Artikelliste fehlt in den geladenen Inhalten (veralteter Stand von <b>nutrition.json</b>). Bitte die Seite neu laden.</div><button class="btn ghost" onclick="location.reload()">Neu laden</button></div>`;
-function rowHTML(r,mode){const I=IT()[r.it],cnt=['Stück','Dose','Scheiben','Packung','Portion'].includes(I.unit),q=fmtQ(r.it,cnt?Math.ceil(r.q-1e-9):r.q),tag=dayTag(r);   /* Stückzahlen zum Einkaufen aufrunden */
-  const on=mode==='home'?(r.pantry?false:covered(r.id)):!!FS().cart[r.id];
-  const sub=r.pantry?(r.state==='knapp'?'knapp':r.state==='leer'?'leer':'prüfen')+(q?` · diese Woche ${q}`:''):q;
-  const click=mode==='home'?(r.pantry?`EN.pset('${r.it}','da')`:`EN.have('${r.id}')`):`EN.cart('${r.id}')`;
-  return `<div class="it ${on?'got':''}" onclick="${click}"><span class="ecb ${on?'on':''}"></span><div style="flex:1;min-width:0">${nameOf(r.it)}<small>${sub}</small></div>${tag?`<span class="dtag ${r.later?'late':''}">${tag}</span>`:''}${I.unit==='basic'?'':infoBtn(r.it)}</div>`;}
+/* Immer ausreichend da (Marc 04.10.): Obst, Snacks/Ersatz (always in nutrition.json), Öl und Gewürze.
+   Ohne Abhaken, mit Richtmenge für eine Woche; alles andere steht mit konkreter Menge auf der Liste. */
+const ALW=()=>{const s=new Set(((C&&C.always)||[]).filter(a=>!(a.hw===false&&hwDay(addD(TODAY(),1)))).map(a=>a.it));Object.keys(IT()).forEach(it=>{if(IT()[it].unit==='basic')s.add(it);});return s;};
+/* Bedarf der nächsten n Tage ab morgen: it → [{k,q}] */
+function needs(n){const start=addD(TODAY(),1),o={};
+  for(let d=0;d<n;d++){const k=addD(start,d),D=dayOf(k);
+    mealIds(D).forEach(id=>{const X=C.dishes[varOf(D,id)];if(!X||!X.use)return;const i=pix(D,id),g=isGuest(k,id);
+      Object.entries(X.use).forEach(([it0,q])=>{const it=itemFor(it0,k),I=IT()[it];if(!I)return;const f=g&&(!X.yields||kindOf(it)==='beilage')?gFit(it):1,v=I.unit==='basic'?0:qB(it0,q[i]||0)*f;
+        if(!v&&I.unit!=='basic')return;(o[it]=o[it]||[]).push({k,q:v});});});}
+  return {o,start,end:addD(start,n-1)};}
+function shopList(n){const {o,start,end}=needs(n),A=ALW(),rows=[];
+  Object.keys(o).forEach(it=>{const I=IT()[it];if(!I||it==='bolotk'||A.has(it))return;const xs=o[it];
+    if(I.keep==='frisch'){const by={};xs.forEach(x=>{by[x.k]=(by[x.k]||0)+x.q;});
+      Object.keys(by).sort().forEach(k=>rows.push({id:it+'@'+k,it,q:by[k],k,until:k,days:[k],fresh:true,later:diff(k,start)>=SOON}));}
+    else rows.push({id:it,it,q:xs.reduce((a,x)=>a+x.q,0),until:xs.map(x=>x.k).sort().pop(),days:[...new Set(xs.map(x=>x.k))]});});
+  Object.keys(IT()).filter(isPantry).forEach(it=>{const st=pState(it);if((st==='knapp'||st==='leer')&&!A.has(it)&&!rows.some(r=>r.it===it))rows.push({id:it,it,q:0,until:end,state:st});});
+  return {rows,start,end};}
+const isGot=r=>{const g=FS().got[r.id];return !!g&&g>=r.until;};
+const qS=s=>String(s).replace(/^(\S+) Stück$/,'$1×');
+/* Tage als feste Spalten (Mo Di Mi …): gebraucht = Etikett, sonst Lücke an derselben Stelle */
+const dSlots=(r,ks)=>`<span class="dslots">${ks.map(k=>(r.days||[]).includes(k)?`<b class="${r.later?'late':''}">${dayOf(k).wd}</b>`:'<i></i>').join('')}</span>`;
+function rowHTML(r,done,ks){const I=IT()[r.it],cnt=['Stück','Dose','Scheiben','Packung','Portion'].includes(I.unit),q=fmtQ(r.it,cnt?Math.ceil(r.q-1e-9):r.q);   /* Stückzahlen zum Einkaufen aufrunden */
+  return `<div class="it ${done?'got':''}" onclick="EN.have('${r.id}','${r.until}')"><span class="ecb ${done?'on':''}"></span><div style="flex:1;min-width:0">${q?`<b class="qty">${qS(q)}</b> `:''}${nameOf(r.it)}${r.state?`<small>Vorrat: ${r.state}</small>`:''}</div>${done?'':dSlots(r,ks)}</div>`;}
+/* Einkauf (04.10.): oben was konkret für die nächsten 3 bzw. 7 Tage gebraucht wird (Gesamtmenge, abhaken = ist da),
+   dann frisch, dann „immer ausreichend da“ ohne Abhaken. Abgehaktes wandert nach „Erledigt“. */
 function pEinkauf(){if(!Object.keys(IT()).length)return `<div class="ecard"><span class="k">Einkauf</span></div>`+staleNote();
-  const M=shopModel(),home=shopMode==='home',open=M.rows.filter(r=>!(r.pantry?false:covered(r.id)));
-  const now=open.filter(r=>!r.later&&!r.pantry),pan=open.filter(r=>r.pantry),later=open.filter(r=>r.later);
-  let h=`<div class="ecard"><div class="between"><span class="k">Einkauf</span><span class="meta">${dayOf(M.start).wd} ${OKT(M.start)} – ${dayOf(M.end).wd} ${OKT(M.end)}</span></div>
-    <div class="sub" style="margin-top:4px;font-size:13px">Stell sicher, dass das in den nächsten 7 Tagen da ist.</div>
-    <div class="seg" style="margin:10px 0 0"><button class="${home?'on':''}" onclick="EN.shopMode('home')">Zuhause: was ist da?</button><button class="${home?'':'on'}" onclick="EN.shopMode('shop')">Im Laden (${now.length+pan.length})</button></div></div>`;
-  if(home){
-    const all=M.rows.filter(r=>!r.later&&!r.pantry);
-    h+=`<div class="sub" style="margin:0 4px 8px;font-size:13px">Antippen, was du schon hast. Es verschwindet für diese Woche von der Einkaufsliste.</div>`;
-    byCat(all).forEach(([c,xs])=>{h+=`<div class="ecard"><span class="km hl">${c}</span><div class="list">${xs.map(r=>rowHTML(r,'home')).join('')}</div></div>`;});
-    if(pan.length)h+=`<div class="ecard"><span class="km hl">Grundvorrat prüfen</span><div class="sub" style="font-size:12px;margin-top:2px">Antippen = ist da. Knapp oder leer stellst du unter <b>Vorrat</b> ein.</div><div class="list">${pan.map(r=>rowHTML(r,'home')).join('')}</div></div>`;
-    if(later.length)h+=`<div class="ecard"><span class="km hl">Später, frisch</span><div class="list">${later.map(r=>rowHTML(r,'home')).join('')}</div></div>`;}
-  else{if(!now.length&&!pan.length&&!later.length)h+=`<div class="ecard"><div class="sub">Alles da für die nächsten 7 Tage.</div></div>`;
-    byCat(now.concat(pan)).forEach(([c,xs])=>{h+=`<div class="ecard"><span class="km hl">${c}</span><div class="list">${xs.map(r=>rowHTML(r,'shop')).join('')}</div></div>`;});
-    if(later.length)h+=`<div class="ecard"><span class="km hl">Später, frisch</span><div class="sub" style="font-size:12px;margin-top:2px">Erst kurz vorher kaufen, am besten auf dem Heimweg am Vortag.</div><div class="list">${later.map(r=>rowHTML(r,'shop')).join('')}</div></div>`;
-    const n=Object.keys(FS().cart).length;if(n)h+=`<button class="btn" onclick="EN.checkout()">Einkauf abschließen · ${n} abgehakt</button>`;}
-  const bolo=[];for(let n=0;n<SHOPN;n++){const k=addD(M.start,n),D=dayOf(k);if(mealIds(D).includes('ab')&&varOf(D,'ab')==='bolo')bolo.push(D.wd);}
+  const M=shopList(shopDays),ks=Array.from({length:shopDays},(_,n)=>addD(M.start,n)),done=M.rows.filter(isGot),open=M.rows.filter(r=>!isGot(r)),now=open.filter(r=>!r.later),later=open.filter(r=>r.later);
+  let h=`<div class="ecard"><div class="between"><span class="k">Einkauf</span><span class="meta">${open.length?open.length+' offen':'alles da'}</span></div>
+    <div class="sub" style="margin-top:4px;font-size:13px">Was bis ${dayOf(M.end).wd} ${OKT(M.end)} da sein muss. Antippen, wenn du es hast oder gekauft hast.</div>
+    <div class="seg" style="margin:10px 0 0">${[3,7].map(n=>`<button class="${shopDays===n?'on':''}" onclick="EN.shopDays(${n})">${n} Tage</button>`).join('')}</div></div>`;
+  if(!open.length)h+=`<div class="ecard"><div class="sub">Alles da bis ${dayOf(M.end).wd}.</div></div>`;
+  byCat(now).forEach(([c,xs])=>{h+=`<div class="ecard"><span class="km hl">${c}</span><div class="list">${xs.map(r=>rowHTML(r,false,ks)).join('')}</div></div>`;});
+  if(later.length)h+=`<div class="ecard"><span class="km hl">Frisch, erst kurz vorher kaufen</span><div class="sub" style="font-size:12px;margin-top:2px">Am besten auf dem Heimweg am Vortag.</div><div class="list">${later.map(r=>rowHTML(r,false,ks)).join('')}</div></div>`;
+  const A=[...ALW()].filter(it=>IT()[it]),w=needs(7).o,al=((C&&C.always)||[]),tgt=it=>{const a=al.find(x=>x.it===it),q=(a&&a.q)||(w[it]||[]).reduce((s,x)=>s+x.q,0),I=IT()[it];
+    return I.unit==='basic'||!q?'':fmtQ(it,['Stück','Dose','Scheiben','Packung','Portion','Tafel'].includes(I.unit)?Math.ceil(q-1e-9):q);};
+  if(A.length){const by={};A.forEach(it=>{const c=IT()[it].unit==='basic'?'Öl & Gewürze':'Obst & Snacks';(by[c]=by[c]||[]).push(it);});
+    h+=`<div class="ecard"><span class="km hl">Immer ausreichend da</span><div class="sub" style="font-size:12px;margin-top:2px">Kein Abhaken. Richtmenge für eine Woche, nachkaufen, wenn es knapp wird.</div>${['Obst & Snacks','Öl & Gewürze'].filter(c=>by[c]).map(c=>`<div class="km" style="margin-top:10px">${c}</div><div class="list">${by[c].map(it=>{const a=al.find(x=>x.it===it);return `<div class="it" onclick="EN.openItem('${it}')"><div style="flex:1;min-width:0">${tgt(it)?`<b class="qty">${qS(tgt(it))}</b> `:''}${nameOf(it)}${a&&a.why?`<small>${a.why}</small>`:''}</div></div>`;}).join('')}</div>`).join('')}</div>`;}
+  if(done.length)h+=`<div class="ecard"><div class="between" style="cursor:pointer" onclick="EN.doneTog()"><span class="km">Erledigt (${done.length})</span><span class="meta">${doneOpen?'ausblenden':'anzeigen ›'}</span></div>${doneOpen?`<div class="sub" style="font-size:12px;margin-top:2px">Antippen holt es zurück auf die Liste.</div><div class="list">${done.map(r=>rowHTML(r,true,ks)).join('')}</div>`:''}</div>`;
+  const bolo=[];for(let n=0;n<shopDays;n++){const k=addD(M.start,n),D=dayOf(k);if(mealIds(D).includes('ab')&&varOf(D,'ab')==='bolo')bolo.push(D.wd);}
   if(bolo.length)h+=`<div class="hint">Bolognese ×4 kochen am <b>${bolo.join(', ')}</b>, danach liegen 3 Portionen im TK.</div>`;
   return h;}
 /* Vorrat = Grundvorrat: da / knapp / leer, dazu die selbst gekochten Portionen */
@@ -671,17 +698,13 @@ EN.openItem=it=>{const I=IT()[it],u=usage(it),sum=u.reduce((a,x)=>a+Math.max(0,x
     <div class="km sec">Gebraucht in den nächsten 7 Tagen</div>
     ${u.length?`<div class="list">${u.map(x=>`<div class="it"><div style="flex:1;min-width:0">${x.always?'Immer da haben':x.wd+' '+OKT(x.k)+' · '+x.slot}<small>${x.dish}</small></div><span class="meta">${x.q<0?'+'+fmtQ(it,-x.q):fmtQ(it,x.q)}</span></div>`).join('')}</div><div class="between" style="margin-top:6px;font-size:14px"><b>Summe</b><b>${fmtQ(it,sum)}</b></div>`:`<div class="sub">nicht eingeplant</div>`}
     <button class="cancel" onclick="closeSheet()">Fertig</button>`);};
-EN._dbg={dayOf:k=>dayOf(k),varOf:(D,id)=>varOf(D,id),IT:()=>IT(),C:()=>C,shopModel:()=>shopModel()};   /* Diagnose (Konsole) */
+EN._dbg={dayOf:k=>dayOf(k),varOf:(D,id)=>varOf(D,id),IT:()=>IT(),C:()=>C,shopList:n=>shopList(n)};   /* Diagnose (Konsole) */
 /* Heimweg: frische Zutat, die morgen gebraucht wird und noch nicht da ist */
-function homewayToday(){if(!C)return [];return shopModel().rows.filter(r=>r.fresh&&r.k===addD(TODAY(),1)&&!covered(r.id));}
+function homewayToday(){if(!C)return [];return shopList(1).rows.filter(r=>r.fresh&&r.k===addD(TODAY(),1)&&!isGot(r));}
 function pRezepte(){const it=v=>`<div class="it" onclick="EN.openRecipe('${v}')"><div>${V[v].n}<small>${V[v].time||''}${V[v].recipe?' · Rezept':''}</small></div><span class="go">›</span></div>`;
   return `<div class="ecard"><span class="k">🎒 Arbeit · kalt &amp; mitnehmbar</span><div class="sub" style="margin-top:4px">Kein Kochen, kein Aufwärmen, kein Teller.</div><div class="list">${Object.keys(V).filter(v=>V[v].at!=='home').map(it).join('')}</div></div>
     <div class="ecard"><span class="k">Zuhause</span><div class="list">${Object.keys(V).filter(v=>V[v].at==='home').map(it).join('')}</div></div>
     <div class="ecard"><span class="k">Bausteine (Glossar)</span><div class="list">${Object.keys(G).map(g=>`<div class="it" onclick="EN.openGl('${g}')"><div>${G[g].n}</div><span class="go">›</span></div>`).join('')}</div></div>`;}
-function pPack(){const N=nextWorkDay(dayOf(TODAY()))||dayOf(addD(TODAY(),1));const p=packData(N),C=a=>a.length?a.map(([x,s])=>`<div class="check" onclick="this.querySelector('.ecb').classList.toggle('on')"><span class="ecb"></span><div>${x}<small>${s||''}</small></div></div>`).join(''):'<div class="sub">Nichts vorzubereiten.</div>';
-  return `<div class="ecard"><div class="between"><span class="k">Packliste · ${N.wd} ${OKT(N.k)}</span>${N.work?`<span class="echip">Arbeit ${N.work}</span>`:''}</div><div class="sub" style="margin-top:6px">Nur Kaltes und Mitnehmbares. Erstellt aus den 🎒-Mahlzeiten von morgen.</div></div>
-    <div class="ecard"><span class="km">Heute Abend vorbereiten</span>${C(p.prep)}</div><div class="ecard"><span class="km">Rucksack · Essen</span>${C(p.food)}</div><div class="ecard"><span class="km">Rucksack · Sonstiges</span>${C(p.other)}</div>
-    <button class="btn" onclick="EN.flag('${TODAY()}','packed');history.back()">✓ Gepackt</button>`;}
 
 /* ---------- Einstellungen: neuer Abschnitt „Ernährung“ ---------- */
 EN.exportHealth=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(H,null,1)],{type:'application/json'}));a.download='gesundheit-'+TODAY()+'.json';a.click();};

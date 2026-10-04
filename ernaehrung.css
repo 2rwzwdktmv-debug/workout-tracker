@@ -259,3 +259,11 @@
 .item .en .intra{margin:9px 0 0 42px}
 
 .en .basis span.np{opacity:.4;border-style:dashed}
+
+/* Einkauf & Packen (04.10.): Menge fett vor dem Namen, Tage als feste Spalten */
+.en .qty{color:var(--ink);font-weight:700}
+.en .dslots{display:flex;gap:3px;flex:none}
+.en .dslots>*{width:23px;text-align:center;font-size:11px;font-style:normal;line-height:20px}
+.en .dslots b{font-weight:600;color:var(--ink2);background:var(--surface2);border:1px solid var(--line);border-radius:6px}
+.en .dslots b.late{color:var(--amber);border-color:rgba(255,230,32,.35)}
+.en .list .it.got .qty{color:inherit}
