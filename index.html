@@ -830,7 +830,7 @@
     nav .go:active { transform: translateX(-50%); }
   }
 </style>
-<link rel="stylesheet" href="ernaehrung.css?v=2026-10-04c">
+<link rel="stylesheet" href="ernaehrung.css?v=2026-10-04d">
 </head>
 <script>
 /* Akzentfarbe aus dem Cache setzen, BEVOR gerendert wird — sonst blitzt
@@ -858,10 +858,12 @@
   <button id="navSet"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 13.5a7.8 7.8 0 0 0 0-3l2-1.5-2-3.4-2.4 1a7.8 7.8 0 0 0-2.6-1.5L14 2.5h-4l-.4 2.6A7.8 7.8 0 0 0 7 6.6l-2.4-1-2 3.4 2 1.5a7.8 7.8 0 0 0 0 3l-2 1.5 2 3.4 2.4-1a7.8 7.8 0 0 0 2.6 1.5l.4 2.6h4l.4-2.6a7.8 7.8 0 0 0 2.6-1.5l2.4 1 2-3.4z"/></svg>Einstellungen</button>
 </nav>
 
-<script src="ernaehrung.js?v=2026-10-04c"></script>
-<link rel="stylesheet" href="lauf.css?v=2026-10-04b">
+<script src="ernaehrung.js?v=2026-10-04d"></script>
+<link rel="stylesheet" href="lauf.css?v=2026-10-04d">
 <link rel="stylesheet" href="apple.css?v=2026-10-04b">   <!-- Apple-naher Look, zuletzt geladen -->
-<script src="lauf.js?v=2026-10-04c"></script>
+<link rel="stylesheet" href="woche.css?v=2026-10-04a">
+<script src="woche.js?v=2026-10-04a"></script>   <!-- Laufwoche · Anderes Training · Neue Woche -->
+<script src="lauf.js?v=2026-10-04d"></script>
 <script>
 "use strict";
 /* ============================================================
@@ -2011,6 +2013,7 @@ function renderPlan() {
     return `<button class="cta xcta ${done ? "done" : ""}" onclick="location.hash='#t/${id}'">＋ ${esc(tr.name)} · Stufe ${trStep(id, tr.parts[0].id)}${done ? " ✓" : ""}</button>`;
   }).join("");
 
+  html += WOCHE.nwCard();   /* Neue Woche / Woche zurücksetzen: über „Heute“ */
   html += EN.hwStrip(); /* ERNÄHRUNG */ 
   /* ERNÄHRUNG 02.10.: Karte „Heute“ = Tagesablauf auf einer Zeitleiste. Mahlzeiten (EN.dayPre/EN.dayPost) und das
      Training sind gleichrangige Zeilen; Trainingszeit als Chip (EN.tzChip). Inhalt der Trainingszeile wie bisher. */
@@ -2043,9 +2046,9 @@ function renderPlan() {
     html += `<div class="today">
       <div class="k">${hk}</div>
       <div class="en tl">${trRow("<i class='ic'>🏋️</i>Training",
-        `<div class="n">${off ? "Geht nicht" : "Ruhetag"}</div>
+        (WOCHE.todayOff(first) ? `<div class="n">${esc(WOCHE.todayOff(first).n)}</div><div class="d">${WOCHE.todayOff(first).d}</div><div class="lk tlk" onclick="${WOCHE.todayOff(first).lk}">${WOCHE.todayOff(first).lt}</div>` : `<div class="n">${off ? "Geht nicht" : "Ruhetag"}</div>
         <div class="d">${off ? "Als Ausfalltag markiert — alles rutscht nach hinten." : MAX_STREAK + " Trainingstage am Stück sind genug."}</div>
-        <div class="lk tlk" onclick="${off ? `planOffToggle('${first.k}')` : `planForce('${first.k}')`}">${off ? "Doch, geht ›" : "Trotzdem trainieren ›"}</div>
+        <div class="lk tlk" onclick="${off ? `planOffToggle('${first.k}')` : `planForce('${first.k}')`}">${off ? "Doch, geht ›" : "Trotzdem trainieren ›"}</div>`) + `
         ${xBtns}`, "", "quiet")}${EN.dayPost(first)}</div>${EN.dayFoot(first)}
     </div>`;
   }
@@ -2064,8 +2067,8 @@ function renderPlan() {
         <span class="dots" onclick="event.stopPropagation();planSheet('${e.k}')">⋯</span>
       </div>`;
     } else if (e.kind === "off") {
-      html += `<div class="pd muted off" onclick="planOffToggle('${e.k}')">${wd}
-        <div class="inf"><div class="t">Geht nicht</div><div class="s">antippen zum Zurücknehmen</div></div>
+      html += `<div class="pd muted off" onclick="${WOCHE.offClick(e)}">${wd}
+        ${WOCHE.offInf(e)}
         <span class="dots">↺</span></div>`;
     } else if (e.kind === "rest") {
       html += `<div class="pd muted" onclick="planForce('${e.k}')">${wd}
@@ -2117,8 +2120,8 @@ function renderHome() {
         <div class="s hs"><b>${done}</b> von ${total} Parts</div><div class="s hs"><b>${nResults}</b> Ergebnisse geloggt</div>
       </div><span class="hero-a">Analyse ›</span>
     </div>
-    <div class="topc">${EN.topFood()}</div> <!-- ERNÄHRUNG 03.10.: Nach Plan -->
-    <div style="margin-top:22px"></div>` + renderPlan();
+    <div class="topc">${EN.topFood()}</div>${WOCHE.card(projectPlan(7))} <!-- ERNÄHRUNG 03.10.: Nach Plan -->
+    <div style="margin-top:12px"></div>` + renderPlan();
   html += EN.homeBottom(); /* ERNÄHRUNG */ 
   html += `<div class="foot">privater Tracker · ${mode === "github" ? "Sync: GitHub" : "lokaler Modus"}</div>`;
   main.innerHTML = html;
@@ -2551,7 +2554,7 @@ function rmAt(k, iso) {
 }
 /* Wann wurde dieser Eintrag gespeichert? */
 function resultDate(exKey, rid) {
-  const e = (S.results[exKey] || []).find(x => x.itemId === rid && (x.run || 1) === (S.run || 1));
+  const e = (S.results[exKey] || []).find(x => x.itemId === rid && (x.run || 1) === (S.run || 1) && !x.rep);
   return e ? e.date : null;
 }
 /* Vorgegebenes Spitzengewicht dieser Übung (optional zum Zeitpunkt iso) */
@@ -2807,7 +2810,7 @@ window.setResult = function (id, key, value, quiet) {
   if (value) S.resultsByItem[id] = value; else delete S.resultsByItem[id];
   const arr = (S.results[key] = S.results[key] || []);
   // Nur den Eintrag des AKTUELLEN Durchlaufs ersetzen — Historie früherer Durchläufe bleibt
-  const idx = arr.findIndex(e => e.itemId === id && (e.run || 1) === (S.run || 1));
+  const idx = arr.findIndex(e => e.itemId === id && (e.run || 1) === (S.run || 1) && !e.rep);   // rep = früherer Versuch (Woche zurückgesetzt)
   if (idx >= 0) arr.splice(idx, 1);
   if (value) { arr.push({ value, date: new Date().toISOString(), itemId: id, run: S.run || 1 }); logEv("weight", id, { k: key, value }); }
   markDirty();
@@ -3537,6 +3540,7 @@ window.planSheet = function (dateKey) {
     <h4>${WD[e.date.getDay()]} ${esc(fmtDay(e.date))}</h4>
     <p style="white-space:pre-line">${esc(dayTitle(e.d))}\n${esc(daySub(e.d))}</p>
     <button onclick="planOffToggle('${e.k}')">Geht nicht<small>Der Tag fällt aus, alles rutscht nach hinten.</small></button>
+    <button onclick="WOCHE.otherSheet('${e.k}')">Anderes Training<small>Fitness, Zirkel, Tanzen, Wettkampf … Der Plan rutscht.</small></button>
     <button onclick="planSwapStart('${e.d.key}')">Tauschen<small>Danach den zweiten Tag antippen.</small></button>
     <button onclick="planDrop('${e.d.key}')">Einheit streichen<small>Fällt dauerhaft weg, erscheint in der Analyse als gestrichen.</small></button>
     <button class="cancel" onclick="closeSheet()">Abbrechen</button>

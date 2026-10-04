@@ -132,13 +132,15 @@ function entries(g) {
     else if (g === "tempo") { const s = tempoSum(parseT(e.value)); if (s) out.push({ e, s, val: s.avg }); }
     else { const p = parseD(e.value), v = mps(p); if (v) out.push({ e, p, val: v }); }
   }));
+  // Zusatzläufe aus „＋ Lauf“ (woche.js): locker ab 30 min zählen bei den lockeren Läufen mit
+  if (g === "locker") (S.xruns || []).forEach(x => { if (x.kind === "locker" && x.t >= 30 && x.km && x.hf) { const p = { t: x.t, km: x.km, hf: x.hf }; out.push({ e: { date: x.d + "T12:00:00.000Z", itemId: "xrun" }, p, val: mps(p) }); } });
   out.sort((a, b) => a.e.date < b.e.date ? -1 : 1);
   // Tempo: fair über Meter pro Herzschlag, aber nur wenn jede Einheit eine HF hat
   if (g === "tempo" && out.length && out.every(x => x.s.mps)) { out.forEach(x => { x.val = x.s.mps; }); out.mps = true; }
   return out;
 }
 function mine(item) {
-  return (S.results[item.key] || []).find(x => x.itemId === item.id && (x.run || 1) === (S.run || 1));
+  return (S.results[item.key] || []).find(x => x.itemId === item.id && (x.run || 1) === (S.run || 1) && !x.rep);
 }
 /* Alles, was VOR diesem Lauf liegt (beim Nachtragen zählt das Datum, nicht die Reihenfolge) */
 function before(item, g) {

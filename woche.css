@@ -1,0 +1,46 @@
+/* Laufwoche · Anderes Training · Neue Woche */
+.lwoche { background: var(--surface); border-radius: var(--r-lg); padding: 12px 16px; margin: 10px 0 0; }
+.lwoche .lwt { display: flex; justify-content: space-between; align-items: baseline; font-size: 15px; font-weight: 600; }
+.lwoche .lwt .kw { font-weight: 400; color: var(--muted); }
+.lwoche .lwadd { font-size: 13.5px; font-weight: 600; color: var(--sky); cursor: pointer; }
+.lwoche .lwr { display: flex; align-items: center; gap: 14px; margin-top: 6px; }
+.lwoche .lwv { font-size: 13px; color: var(--muted); line-height: 1.25; font-family: ui-rounded, -apple-system, sans-serif; white-space: nowrap; }
+.lwoche .lwv b { font-size: 20px; font-weight: 600; color: var(--ink); }
+.lwoche .lwv b.blue { color: var(--fx-blue, var(--sky)); }
+.lwoche .lwv .u { color: var(--fx-blue, var(--sky)); font-size: 12px; font-weight: 600; margin-left: 2px; }
+.lwoche .lwd { flex: 1; display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-size: 10.5px; color: var(--muted); }
+.lwoche .lwd i { display: block; width: 11px; height: 11px; margin: 0 auto 3px; border-radius: 50%; background: var(--surface2); }
+.lwoche .lwd .on i { background: var(--fx-blue, var(--sky)); }
+.lwoche .lwd .half i { background: color-mix(in srgb, var(--fx-blue, var(--sky)) 40%, var(--surface2)); }
+.lwoche .lwd .plan i { background: none; border: 1.5px solid color-mix(in srgb, var(--fx-blue, var(--sky)) 60%, transparent); }
+.lwoche .lwd .now { color: var(--ink); font-weight: 600; }
+.lwoche .lwh { font-size: 13px; color: var(--muted); margin-top: 6px; }
+.lwoche .lwh.due { color: var(--amber); font-weight: 600; }
+.lwoche .lwh.ok { color: var(--ink2); }
+
+/* Kompakt: die drei Übersichtskarten oben je ~25 % flacher */
+.hero { padding: 10px 16px; gap: 14px; margin-bottom: 0; }
+.hero .ringwrap, .hero .ringwrap svg { width: 76px; height: 76px; }
+.hero .mid b { font-size: 18px; }
+.hero .mid span { font-size: 10.5px; }
+.hero .txt .k { font-size: 13px; }
+.hero .txt .v { font-size: 17px; margin: 0 0 2px; }
+.hero .txt .s { font-size: 12.5px; line-height: 1.35; }
+.topc { margin-top: 10px; }
+.topc .tc-sec { padding: 6px 0 5px; }
+.topc .tc-g.g3 b { font-size: 16px; }
+.topc .tc-h { font-size: 15px; }
+.topc .tc-g { margin-top: 3px; }
+.topc .tc-due { padding: 5px 0 6px; }
+.today.nw { background: var(--surface); }
+.today.nw .k { color: var(--ink); text-transform: none; letter-spacing: 0; font-size: 17px; font-weight: 600; }
+.today.nw .cta.ghost { margin-top: 8px; }
+
+.pd .inf .t.ot { text-decoration: none; color: var(--ink2); }
+
+.wsheet .wch { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; }
+.wsheet .wch button { width: auto; margin: 0; padding: 8px 13px; border-radius: 99px; font-size: 13.5px; font-weight: 600;
+  background: var(--surface2); border: 1px solid var(--line); color: var(--ink); text-align: center; }
+.wsheet .wch button.on { background: var(--lime); color: var(--lime-ink); border-color: var(--lime); }
+.wsheet .res.lauf { margin: 4px 0 12px; }
+.wsheet .wsave { background: var(--lime) !important; color: var(--lime-ink) !important; text-align: center; font-weight: 600; border: none !important; }

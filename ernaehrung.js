@@ -99,7 +99,7 @@ function dayOf(k){return DC[k]||(DC[k]=dayOf0(k));}
 function pastEntry(k){if(k>=TODAY())return null;try{const d=dayWorkedOn(k);if(d)return {kind:'donetoday',d};if(planState().off.includes(k))return {kind:'off'};}catch(e){}return null;}
 function dayOf0(k){const e=plan()[k]||pastEntry(k)||{kind:'empty'},w=D_(k).getDay();
   const isT=e.kind==='train'||e.kind==='donetoday',min=e.d?dayMinutes(e.d.day):0;
-  const type=!isT?'rest':min>=120?'hard':min>=45?'train':'active';
+  const type=!isT?((window.WOCHE&&WOCHE.type(k))||'rest'):min>=120?'hard':min>=45?'train':'active';
   const D={k,wd:WDL[w],e,min,type,off:e.kind==='off',done:e.kind==='donetoday',train:isT?(e.d?dayTitle(e.d):'Training'):null,len:min?'≈ '+min+' min':''};
   let ab=AB_ROT[w];const vm=VMR[w]||VMR.other;
   if(ab==='boloTK'&&k>=TODAY()&&tkLeft(k)<1)ab='bolo';   /* TK leer → frisch kochen (×4) */
