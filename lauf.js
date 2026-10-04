@@ -14,18 +14,31 @@
      Road Test:  "6,51 km"        Meile: "6:58" (alt: "Pace 4:20" = min/km)
      1000 m:     "4:02 · 3:59 · 4:05"                                          */
 (function () {
+/* Zeitfelder: Das iPhone zeigt bei Ziffern-Tastatur keinen Doppelpunkt. Deshalb nur Ziffern
+   tippen, die Doppelpunkte setzt die App: 620 → 6:20 · 4530 → 45:30 · 12733 → 1:27:33          */
+const TIME_ID = /^(lt-|xm-|xp-|xk-|wu-t-|xr-t)/;
+function timeMask(v) {
+  const d = String(v).replace(/\D/g, "").replace(/^0+(?=\d{3})/, "").slice(0, 6);
+  if (d.length <= 2) return d;
+  if (d.length <= 4) return d.slice(0, -2) + ":" + d.slice(-2);
+  return d.slice(0, -4) + ":" + d.slice(-4, -2) + ":" + d.slice(-2);
+}
+document.addEventListener("input", e => {
+  const el = e.target;
+  if (el && el.tagName === "INPUT" && TIME_ID.test(el.id || "")) { const m = timeMask(el.value); if (m !== el.value) el.value = m; }
+});
 const DAUER = ["endurance-run", "long-run"];
 const TEMPO = "tempo-8min";
 const TEMPO_MIN = 8;
 const TESTS = { "road-test-30min": "road", "mile-tt": "mile", "intervals-1000m": "k1000" };
 const TKEY = { road: "road-test-30min", mile: "mile-tt", k1000: "intervals-1000m" };
 const isTest = g => !!TKEY[g];
-const MILE = 1.609344;
+const MILE = 1.6;   // Marc läuft die „Meile“ auf der Bahn als 1600 m (4 Runden) – so passt die Pace zur Watch
 const GNAME = { locker: "Lockere Läufe", lang: "Lange Läufe", tempo: "8-min-Intervalle",
-                road: "Road Test 30 min", mile: "Meilen-Test", k1000: "1000-m-Intervalle" };
+                road: "Road Test 30 min", mile: "Meilen-Test (1600 m)", k1000: "1000-m-Intervalle" };
 const TWAS = {
   road: "Maximale Strecke in 30 Minuten – der 1RM fürs Laufen.",
-  mile: "Zeit für eine Meile (1,61 km) bei etwa 90 %.",
+  mile: "Zeit für 1600 m (4 Bahnrunden) bei etwa 90 %.",
   k1000: "Ø-Zeit je 1000 m. Gleichmäßig zählt mit: der letzte so schnell wie der erste.",
 };
 const GWER = {
@@ -58,7 +71,7 @@ function parseTime(s) {
   return p[0];
 }
 function fmtPace(minPerKm) {
-  let m = Math.floor(minPerKm), s = Math.round((minPerKm - m) * 60);
+  let m = Math.floor(minPerKm), s = Math.round((minPerKm - m) * 60 + 1e-9);   // 57,5 s → 58 wie auf der Watch
   if (s === 60) { m++; s = 0; }
   return m + ":" + String(s).padStart(2, "0");
 }

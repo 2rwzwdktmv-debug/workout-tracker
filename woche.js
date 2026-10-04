@@ -42,7 +42,7 @@ function kmOf(it) {
     const m = tok.match(/^\s*([\d.]+)\s*m?[^(]*(?:\(P\s*(\d+)\))?/);
     return a + (m ? +m[1].replace(/\./g, "") + (m[2] ? +m[2] : 0) : 0);
   }, 0) / 1000;
-  if (it.key === "mile-tt") return 1.61;
+  if (it.key === "mile-tt") return 1.6;
   if (it.key === "intervals-1000m") return v.split("·").filter(x => x.trim()).length * 1.4;   // 1000 m + 400 m Traben
   const tok = v.split(/[|·]/).map(x => x.trim()).find(x => /km/i.test(x) || /^\d+[.,]\d+$/.test(x));
   return tok ? num(tok.replace(/km/i, "")) || 0 : 0;
