@@ -388,6 +388,11 @@
   .blk .ex.exl { margin-left: 0; }
   .ex.exl .tip, .ex.exl .exnote { margin-left: 36px; }
   .xd { font-size: 12px; color: var(--muted); font-weight: 400; flex-shrink: 0; }
+  .xs.w { width: auto; min-width: 28px; }
+  .ex.dp + .ex.dp { margin-top: 12px; }
+  .ex.dp .xn { margin-bottom: 4px; justify-content: space-between; }
+  .ex.dp .xn .xv { flex: 0 1 auto; text-align: right; }
+  .ex.dp .tip, .ex.dp .exnote, .ex.dp .exnote:not(.tip) { margin-left: 0; }
   .xi { display: flex; align-items: center; gap: 6px; margin: 6px 0 0 44px; font-size: 12px; color: var(--muted); }
   .xi .exn { width: 64px; }
   .xi .exn.r { width: 52px; }
@@ -1312,7 +1317,7 @@ function exGroups(item) {
   (item.exercises || []).forEach(ex => {
     const acc = ex.k.startsWith("ex-");
     // Plan-rm, nicht die gewählte Kniebeuge: die Block-ID darf beim Wechsel nicht wandern
-    const gk = acc ? "acc" : ((ex._o || ex).rm || ex.k);
+    const gk = acc ? "acc" : (ex.grp || (ex._o || ex).rm || ex.k);   // grp: Supersatz = ein Block
     const last = gs[gs.length - 1];
     if (last && last.gk === gk) last.exs.push(ex);
     else gs.push({ gk, acc, exs: [ex] });
@@ -2059,7 +2064,8 @@ function renderPlan() {
     html += `<div class="pdw">`;
     if (e.kind === "train") {
       const sel = swapFrom === e.d.key;
-      const click = swapFrom ? `planSwapWith('${e.d.key}')` : EN.ready() ? `EN.openDay('${e.k}')` /* ERNÄHRUNG: Tagesvorschau */ : `location.hash='#d/${e.d.pi}/${e.d.wi}/${e.d.di}'`;
+      // Tipp öffnet die Trainingsansicht; die Essens-Vorschau kommender Tage steht unter Ernährung → Tage (04.10.)
+      const click = swapFrom ? `planSwapWith('${e.d.key}')` : `location.hash='#d/${e.d.pi}/${e.d.wi}/${e.d.di}'`;
       const nSess = e.d.day.sessions.filter(s => s.items.some(i => !i.rest)).length;
       html += `<div class="pd ${sel ? "sel" : ""}" onclick="${click}">${wd}
         <div class="inf"><div class="t">${esc(dayTitle(e.d))}</div><div class="s">${esc(daySub(e.d))}</div></div>
@@ -2685,6 +2691,7 @@ function renderExercise(item, ex) {
       ${tip}
     </div>`;
   }
+  if (ex.dp) return renderDpExercise(item, ex, rid, val, tip);
   // Accessory: Name, darunter ein Feld über die ganze Breite. Hat die Übung einen
   // eigenen Blockkopf (Power Clean …), steht dort der Name — hier nur das Schema.
   const ownBlock = !ex.k.startsWith("ex-") && exGroups(item).length >= 2;
@@ -2693,6 +2700,58 @@ function renderExercise(item, ex) {
     <input class="exw" type="text" placeholder="${esc(ex.unit || "Gewicht")}" value="${esc(val)}"
       onchange="setResult('${rid}','${ex.k}',this.value)">
     ${exHistory(ex, rid, !!val)}
+    ${tip}
+  </div>`;
+}
+
+/* ---------- Doppelte Progression (ex.dp = [unten, oben]) ----------
+   Nippards Regel: mit demselben Gewicht Wiederholungen steigern, bis ALLE Sätze die
+   Obergrenze schaffen, dann mehr Gewicht. Eingetragen wird wie bei den Lifts der
+   schwächste Satz („14x12“) — schafft er die Obergrenze, schaffen es alle.
+   Vorgabe fürs nächste Mal wird aus dem letzten Eintrag abgeleitet, nichts gespeichert.
+   Deload-Einträge (noRaise) zählen dafür nicht, sie sind absichtlich leichter. */
+function dpIsDeload(e) {
+  const it = ITEM_INDEX[String(e.itemId).split("/")[0]];
+  const x = it && (it.exercises || []).find(y => e.itemId === it.id + "/" + y.k);
+  return !!(x && x.noRaise);
+}
+function dpPrev(ex, rid) {
+  const arr = (S.results[ex.k] || []).filter(e => e.itemId !== rid && !e.rep && !dpIsDeload(e));
+  const e = arr[arr.length - 1];
+  return e ? { set: parseSet(e.value), w: parseW(e.value), date: e.date } : null;
+}
+/* Vorgabe für heute: "14 kg × 13+" (gleiches Gewicht, mehr Wdh.) oder "mehr als 14 kg" */
+function dpTarget(ex, rid) {
+  if (ex.noRaise) return "leicht";
+  const p = dpPrev(ex, rid);
+  if (!p || !p.w) return "Gewicht wählen";
+  if (!p.set) return fmtW(p.w) + " kg";
+  return p.set.r >= ex.dp[1] ? `mehr als ${fmtW(p.w)} kg` : `${fmtW(p.w)} kg × ${p.set.r + 1}+`;
+}
+function renderDpExercise(item, ex, rid, val, tip) {
+  const cur = parseSet(val), [lo, hi] = ex.dp;
+  const ok = cur ? (cur.r >= hi ? " ok" : cur.r < lo ? " no" : "") : "";
+  const p = dpPrev(ex, rid), ls = p && p.set;
+  const name = String(ex.name).replace(/\s+\d+\s*x.*$/i, "");
+  const msg = cur && !ex.noRaise
+    ? (cur.r >= hi ? "Obergrenze geschafft · nächstes Mal mehr Gewicht"
+      : cur.r < lo ? `unter ${lo} Wdh. · nächstes Mal etwas leichter` : "")
+    : "";
+  // Zeile 1: Name · Vorgabe für heute. Zeile 2: Schema · RPE · [kg] × [Wdh]
+  return `<div class="ex exl dp">
+    <div class="xn">${esc(name)}<span class="xv">${esc(dpTarget(ex, rid))}</span></div>
+    <div class="xr"><span class="xs w">${esc(schemeOf(ex.name))}</span>
+      <span class="xd">RPE ${esc(String(ex.rpe || ""))}</span>
+      <span class="xin">
+        <input class="exn${ok}" type="number" inputmode="decimal" step="0.5" placeholder="${ls ? fmtW(ls.w) : "kg"}"
+          id="exw-${rid}" value="${cur ? cur.w : ""}" onchange="setExSet('${rid}','${ex.k}')">
+        <span class="xx">×</span>
+        <input class="exn r${ok}" type="number" inputmode="numeric" placeholder="${ls ? ls.r : "Wdh"}"
+          id="exr-${rid}" value="${cur ? cur.r : ""}" onchange="setExSet('${rid}','${ex.k}')">
+      </span>
+    </div>
+    ${msg ? `<div class="exnote">${esc(msg)}</div>` : ""}
+    ${val && !cur ? `<div class="exnote">bisher eingetragen: ${esc(val)}</div>` : ""}
     ${tip}
   </div>`;
 }
@@ -3248,12 +3307,16 @@ function renderStats() {
   if (window.LAUF) html += LAUF.stats();   /* Laufentwicklung direkt unter der Kraft */
 
   // Top-Set-Trends aus tatsächlich eingetragenen Gewichten
-  const keyLabel = {};
+  const keyLabel = {}, DPK = {};
   PROGRAM.forEach(pp => pp.weeks.forEach(w => w.days.forEach(d => d.sessions.forEach(s => s.items.forEach(i =>
-    (i.exercises || []).forEach(ex => { if (ex.rm && !keyLabel[ex.k]) keyLabel[ex.k] = ex.name; }))))));
+    (i.exercises || []).forEach(ex => {
+      if (ex.rm && !keyLabel[ex.k]) keyLabel[ex.k] = ex.name;
+      else if (ex.dp && !ex.noRaise && !keyLabel[ex.k]) { keyLabel[ex.k] = String(ex.name).replace(/\s+\d+\s*x.*$/i, ""); DPK[ex.k] = 1; }   // Armblöcke
+    }))))));
   const rows = Object.keys(keyLabel).map(k => {
     const byRun = {};
     (S.results[k] || []).forEach(h => {
+      if (DPK[k] && dpIsDeload(h)) return;            // Deload ist absichtlich leichter
       const n = parseW(h.value);
       if (n != null) (byRun[h.run || 1] = byRun[h.run || 1] || []).push(n);
     });
