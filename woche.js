@@ -11,8 +11,8 @@
                    WICHTIG: nur Laufeinheiten. Harte Nicht-Laufeinheiten (Zirkel, EMOM, Kraft …) zählen hier nie —
                    die sind nur fürs Essen relevant (Stärke beim Anderen Training).      */
 (function () {
-const RUNK = { "endurance-run": 1, "long-run": 1, "tempo-8min": 1, "road-test-30min": 1, "mile-tt": 1, "intervals-1000m": 1 };
-const HARDK = { "tempo-8min": 1, "road-test-30min": 1, "mile-tt": 1, "intervals-1000m": 1 };
+const RUNK = { "endurance-run": 1, "long-run": 1, "tempo-8min": 1, "threshold-5min": 1, "race-hyrox": 1, "road-test-30min": 1, "mile-tt": 1, "intervals-1000m": 1 };
+const HARDK = { "tempo-8min": 1, "threshold-5min": 1, "race-hyrox": 1, "road-test-30min": 1, "mile-tt": 1, "intervals-1000m": 1 };
 const KINDS = ["Fitness für Männer", "Zirkel / Kurs", "Tanzen", "Wettkampf"];
 const LVS = ["locker", "mittel", "hart"];
 const WDS = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
@@ -234,16 +234,16 @@ function nwCard() {
   if (st.mode === "reset") return `<div class="today nw">
     <div class="k">Woche nochmal von vorn?${tag}</div>
     <div class="v">${esc(P0.name)} · ${esc(W0.name)} ab Day 1</div>
-    <div class="s">Letzte 4×8 vor ${st.since} Tagen, ${st.openN} Tage sind noch offen. ${st.done.map(d => esc(d.day.label)).join(", ")} ${st.done.length === 1 ? "wird" : "werden"} wieder offen, deine Werte bleiben im Verlauf.</div>
+    <div class="s">Letzter Day 1 vor ${st.since} Tagen, ${st.openN} Tage sind noch offen. ${st.done.map(d => esc(d.day.label)).join(", ")} ${st.done.length === 1 ? "wird" : "werden"} wieder offen, deine Werte bleiben im Verlauf.</div>
     ${wait}
     <button class="cta" onclick="WOCHE.nwReset()">Woche auf Day 1 zurücksetzen</button>
     <button class="cta ghost" onclick="WOCHE.nwLater('${st.wk}')">Woche weiter machen</button>
   </div>`;
-  const nx = P0.weeks[st.head.wi + 1] ? P0.weeks[st.head.wi + 1].name : (PROGRAM[st.head.pi + 1] ? PROGRAM[st.head.pi + 1].name + " · Week 1" : "");
+  const nx = P0.weeks[st.head.wi + 1] ? P0.weeks[st.head.wi + 1].name : (PROGRAM[st.head.pi + 1] && partOn(PROGRAM[st.head.pi + 1]) ? PROGRAM[st.head.pi + 1].name + " · " + PROGRAM[st.head.pi + 1].weeks[0].name : "");
   return `<div class="today nw">
     <div class="k">Neue Woche starten?${tag}</div>
     <div class="v">${esc(nx)} · Day 1</div>
-    <div class="s">Letzte 4×8 vor ${st.since} Tagen. Übersprungen wird: ${st.drop.map(d => esc(d.day.label + " · " + daySub(d).split("\n")[0])).join(", ")}${st.keep.length ? `\nDer Long Run (${esc(st.keep[0].day.label)}) bleibt und kommt noch davor.` : ""}</div>
+    <div class="s">Letzter Day 1 vor ${st.since} Tagen. Übersprungen wird: ${st.drop.map(d => esc(d.day.label + " · " + daySub(d).split("\n")[0])).join(", ")}${st.keep.length ? `\nDer Long Run (${esc(st.keep[0].day.label)}) bleibt und kommt noch davor.` : ""}</div>
     ${wait}
     <button class="cta" onclick="WOCHE.nwStart()">Neue Woche mit Day 1 starten</button>
     <button class="cta ghost" onclick="WOCHE.nwLater('${st.wk}')">Woche weiter machen</button>

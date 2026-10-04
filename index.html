@@ -867,8 +867,9 @@
 <link rel="stylesheet" href="lauf.css?v=2026-10-04f">
 <link rel="stylesheet" href="apple.css?v=2026-10-04e">   <!-- Apple-naher Look, zuletzt geladen -->
 <link rel="stylesheet" href="woche.css?v=2026-10-04f">
-<script src="woche.js?v=2026-10-04f"></script>   <!-- Laufwoche · Anderes Training · Neue Woche -->
-<script src="lauf.js?v=2026-10-04f"></script>
+<script src="woche.js?v=2026-10-04g"></script>   <!-- Laufwoche · Anderes Training · Neue Woche -->
+<script src="lauf.js?v=2026-10-04g"></script>
+<script src="rennen.js?v=2026-10-04g"></script>   <!-- Rennblock (Part 4) mit Countdown -->
 <script>
 "use strict";
 /* ============================================================
@@ -888,8 +889,10 @@ const NUT_KEY = "wt-nutrition-cache-v1";   /* ERNÄHRUNG: Inhalte der Ernährung
 
 let PROGRAM = null, PLAN_TITLE = "Workout Tracker", TRACKS = [], PACES = [];
 let TRACKS_ALL = [], DEFAULTS = {};   // TRACKS = sichtbare Leitern, TRACKS_ALL = alle aus dem Plan
+let PROGRAM_ALL = null;               // = PROGRAM; optionale Parts (opt) zählen nur, wenn partOn() (Rennblock: rennen.js)
+function partOn(part) { return !part.opt || !!(window.RENNEN && RENNEN.active()); }
 function setData(data) {
-  PROGRAM = data.program; PLAN_TITLE = data.title || PLAN_TITLE; PACES = data.paces || [];
+  PROGRAM_ALL = PROGRAM = data.program; PLAN_TITLE = data.title || PLAN_TITLE; PACES = data.paces || [];
   TRACKS_ALL = data.tracks || []; TRACKS = TRACKS_ALL; DEFAULTS = data.defaults || {};
 }
 let S = { checked: {}, resultsByItem: {}, results: {} };
@@ -1099,6 +1102,9 @@ async function loadFromGitHub() {
 
 let ITEM_INDEX = {}, ITEM_LOC = {};
 function finishBoot() {
+  // Optionale Parts (Rennblock) stehen immer im Training-Tab, zählen aber erst nach dem Wechsel (partOn)
+  // Für den Rennblock übersprungene Tage zählen nicht mehr zum Fortschritt
+  const raceSkip = new Set(window.RENNEN && RENNEN.active() ? (S.plan.race.drop || []) : []);
   FLAT = [];
   ITEM_INDEX = {};
   ITEM_LOC = {};
@@ -1107,7 +1113,7 @@ function finishBoot() {
       ITEM_INDEX[item.id] = item;
       ITEM_LOC[item.id] = { item, pi, wi, di };
       // Optionale Einheiten (opt) gehören nicht zum Plan: kein Fortschritt, keine Prognose
-      if (!item.rest && !item.opt) FLAT.push({ item, pi, wi, di });
+      if (!item.rest && !item.opt && partOn(part) && !raceSkip.has(pi + "." + wi + "." + di)) FLAT.push({ item, pi, wi, di });
     }));
   })));
   document.getElementById("nav").style.display = "";
@@ -1539,7 +1545,7 @@ function trainedDayKeys() {
 }
 function planDays() {
   const out = [];
-  PROGRAM.forEach((part, pi) => part.weeks.forEach((week, wi) => week.days.forEach((day, di) => {
+  PROGRAM.forEach((part, pi) => partOn(part) && part.weeks.forEach((week, wi) => week.days.forEach((day, di) => {
     const items = dayItems(day);
     if (!items.length) return;                  // reine Rest-Tage des Plans
     out.push({ pi, wi, di, key: pi + "." + wi + "." + di, part, week, day, items });
@@ -1704,7 +1710,8 @@ function dayDone(d) { return d.items.every(i => S.checked[i.id]); }
 function planQueue() {
   const P = planState();
   const dropped = new Set(P.dropped);
-  const q = planDays().filter(d => !dropped.has(d.key) && !dayDone(d));
+  // Tage mit "at" (Rennwoche) stehen fest im Kalender und laufen nicht durch die Warteschlange
+  const q = planDays().filter(d => !dropped.has(d.key) && !dayDone(d) && d.day.at == null);
   P.swaps.forEach(pair => {
     const ia = q.findIndex(d => d.key === pair[0]), ib = q.findIndex(d => d.key === pair[1]);
     if (ia >= 0 && ib >= 0) { const t = q[ia]; q[ia] = q[ib]; q[ib] = t; }
@@ -1745,6 +1752,8 @@ function projectPlan(n) {
   let streak = 0, back = addDays(today0(), -1);
   while (trained.has(dkey(back)) && streak < 14) { streak++; back = addDays(back, -1); }
   let qi = 0, d = today0();
+  const fixed = window.RENNEN && RENNEN.fixedDays(), rws = fixed && RENNEN.weekStart();   // Rennwoche
+  const rday = fixed && S.race.date;
   for (let i = 0; i < n; i++) {
     const k = dkey(d);
     // Heute gilt erst als abgeschlossen, wenn die Einheit nicht mehr offen ist.
@@ -1754,9 +1763,12 @@ function projectPlan(n) {
     if (i === 0 && trained.has(k) && !headOpen) {
       out.push({ date: new Date(d), k, kind: "donetoday", d: dayWorkedOn(k) }); streak++;
     }
+    else if (fixed && fixed[k]) { out.push({ date: new Date(d), k, kind: "train", d: fixed[k] }); streak++; }
+    else if (rws && k >= rws && k <= rday) { out.push({ date: new Date(d), k, kind: "race" }); streak = 0; }
     else if (off.has(k)) { out.push({ date: new Date(d), k, kind: "off" }); streak = 0; }
     else if (streak >= MAX_STREAK && !force.has(k)) { out.push({ date: new Date(d), k, kind: "rest" }); streak = 0; }
     else if (qi < q.length) { out.push({ date: new Date(d), k, kind: "train", d: q[qi++] }); streak++; }
+    else if (rws && k < rws) { out.push({ date: new Date(d), k, kind: "race", pre: true }); streak = 0; }   // Rennblock fertig, Rennwoche noch nicht
     else out.push({ date: new Date(d), k, kind: "empty" });
     d = addDays(d, 1);
   }
@@ -1767,6 +1779,7 @@ function projectPlan(n) {
    Absichtlich KEIN Durchschnitt: Wer einen Tag auslässt, verschiebt das Ende
    genau dann um einen Tag — vorher wird nichts hineingerechnet.              */
 function planEnd() {
+  if (window.RENNEN && RENNEN.active()) return { date: new Date(S.race.date + "T12:00:00") };   // endet am Renntag
   const q = planQueue();
   if (!q.length) return null;
   const days = projectPlan(Math.min(600, q.length * 3 + 60));
@@ -1976,8 +1989,9 @@ let swapFrom = null;                          // läuft gerade ein Tausch?
 
 function renderPlan() {
   const q = planQueue();
-  if (!q.length) {
-    return `<div class="today quiet">
+  const fx = window.RENNEN && RENNEN.fixedDays();
+  if (!q.length && !(fx && Object.keys(fx).length)) {
+    return (window.RENNEN ? RENNEN.card() : "") + `<div class="today quiet">
       <div class="k">Programm durch</div>
       <div class="v">Alle Einheiten erledigt 🎉</div>
       <div class="s">Der Plan ist ausdrücklich kein Ganzjahresprogramm — erst eine Weile
@@ -2018,6 +2032,7 @@ function renderPlan() {
     return `<button class="cta xcta ${done ? "done" : ""}" onclick="location.hash='#t/${id}'">＋ ${esc(tr.name)} · Stufe ${trStep(id, tr.parts[0].id)}${done ? " ✓" : ""}</button>`;
   }).join("");
 
+  html += RENNEN.card();   /* Rennblock (Part 4): ab dem Countdown-Termin */
   html += WOCHE.nwCard();   /* Neue Woche / Woche zurücksetzen: über „Heute“ */
   html += EN.hwStrip(); /* ERNÄHRUNG */ 
   /* ERNÄHRUNG 02.10.: Karte „Heute“ = Tagesablauf auf einer Zeitleiste. Mahlzeiten (EN.dayPre/EN.dayPost) und das
@@ -2045,6 +2060,12 @@ function renderPlan() {
         <div class="d">${nx ? "Als Nächstes: " + esc(dayTitle(nx.d)) : "Weiter geht's demnächst."}</div>${EN.energyLine()}
         ${first.d ? `<div class="lk tlk" onclick="location.hash='#d/${first.d.pi}/${first.d.wi}/${first.d.di}'">Einheit ansehen ›</div>` : ""}
         ${xBtns}`, first.d ? `onclick="reDateSheet(${first.d.pi},${first.d.wi},${first.d.di})" title="War nicht heute"` : "")}${EN.dayPost(first)}</div>${EN.dayFoot(first)}
+    </div>`;
+  } else if (first.kind === "race") {
+    html += `<div class="today">
+      <div class="k">${hk}</div>
+      <div class="en tl">${trRow("<i class='ic'>🏋️</i>Training", `<div class="n">${first.pre ? "Rennblock geschafft" : "Rennwoche"}</div>
+        <div class="d">Heute steht nichts an. ${esc((S.race && S.race.name) || "Rennen")} am ${esc(fmtDay(new Date(S.race.date + "T12:00:00")))}.</div>`, "", "quiet")}${EN.dayPost(first)}</div>${EN.dayFoot(first)}
     </div>`;
   } else if (first.kind === "off" || first.kind === "rest") {
     const off = first.kind === "off";
@@ -2076,6 +2097,9 @@ function renderPlan() {
       html += `<div class="pd muted off" onclick="${WOCHE.offClick(e)}">${wd}
         ${WOCHE.offInf(e)}
         <span class="dots">↺</span></div>`;
+    } else if (e.kind === "race") {
+      html += `<div class="pd muted">${wd}
+        <div class="inf"><div class="t">frei</div><div class="s">${e.pre ? "bis zur Rennwoche" : "Rennwoche"}</div></div></div>`;
     } else if (e.kind === "rest") {
       html += `<div class="pd muted" onclick="planForce('${e.k}')">${wd}
         <div class="inf"><div class="t">Ruhetag</div><div class="s">${MAX_STREAK} Tage am Stück wären zu viel</div></div>
@@ -2140,7 +2164,9 @@ function renderWeeks() {
   setNav("week");
   let html = "";
   PROGRAM.forEach((part, pi) => {
-    html += `<h2 class="section" style="margin-top:${pi ? 24 : 6}px"><em>${esc(part.name)}</em> of ${PROGRAM.length}</h2><div class="grid">`;
+    html += `<h2 class="section" style="margin-top:${pi ? 24 : 6}px"><em>${esc(part.name)}</em> ${part.opt ? "(optional)" : "of " + PROGRAM.filter(x => !x.opt).length}</h2>`
+      + (part.opt && !partOn(part) ? `<div class="planhint" style="margin:-4px 0 10px">Rennblock vor einem Wettkampf. Zählt erst nach dem Wechsel (Einstellungen → Training → Wettkampf), bis dahin nur zum Ansehen.</div>` : "")
+      + `<div class="grid">`;
     part.weeks.forEach((week, wi) => {
       const items = weekItems(week), d = countDone(items), wp = pct(d, items.length);
       html += `<button class="card wk ${wp === 100 ? "done" : ""}" onclick="location.hash='#w/${pi}/${wi}'">
@@ -2475,7 +2501,9 @@ function renderDay(pi, wi, di) {
   KNOWN = knownTexts();
   TIP_SHUT = 0;
 
-  let html = "";
+  let html = part.opt && !partOn(part)
+    ? `<div class="planhint" style="margin-top:12px">Vorschau · ${esc(part.name)} zählt erst nach dem Wechsel zum Rennblock.${day.at != null ? ` Dieser Tag liegt ${day.at ? (-day.at === 1 ? "1 Tag" : -day.at + " Tage") + " vor dem Rennen" : "auf dem Renntag"}.` : ""}</div>`
+    : (day.at != null && S.race && S.race.date ? `<div class="planhint" style="margin-top:12px">${day.at ? (-day.at === 1 ? "1 Tag" : -day.at + " Tage") + " vor dem Rennen" : "Renntag"} · ${esc(fmtDay(addDays(new Date(S.race.date + "T12:00:00"), day.at)))}</div>` : "");
   day.sessions.forEach((sess, si) => {
     const checkable = sess.items.filter(i => !i.rest && !i.opt);
     if (sess.label || day.sessions.length > 1) {
@@ -3012,6 +3040,7 @@ function renderSettings() {
         }).join("")}
       </div>
     </details>` : ""}
+    ${window.RENNEN ? RENNEN.settings() : ""}
     ${Object.keys(DEFAULTS.optional || {}).length ? `<details class="setsec">
       <summary><svg class="secic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>Optionale Einheiten</summary>
       <div class="secbody">
@@ -3095,7 +3124,7 @@ function renderSettings() {
    oder zuklappst, merkt sich SET_OPEN, bis die Seite neu lädt (Änderungen rendern neu).
    Ein Bereich, der in keiner Gruppe steht, bleibt unten stehen und geht nicht verloren. */
 const SET_GROUPS = [
-  { k: "training", name: "Training", sub: "1RM, Kniebeuge, Leitern, Paces, Durchlauf", secs: ["1RM-Gewichte", "Kniebeuge", "Stufenleitern", "Optionale Einheiten", "Ziel-Paces", "Maßsystem", "Neuer Durchlauf"],
+  { k: "training", name: "Training", sub: "1RM, Kniebeuge, Leitern, Wettkampf, Paces, Durchlauf", secs: ["1RM-Gewichte", "Kniebeuge", "Stufenleitern", "Wettkampf", "Optionale Einheiten", "Ziel-Paces", "Maßsystem", "Neuer Durchlauf"],
     icon: '<rect x="1.5" y="9.2" width="3.2" height="5.6" rx="1.2"/><rect x="19.3" y="9.2" width="3.2" height="5.6" rx="1.2"/><rect x="4.9" y="6.6" width="3.6" height="10.8" rx="1.4"/><rect x="15.5" y="6.6" width="3.6" height="10.8" rx="1.4"/><path d="M8.5 12h7"/>' },
   { k: "food", name: "Ernährung", secs: ["Ernährung"], sub: "Phasen, Mahlzeiten, Supplements, Daten",
     icon: '<path d="M7 3v7a2 2 0 0 0 4 0V3M9 12v9M16.5 3C15 4.2 14.5 6.3 14.5 9c0 1.8.8 3 2 3v9"/>' },
@@ -3695,14 +3724,14 @@ window.startNewRun = function () {
   logEv("run-start", "run-" + S.run);
   markDirty();
   location.hash = "";
-  render();
+  finishBoot();   // Rennblock-Wechsel gehört zum Durchlauf → Part 4 wieder ausblenden
 };
 window.doReset = function () {
   if (confirm("Wirklich ALLEN Fortschritt und alle Ergebnisse löschen? (1RM-Gewichte, Trainingslog und Durchläufe bleiben erhalten)")) {
-    S = { checked: {}, resultsByItem: {}, results: {}, oneRM: S.oneRM, rmLog: S.rmLog, log: S.log, runs: S.runs, run: S.run, tracks: S.tracks, paces: S.paces, squat: S.squat, tracksShown: S.tracksShown, optShown: S.optShown, unit: S.unit };
+    S = { checked: {}, resultsByItem: {}, results: {}, oneRM: S.oneRM, rmLog: S.rmLog, log: S.log, runs: S.runs, run: S.run, tracks: S.tracks, paces: S.paces, squat: S.squat, tracksShown: S.tracksShown, optShown: S.optShown, unit: S.unit, race: S.race };
     markDirty();
     location.hash = "";
-    render();
+    finishBoot();
   }
 };
 

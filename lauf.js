@@ -28,13 +28,17 @@ document.addEventListener("input", e => {
   if (el && el.tagName === "INPUT" && TIME_ID.test(el.id || "")) { const m = timeMask(el.value); if (m !== el.value) el.value = m; }
 });
 const DAUER = ["endurance-run", "long-run"];
-const TEMPO = "tempo-8min";
-const TEMPO_MIN = 8;
+/* Intervall-Einheiten mit Metern je Intervall: Ultimate-Engine-Montag (8 min) und
+   Bakken-Schwelle im Rennblock (8 × 5 min, Part 4). Gleiche Erfassung, eigene Gruppe. */
+const IV = { "tempo-8min": { g: "tempo", min: 8, max: 4, pz: 2 }, "threshold-5min": { g: "schwelle", min: 5, max: 8, pz: 1 } };
+const IVG = { tempo: "tempo-8min", schwelle: "threshold-5min" };
+const isIv = g => !!IVG[g];
+const ivOf = g => IV[IVG[g]];
 const TESTS = { "road-test-30min": "road", "mile-tt": "mile", "intervals-1000m": "k1000" };
 const TKEY = { road: "road-test-30min", mile: "mile-tt", k1000: "intervals-1000m" };
 const isTest = g => !!TKEY[g];
 const MILE = 1.6;   // Marc läuft die „Meile“ auf der Bahn als 1600 m (4 Runden) – so passt die Pace zur Watch
-const GNAME = { locker: "Lockere Läufe", lang: "Lange Läufe", tempo: "8-min-Intervalle",
+const GNAME = { locker: "Lockere Läufe", lang: "Lange Läufe", tempo: "8-min-Intervalle", schwelle: "5-min-Schwelle",
                 road: "Road Test 30 min", mile: "Meilen-Test (1600 m)", k1000: "1000-m-Intervalle" };
 const TWAS = {
   road: "Maximale Strecke in 30 Minuten – der 1RM fürs Laufen.",
@@ -49,7 +53,7 @@ const GWER = {
 function group(id) {
   const it = ITEM_INDEX[id];
   if (!it) return null;
-  if (it.key === TEMPO) return "tempo";
+  if (IV[it.key]) return IV[it.key].g;
   if (TESTS[it.key]) return TESTS[it.key];
   if (it.key === "long-run") return "lang";
   if (it.key === "endurance-run") return /155/.test(it.own || "") ? "lang" : "locker";
@@ -97,14 +101,14 @@ function parseT(v) {
     return m ? { m: parseFloat(m[1].replace(/\./g, "")), hf: m[2] ? parseInt(m[2], 10) : null, p: m[3] ? parseInt(m[3], 10) : null } : null;
   }).filter(x => x && x.m > 0);
 }
-function tempoSum(rows) {
+function tempoSum(rows, mins) {
   if (!rows.length) return null;
   const avg = rows.reduce((a, r) => a + r.m, 0) / rows.length;
   const hfs = rows.filter(r => r.hf), ps = rows.filter(r => r.p);
-  return { n: rows.length, avg, pace: TEMPO_MIN / (avg / 1000),
+  return { n: rows.length, avg, pace: mins / (avg / 1000),
            hf: hfs.length ? Math.round(hfs.reduce((a, r) => a + r.hf, 0) / hfs.length) : null,
            pause: ps.length ? Math.round(ps.reduce((a, r) => a + r.p, 0) / ps.length) : null,
-           mps: hfs.length === rows.length ? (avg / TEMPO_MIN) / (hfs.reduce((a, r) => a + r.hf, 0) / hfs.length) : null };
+           mps: hfs.length === rows.length ? (avg / mins) / (hfs.reduce((a, r) => a + r.hf, 0) / hfs.length) : null };
 }
 
 /* "4:20" → 4,33 min (immer m:ss, nie h:mm) */
@@ -139,19 +143,19 @@ function detailX(g, x) {
 
 /* Alle Einträge einer Gruppe, alt → neu, mit Vergleichszahl */
 function entries(g) {
-  const keys = g === "tempo" ? [TEMPO] : isTest(g) ? [TKEY[g]] : DAUER;
+  const keys = isIv(g) ? [IVG[g]] : isTest(g) ? [TKEY[g]] : DAUER;
   const out = [];
   keys.forEach(k => (S.results[k] || []).forEach(e => {
     if (group(e.itemId) !== g) return;
     if (isTest(g)) { const x = parseX(g, e.value); if (x) out.push({ e, x, val: x.val }); }
-    else if (g === "tempo") { const s = tempoSum(parseT(e.value)); if (s) out.push({ e, s, val: s.avg }); }
+    else if (isIv(g)) { const s = tempoSum(parseT(e.value), ivOf(g).min); if (s) out.push({ e, s, val: s.avg }); }
     else { const p = parseD(e.value), v = mps(p); if (v) out.push({ e, p, val: v }); }
   }));
   // Zusatzläufe aus „＋ Lauf“ (woche.js): locker ab 30 min zählen bei den lockeren Läufen mit
   if (g === "locker") (S.xruns || []).forEach(x => { if (x.kind === "locker" && x.t >= 30 && x.km && x.hf) { const p = { t: x.t, km: x.km, hf: x.hf }; out.push({ e: { date: x.d + "T12:00:00.000Z", itemId: "xrun" }, p, val: mps(p) }); } });
   out.sort((a, b) => a.e.date < b.e.date ? -1 : 1);
   // Tempo: fair über Meter pro Herzschlag, aber nur wenn jede Einheit eine HF hat
-  if (g === "tempo" && out.length && out.every(x => x.s.mps)) { out.forEach(x => { x.val = x.s.mps; }); out.mps = true; }
+  if (isIv(g) && out.length && out.every(x => x.s.mps)) { out.forEach(x => { x.val = x.s.mps; }); out.mps = true; }
   return out;
 }
 function mine(item) {
@@ -187,8 +191,9 @@ function lineD(item) {
               : `<div id="ls-${item.id}"></div>`;
 }
 function lineT(item) {
-  const s = tempoSum(parseT(S.resultsByItem[item.id]));
-  const M = !!entries("tempo").mps, last = before(item, "tempo").slice(-1)[0];
+  const g = group(item.id);
+  const s = tempoSum(parseT(S.resultsByItem[item.id]), ivOf(g).min);
+  const M = !!entries(g).mps, last = before(item, g).slice(-1)[0];
   let html = "";
   if (s) {
     html = `<b class="blue">Ø ${thou(s.avg)} m</b> · <span class="teal">${fmtPace(s.pace)}/km</span>${s.hf ? ` · HF ${s.hf}` : ""}`;
@@ -201,7 +206,7 @@ function lineT(item) {
   } else if (last) {
     html = `<span class="ref">zuletzt</span> <b>${M ? dec(last.val, 2) + " m/Schlag" : "Ø " + thou(last.s.avg) + " m"}</b> · ${fmtPace(last.s.pace)}/km`;
   }
-  return html ? `<button class="ls" id="ls-${item.id}" onclick="LAUF.sheet('tempo')">${html}<span class="chev">›</span></button>`
+  return html ? `<button class="ls" id="ls-${item.id}" onclick="LAUF.sheet('${g}')">${html}<span class="chev">›</span></button>`
               : `<div id="ls-${item.id}"></div>`;
 }
 
@@ -225,7 +230,7 @@ function lineX(item) {
 }
 function lineFor(item) {
   const g = group(item.id);
-  return g === "tempo" ? lineT(item) : isTest(g) ? lineX(item) : lineD(item);
+  return isIv(g) ? lineT(item) : isTest(g) ? lineX(item) : lineD(item);
 }
 
 /* ---------- Felder ---------- */
@@ -257,10 +262,9 @@ function rowT(id, i, r) {
     <input id="tp-${id}-${i}" inputmode="numeric" value="${r && r.p ? r.p : ""}" onchange="LAUF.saveT('${id}')">
     <input id="th-${id}-${i}" inputmode="numeric" value="${r && r.hf ? r.hf : ""}" onchange="LAUF.saveT('${id}')"></div>`;
 }
-const T_MAX = 4;
 function fieldsT(item) {
-  const rows = parseT(S.resultsByItem[item.id]);
-  const n = Math.min(T_MAX, Math.max(2, rows.length + 1));   // immer eine leere Zeile mehr, bis 4
+  const rows = parseT(S.resultsByItem[item.id]), max = ivOf(group(item.id)).max;
+  const n = Math.min(max, Math.max(2, rows.length + 1));   // immer eine leere Zeile mehr, bis zum Maximum
   let h = `<div class="tf" id="tf-${item.id}"><div class="tr th"><span></span><span>Meter</span><span>Pause (m)</span><span>Ø-HF</span></div>`;
   for (let i = 0; i < n; i++) h += rowT(item.id, i, rows[i]);
   return h + `</div>`;
@@ -280,7 +284,7 @@ const LAUF = window.LAUF = {
   handles: item => !!group(item.id),
   render(item) {
     const g = group(item.id);
-    return `<div class="res lauf">${g === "tempo" ? fieldsT(item) : isTest(g) ? fieldsX(item) : fieldsD(item)}${lineFor(item)}</div>`;
+    return `<div class="res lauf">${isIv(g) ? fieldsT(item) : isTest(g) ? fieldsX(item) : fieldsD(item)}${lineFor(item)}</div>`;
   },
   /* Meile: Zeit oder Pace eintragen, das andere Feld rechnet sich mit */
   mile(id, from) {
@@ -310,29 +314,29 @@ const LAUF = window.LAUF = {
     commit(id, parts.join(" · "));
   },
   saveT(id) {
-    const rows = [];
-    for (let i = 0; i < T_MAX; i++) {
+    const rows = [], max = ivOf(group(id)).max;
+    for (let i = 0; i < max; i++) {
       const m = parseInt(val(`tm-${id}-${i}`).replace(/\./g, ""), 10), hf = parseInt(val(`th-${id}-${i}`), 10);
       const pz = parseInt(val(`tp-${id}-${i}`), 10);
       if (m > 0) rows.push(m + " m" + (hf ? " @ " + hf : "") + (pz > 0 ? ` (P ${pz})` : ""));
     }
     commit(id, rows.join(" · "));
     const box = document.getElementById("tf-" + id), have = box ? box.querySelectorAll(".tr:not(.th)").length : 0;
-    if (box && rows.length >= have && have < T_MAX) box.insertAdjacentHTML("beforeend", rowT(id, have, null));
+    if (box && rows.length >= have && have < max) box.insertAdjacentHTML("beforeend", rowT(id, have, null));
   },
   sheet(g) {
     const list = entries(g), last = list.slice(-8).reverse();
-    const M = g === "tempo" && !!list.mps;
-    const fmtV = x => g === "tempo" && !M ? thou(x.val) + " m" : isTest(g) ? fmtX(g, x.val) : dec(x.val, 2);
+    const M = isIv(g) && !!list.mps, pz = isIv(g) ? ivOf(g).pz + "-min-Pausen" : "";
+    const fmtV = x => isIv(g) && !M ? thou(x.val) + " m" : isTest(g) ? fmtX(g, x.val) : dec(x.val, 2);
     const rows = last.map(x => isTest(g)
       ? `<div class="lr"><span>${dShort(x.e.date)}</span><span>${detailX(g, x.x)}</span><span></span><b>${fmtV(x)}</b></div>`
-      : g === "tempo"
+      : isIv(g)
       ? `<div class="lr"><span>${dShort(x.e.date)}</span><span>${x.s.n} × · ${fmtPace(x.s.pace)}/km${x.s.hf ? " · HF " + x.s.hf : ""}</span><span>${x.s.pause ? "P " + x.s.pause : ""}</span><b>${fmtV(x)}</b></div>`
       : `<div class="lr"><span>${dShort(x.e.date)}</span><span>${dec(x.p.km, 1)} km · ${fmtPace(x.p.t / x.p.km)}/km</span><span>HF ${x.p.hf}</span><b>${fmtV(x)}</b></div>`).join("");
     const what = isTest(g) ? TWAS[g] : M
-      ? "Meter je Intervall geteilt durch die Ø-HF der Intervalle: wie schnell du bei welcher Anstrengung warst. Steigt die Zahl, bist du bei gleicher HF schneller geworden. P = Ø Meter in den 2-min-Pausen – getrabt statt gegangen hält die HF oben und macht die Einheit härter."
-      : g === "tempo"
-      ? "Verglichen wird die Ø-Strecke pro Intervall, nicht die Summe – die Zahl der Intervalle wechselt. Mehr Meter bei gleichem Gefühl heißt: schneller geworden. P = Ø Meter in den 2-min-Pausen: mehr heißt getrabt statt gegangen, die Einheit war also härter."
+      ? `Meter je Intervall geteilt durch die Ø-HF der Intervalle: wie schnell du bei welcher Anstrengung warst. Steigt die Zahl, bist du bei gleicher HF schneller geworden. P = Ø Meter in den ${pz} – getrabt statt gegangen hält die HF oben und macht die Einheit härter.`
+      : isIv(g)
+      ? `Verglichen wird die Ø-Strecke pro Intervall, nicht die Summe – die Zahl der Intervalle wechselt. Mehr Meter bei gleichem Gefühl heißt: schneller geworden. P = Ø Meter in den ${pz}: mehr heißt getrabt statt gegangen, die Einheit war also härter.`
       : `Tempo geteilt durch Ø-HF: wie viel Strecke du pro Herzschlag schaffst. Steigt die Zahl, bist du ausdauernder geworden. ${GWER[g]} Einzelne Läufe (Punkte) schwanken mit Hitze, Schlaf und Hügeln – es zählt die Linie, der Schnitt der letzten 3.`;
     const wrap = document.createElement("div");
     wrap.className = "sheetwrap";
@@ -398,7 +402,7 @@ function statCard(g, title, fmtBig, fmtTick, cls) {
   }
   return `<div class="chartcard lstat ${cls || ""}" onclick="LAUF.sheet('${g}')"><h3>${title}</h3>
     <div class="lhd"><div><div class="lv ${cls || ""}">${fmtBig(cur)}</div>
-      <div class="lsub">Ø der letzten ${Math.min(3, n)} · ${n} ${g === "tempo" ? "Einheiten" : "Läufe"}</div></div>${chip}</div>
+      <div class="lsub">Ø der letzten ${Math.min(3, n)} · ${n} ${isIv(g) ? "Einheiten" : "Läufe"}</div></div>${chip}</div>
     ${chartAx(list, fmtTick)}</div>`;
 }
 function testCard() {
@@ -416,7 +420,10 @@ LAUF.stats = function () {
     + statCard("lang", "Lange Läufe", mps, v => dec(v, 2), "teal")
     + (entries("tempo").mps
       ? statCard("tempo", "8-min-Intervalle", mps, v => dec(v, 2), "teal")
-      : statCard("tempo", "8-min-Intervalle · je Intervall", v => thou(v) + `<span class="u">M</span>`, v => thou(v), "blue"));
+      : statCard("tempo", "8-min-Intervalle · je Intervall", v => thou(v) + `<span class="u">M</span>`, v => thou(v), "blue"))
+    + (entries("schwelle").mps
+      ? statCard("schwelle", "5-min-Schwelle", mps, v => dec(v, 2), "teal")
+      : statCard("schwelle", "5-min-Schwelle · je Intervall", v => thou(v) + `<span class="u">M</span>`, v => thou(v), "blue"));
   return `<h2 class="section">Laufentwicklung · <em>Ausdauer</em></h2>${cards}${testCard()}`;
 };
 
