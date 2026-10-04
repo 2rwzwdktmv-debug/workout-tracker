@@ -760,6 +760,25 @@
     color: var(--muted); transition: color .15s ease;
   }
   .setsec[open] summary svg.secic { color: var(--lime); }
+  /* ---- Gruppen: Training · Ernährung · App · System (alles startet zu) ---- */
+  .setgrp { background: var(--surface); border-radius: var(--r-md); margin-bottom: 12px; padding: 0 16px; }
+  .setgrp > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 12px; padding: 16px 0; }
+  .setgrp > summary::-webkit-details-marker { display: none; }
+  .setgrp > summary > span { min-width: 0; }
+  .setgrp > summary b { display: block; font-size: 17px; font-weight: 600; }
+  .setgrp > summary small { display: block; font-size: 13px; color: var(--muted); margin-top: 1px; }
+  .setgrp > summary::after { content: "›"; margin-left: auto; color: var(--muted); font-size: 20px; transform: rotate(90deg); transition: transform .15s; }
+  .setgrp[open] > summary::after { transform: rotate(-90deg); }
+  .setgrp > summary svg.secic {
+    width: 22px; height: 22px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 2;
+    stroke-linecap: round; stroke-linejoin: round; color: var(--muted); transition: color .15s ease;
+  }
+  .setgrp[open] > summary svg.secic { color: var(--lime); }
+  /* Bereiche in einer Gruppe sind Zeilen, keine eigenen Karten */
+  .setgrp .setsec { background: none; border: none; border-radius: 0; margin: 0; padding: 0; box-shadow: none; border-top: 1px solid var(--line); }
+  .setgrp .setsec.solo { border-top: 1px solid var(--line); }
+  .setgrp .setsec.solo > summary { display: none; }
+  .setgrp .setsec.solo > .secbody { padding-top: 14px; }
   .setsec summary svg.secic.warn, .setsec[open] summary svg.secic.warn { color: var(--amber); }
 
   /* ================================================================
@@ -1929,7 +1948,7 @@ function render() {
   const seg = location.hash.replace(/^#/, "").split("/").filter(Boolean);
   const st = window.scrollY;
   EN.fresh(); /* ERNÄHRUNG */ 
-  if (seg[0] === "settings") { renderSettings(); EN.settings(main); }
+  if (seg[0] === "settings") renderSettingsAll();
   else if (seg[0] === "food") { backBtn.style.display = seg[1] === "pack" ? "" : "none"; titleEl.textContent = seg[1] === "pack" ? "Packliste" : "Ernährung"; setNav("food"); EN.render(main, seg[1]); } /* ERNÄHRUNG */ 
   else if (seg[0] === "stats") renderStats();
   else if (seg[0] === "weeks") renderWeeks();
@@ -2875,7 +2894,7 @@ function renderSettings() {
   const total = FLAT.length, done = FLAT.filter(f => S.checked[f.item.id]).length;
   const dirty = !!lsGet(DIRTY_KEY);
   main.innerHTML = `<div class="set">
-    <details class="setsec" open>
+    <details class="setsec">
       <summary><svg class="secic" viewBox="0 0 24 24" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>Sync & Verbindung</summary>
       <div class="secbody">
         <p class="hint">Fortschritt: ${done}/${total} Parts · Modus: ${mode === "github" ? `GitHub (${esc(cfg.user)}/${esc(cfg.repo)}) — ${dirty ? "ungesicherte Änderungen ●" : "synchron ✓"}` : "lokal (localStorage)"}</p>
@@ -3007,6 +3026,51 @@ function renderSettings() {
   </div>`;
   fillDiag();
   accentWarn();
+}
+/* ---------- Einstellungen in Gruppen ----------
+   renderSettings() und EN.settings() bauen die Bereiche wie bisher; danach sortiert
+   groupSettings() sie in vier Gruppen ein. Alles startet zugeklappt — was du auf-
+   oder zuklappst, merkt sich SET_OPEN, bis die Seite neu lädt (Änderungen rendern neu).
+   Ein Bereich, der in keiner Gruppe steht, bleibt unten stehen und geht nicht verloren. */
+const SET_GROUPS = [
+  { k: "training", name: "Training", sub: "1RM, Kniebeuge, Leitern, Paces, Durchlauf", secs: ["1RM-Gewichte", "Kniebeuge", "Stufenleitern", "Optionale Einheiten", "Ziel-Paces", "Maßsystem", "Neuer Durchlauf"],
+    icon: '<rect x="1.5" y="9.2" width="3.2" height="5.6" rx="1.2"/><rect x="19.3" y="9.2" width="3.2" height="5.6" rx="1.2"/><rect x="4.9" y="6.6" width="3.6" height="10.8" rx="1.4"/><rect x="15.5" y="6.6" width="3.6" height="10.8" rx="1.4"/><path d="M8.5 12h7"/>' },
+  { k: "food", name: "Ernährung", secs: ["Ernährung"], sub: "Phasen, Mahlzeiten, Supplements, Daten",
+    icon: '<path d="M7 3v7a2 2 0 0 0 4 0V3M9 12v9M16.5 3C15 4.2 14.5 6.3 14.5 9c0 1.8.8 3 2 3v9"/>' },
+  { k: "app", name: "App", sub: "Akzentfarbe, Erklärungen", secs: ["Akzentfarbe", "Erklärungen / Basics"],
+    icon: '<rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M10.5 18.5h3"/>' },
+  { k: "system", name: "System", sub: "Sync, Backup, Diagnose, Zurücksetzen", secs: ["Sync & Verbindung", "Backup", "Diagnose (Anzeige)", "Zurücksetzen"],
+    icon: '<circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/>' },
+];
+const SET_OPEN = new Set();
+function renderSettingsAll() { renderSettings(); EN.settings(main); groupSettings(main); }
+function groupSettings(main) {
+  const set = main.querySelector(".set");
+  if (!set) return;
+  const secs = Array.from(set.querySelectorAll("details.setsec"));
+  const nameOf = d => d.querySelector("summary").textContent.trim();
+  const remember = (el, key) => {
+    el.open = SET_OPEN.has(key);
+    el.addEventListener("toggle", () => { if (el.open) SET_OPEN.add(key); else SET_OPEN.delete(key); });
+  };
+  const groups = [];
+  SET_GROUPS.forEach(g => {
+    const mine = g.secs.map(n => secs.find(d => nameOf(d) === n)).filter(Boolean);
+    if (!mine.length) return;
+    const grp = document.createElement("details");
+    grp.className = "setgrp";
+    grp.innerHTML = `<summary><svg class="secic" viewBox="0 0 24 24" aria-hidden="true">${g.icon}</svg>
+      <span><b>${g.name}</b><small>${esc(g.sub || mine.map(nameOf).join(", "))}</small></span></summary>`;
+    mine.forEach(d => {
+      const host = d.parentElement.classList.contains("en") ? d.parentElement : d;   // Ernährung braucht ihre .en-Hülle
+      if (mine.length === 1) { d.classList.add("solo"); d.open = true; }
+      else remember(d, "s:" + nameOf(d));
+      grp.appendChild(host);
+    });
+    remember(grp, "g:" + g.k);
+    groups.push(grp);
+  });
+  set.prepend(...groups);
 }
 /* ---------- Analyse ---------- */
 function parseW(v) { const m = String(v).replace(",", ".").match(/-?\d+(\.\d+)?/); return m ? parseFloat(m[0]) : null; }
@@ -3517,7 +3581,7 @@ window.planUndrop = function (dayKey) {
   markDirty(); render();
 };
 
-window.manualSync = async function () { lsSet(DIRTY_KEY, "1"); await pushProgress(); renderSettings(); };
+window.manualSync = async function () { lsSet(DIRTY_KEY, "1"); await pushProgress(); renderSettingsAll(); };
 window.reconnect = function () { renderSetup(); };
 window.doExport = function () {
   const json = JSON.stringify(S);

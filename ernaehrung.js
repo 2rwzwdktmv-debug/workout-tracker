@@ -684,7 +684,7 @@ function pPack(){const N=nextWorkDay(dayOf(TODAY()))||dayOf(addD(TODAY(),1));con
 EN.exportHealth=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(H,null,1)],{type:'application/json'}));a.download='gesundheit-'+TODAY()+'.json';a.click();};
 EN.settings=function(main){const set=main.querySelector('.set');if(!set||!C)return;const k=TODAY(),h=hwDay(k);
   const el=document.createElement('div');el.className='en';
-  el.innerHTML=`<details class="setsec" open><summary>Ernährung</summary><div class="secbody">
+  el.innerHTML=`<details class="setsec"><summary>Ernährung</summary><div class="secbody">
     <div class="km">Phasen</div>
     <div class="srow"><div><b>Heilungsfenster</b><small>${HW.active?(h?`läuft · Tag ${h}/${HW.len}`:'geplant')+` · ${OKT(HW.start)}–${OKT(hwEnd())} · endet automatisch`:'aus · für einen akuten Schub'}</small></div><button class="btn sm ghost" onclick="${HW.active?'EN.openHw()':'EN.openHwStart()'}">${HW.active?'verwalten':'starten'}</button></div>
     <div class="km" style="margin-top:14px">Grundeinstellungen</div>
