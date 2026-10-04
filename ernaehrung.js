@@ -83,8 +83,8 @@ const SIZE={klein:.6,normal:1,'groß':1.5};
 const toastOn=()=>(FS().set.bread||'toast')==='toast'&&!!(C&&C.items&&C.items.toast);
 const bN=n=>Math.max(1,Math.round(n*((C&&C.breadFactor)||1.7)));
 const qB=(it0,v)=>it0==='brot'&&toastOn()&&v?bN(v):v;
-const B_=t=>!toastOn()||typeof t!=='string'?t:t.replace(/(\d+) Scheiben (?:Vollkorn-)?Roggenbrot/g,(m,n)=>bN(+n)+' Scheiben Vollkorntoast').replace(/(?:Vollkorn-)?Roggenbrot/g,'Vollkorntoast');
-const bRow=r=>!toastOn()||r[3]!=='brot'?r:[B_(r[0]),String(r[1]).replace(/^(\d+)/,m=>bN(+m)),r[2]==='brot'?'toast':r[2],'toast'];
+const B_=t=>!toastOn()||typeof t!=='string'?t:t.replace(/(\d+)(?:–(\d+))? Scheiben (?:Vollkorn-)?Roggenbrot/g,(m,n,n2)=>bN(+n)+(n2?'–'+bN(+n2):'')+' Scheiben Vollkorntoast').replace(/(?:Vollkorn-)?Roggenbrot/g,'Vollkorntoast');
+const bRow=r=>!toastOn()||r[3]!=='brot'?r:[B_(r[0]),String(r[1]).replace(/^(\d+)(?:–(\d+))?/,(m,n,n2)=>bN(+n)+(n2?'–'+bN(+n2):'')),r[2]==='brot'?'toast':r[2],'toast'];
 
 /* ---------- Tage aus dem echten Trainingsplan ---------- */
 /* Tagestyp: aus der Minuten-Schätzung der Plan-Einheit (dayMinutes). Vorlage: nach Wochentag. */
@@ -109,7 +109,7 @@ function dayOf0(k){const e=plan()[k]||pastEntry(k)||{kind:'empty'},w=D_(k).getDa
   const VM=D.fast?[]:[['vm',vm,'work']],RC=D.fast?['rc','recovShake','gym']:['rc','recov','gym'];
   if(md==='voll'){D.tpl='Werktag';D.slots=[...VM,['mi','oats','work'],['na','pre','work'],['ab',ab,'home']];}
   else if(md==='halb'){D.tpl='halb';D.slots=[...VM,['mi','oats','home','zuhause'],['na','pre','home'],['ab',ab,'home']];}
-  else{D.tpl='Wochenende';D.slots=[['br','brunch','home'],['we','weLunch','home'],['wn','weSnack','home'],['ab',ab,'home']];}
+  else{D.tpl='Wochenende';D.slots=[['br','brunch','home'],['we',(C.defaults&&C.defaults.we&&V[C.defaults.we])?C.defaults.we:'weLunch','home'],['wn','weSnack','home'],['ab',ab,'home']];}
   /* Lange Ausdauer (ein durchgehender Block ab 75 min, z. B. langer Lauf): Zeile „Unterwegs“ nach dem Training, Menge nach Dauer.
      Krafteinheiten kommen mit Pausen auch auf 80–90 min, brauchen aber nichts unterwegs. */
   let sm=0;try{(e.d&&e.d.day&&e.d.day.sessions||[]).forEach(se=>(se.items||[]).forEach(it=>{if(!it.rest&&!it.opt)sm=Math.max(sm,pvMinutes(it));}));}catch(x){}
