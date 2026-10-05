@@ -289,14 +289,17 @@ function packRow(D){if(D.k!==TODAY())return '';const N=nextWorkDay(D);if(!N)retu
   const nf=gs.filter(g=>g[2]==='food').reduce((a,g)=>a+g[1].length,0),th=(gs.find(g=>g[0]==='Sachen')||[0,[]])[1].map(x=>x[1]),tk=(gs.find(g=>g[0]==='Heute Abend erledigen')||[0,[]])[1].length;
   const what=[nf?nf+' Lebensmittel':'',...th,tk?tk+(tk===1?' Aufgabe':' Aufgaben'):''].filter(Boolean).join(' · ');
   return `<div class="slot" onclick="EN.openPack()"><div class="body"><div class="when"><i class="ic">🎒</i>Heute Abend · <span>für ${N.wd} packen</span></div><div class="n">${nd?nd+' von '+all.length+' erledigt':all.length+' zu packen'}</div><div class="d">${what}</div></div><span class="go">›</span></div>`;}
-EN.openPack=()=>{const D=dayOf(TODAY()),N=nextWorkDay(D);if(!N)return;const s=NS(D.k),gs=packModel(N);
+/* k = Arbeitstag, für den gepackt wird (Standard: morgen). Abgehakt wird am Abend davor (NS(k−1)),
+   deshalb sieht „Packliste heute“ morgens dieselben Haken wie gestern Abend. */
+const packFor=k=>{const N=k?dayOf(k):nextWorkDay(dayOf(TODAY()));return N&&N.work?N:null;};
+EN.openPack=k=>{const N=packFor(k);if(!N)return;const s=NS(addD(N.k,-1)),gs=packModel(N),K=`'${N.k}'`;
   sheet(`<div class="between"><span class="km">🎒 Für ${N.wd} ${OKT(N.k)}</span>${N.work?`<span class="echip">Arbeit ${N.work}</span>`:''}</div><h3>Packen</h3>
-    ${gs.map(([t,xs])=>`<div class="km sec">${t}</div>${xs.map(x=>{const on=!!s.pk[x[0]];return `<div class="check" onclick="EN.pk('${x[0].replace(/'/g,"\\'")}')"><span class="ecb ${on?'on':''}"></span><div style="flex:1;min-width:0">${x[3]?`<b class="qty">${qS(x[3])}</b> `:''}${x[1]}${x[2]?`<small>${x[2]}</small>`:''}</div></div>`;}).join('')}`).join('')}
-    <button class="btn" onclick="EN.packAll()">${s.packed?'✓ Gepackt':'Alles gepackt'}</button>
+    ${gs.map(([t,xs])=>`<div class="km sec">${t}</div>${xs.map(x=>{const on=!!s.pk[x[0]];return `<div class="check" onclick="EN.pk('${x[0].replace(/'/g,"\\'")}',${K})"><span class="ecb ${on?'on':''}"></span><div style="flex:1;min-width:0">${x[3]?`<b class="qty">${qS(x[3])}</b> `:''}${x[1]}${x[2]?`<small>${x[2]}</small>`:''}</div></div>`;}).join('')}`).join('')}
+    <button class="btn" onclick="EN.packAll(${K})">${s.packed?'✓ Gepackt':'Alles gepackt'}</button>
     <button class="cancel" onclick="closeSheet()">Schließen</button>`);};
-EN.pk=key=>{const D=dayOf(TODAY()),N=nextWorkDay(D);if(!N)return;const s=NS(D.k),all=[].concat(...packModel(N).map(g=>g[1]));
-  if(s.pk[key])delete s.pk[key];else s.pk[key]=1;s.packed=all.every(x=>s.pk[x[0]]);save();markDirty();render();EN.openPack();};
-EN.packAll=()=>{const s=NS(TODAY());s.packed=!s.packed;if(!s.packed)s.pk={};save();markDirty();closeSheet();render();};
+EN.pk=(key,k)=>{const N=packFor(k);if(!N)return;const s=NS(addD(N.k,-1)),all=[].concat(...packModel(N).map(g=>g[1]));
+  if(s.pk[key])delete s.pk[key];else s.pk[key]=1;s.packed=all.every(x=>s.pk[x[0]]);save();markDirty();render();EN.openPack(N.k);};
+EN.packAll=k=>{const N=packFor(k);if(!N)return;const s=NS(addD(N.k,-1));s.packed=!s.packed;if(!s.packed)s.pk={};save();markDirty();closeSheet();render();};
 EN.dayFoot=e=>C?`<div class="en">${dayFoot(dayOf(e.k))}</div>`:'';
 EN.tzChip=e=>{if(!C)return '';const D=dayOf(e.k);return D.train?`<span class="tzc" onclick="event.stopPropagation();EN.openTime('${D.k}')">${TZL[D.tz]} ⌄</span>`:'';};
 function dayFoot(D){const T=TT[D.type],t=totals(D),s=NS(D.k),goal=Math.round((T.kcal+(T.i>=2?750:0))/250);
@@ -333,10 +336,11 @@ const showMeasure=(f,k)=>!!NS(k)[f]||sinceLast(f,k)>=MEASURE[f];
 function quickRow(D){const s=NS(D.k);
   const q=(on,label,fn,due)=>`<button class="q ${on?'on':''}${due?' due':''}" onclick="${fn}">${label}</button>`;
   return `<div class="qrow">
-    ${showMeasure('weight',D.k)?q(s.weight,s.weight?'⚖️ '+fmtKg(s.weight):'⚖️ Gewicht','EN.openMeasure(\'weight\')',!s.weight):''}
-    ${showMeasure('waist',D.k)?q(s.waist,s.waist?'📏 '+fmtCm(s.waist):'📏 Taille','EN.openMeasure(\'waist\')',!s.waist):''}
+    ${q(s.weight,s.weight?'⚖️ '+fmtKg(s.weight):'⚖️ Gewicht','EN.openMeasure(\'weight\')',!s.weight&&showMeasure('weight',D.k))}
+    ${q(s.waist,s.waist?'📏 '+fmtCm(s.waist):'📏 Taille','EN.openMeasure(\'waist\')',!s.waist&&showMeasure('waist',D.k))}
     ${q(s.haut,s.haut?'Haut '+s.haut:'Haut','EN.openSkin()')}
     ${q(s.crave>=0,s.crave>=0?'Heißhunger: '+['nein','etwas','stark'][s.crave]:'Heißhunger','EN.openCrave()')}
+    ${D.work&&D.k===TODAY()?q(NS(addD(D.k,-1)).packed,(NS(addD(D.k,-1)).packed?'🎒 Packliste heute ✓':'🎒 Packliste heute'),`EN.openPack('${D.k}')`):''}
     ${(()=>{const hw=homewayToday();return hw.length?q(false,'🛒 Heimweg: '+hw.map(r=>nameOf(r.it)).join(', '),`location.hash='#food/einkauf'`):'';})()}
   </div>`;}
 /* Gewicht und Taille: Zahl direkt eintippen oder mit − / + anpassen */
