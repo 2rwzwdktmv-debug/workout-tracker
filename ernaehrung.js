@@ -114,6 +114,8 @@ function dayOf0(k){const e=plan()[k]||pastEntry(k)||{kind:'empty'},w=D_(k).getDa
      Krafteinheiten kommen mit Pausen auch auf 80–90 min, brauchen aber nichts unterwegs. */
   let sm=0;try{(e.d&&e.d.day&&e.d.day.sessions||[]).forEach(se=>(se.items||[]).forEach(it=>{if(!it.rest&&!it.opt)sm=Math.max(sm,pvMinutes(it));}));}catch(x){}
   D.uwI=!V.gel||!SL.uw?-1:sm>=180?2:sm>=120?1:sm>=75?0:-1;   /* ältere nutrition.json ohne Gel: nichts anzeigen */
+  /* Anderes Training (woche.js): steht als Trainingszeile im Ablauf, Zeit wählbar wie beim Plan (05.10.) */
+  const oth=e.kind==='off'&&((planState().other||{})[k]);if(oth){D.train=oth.n;D.other=true;}
   D.cue={};if(D.train)placeTraining(D,RC);   /* vor dem Filtern: eine freie Mahlzeit wird trotzdem gegessen */
   const fr=freeOf(w);if(fr.length)D.slots=D.slots.filter(sl=>!fr.includes(ROLE[sl[0]]));   /* freie Mahlzeiten (Einstellung) */
   return D;}

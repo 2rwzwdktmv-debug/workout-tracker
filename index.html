@@ -863,7 +863,7 @@
   <button id="navSet"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 13.5a7.8 7.8 0 0 0 0-3l2-1.5-2-3.4-2.4 1a7.8 7.8 0 0 0-2.6-1.5L14 2.5h-4l-.4 2.6A7.8 7.8 0 0 0 7 6.6l-2.4-1-2 3.4 2 1.5a7.8 7.8 0 0 0 0 3l-2 1.5 2 3.4 2.4-1a7.8 7.8 0 0 0 2.6 1.5l.4 2.6h4l.4-2.6a7.8 7.8 0 0 0 2.6-1.5l2.4 1 2-3.4z"/></svg>Einstellungen</button>
 </nav>
 
-<script src="ernaehrung.js?v=2026-10-05a"></script>
+<script src="ernaehrung.js?v=2026-10-05b"></script>
 <link rel="stylesheet" href="lauf.css?v=2026-10-04f">
 <link rel="stylesheet" href="apple.css?v=2026-10-04e">   <!-- Apple-naher Look, zuletzt geladen -->
 <link rel="stylesheet" href="woche.css?v=2026-10-04f">
@@ -2071,7 +2071,7 @@ function renderPlan() {
     const off = first.kind === "off";
     html += `<div class="today">
       <div class="k">${hk}</div>
-      <div class="en tl">${trRow("<i class='ic'>🏋️</i>Training",
+      <div class="en tl">${EN.dayPre(first)}${trRow(`<i class='ic'>🏋️</i>Training${EN.tzChip(first) ? " · " + EN.tzChip(first) : ""}`,
         (WOCHE.todayOff(first) ? `<div class="n">${esc(WOCHE.todayOff(first).n)}</div><div class="d">${WOCHE.todayOff(first).d}</div><div class="lk tlk" onclick="${WOCHE.todayOff(first).lk}">${WOCHE.todayOff(first).lt}</div>` : `<div class="n">${off ? "Geht nicht" : "Ruhetag"}</div>
         <div class="d">${off ? "Als Ausfalltag markiert — alles rutscht nach hinten." : MAX_STREAK + " Trainingstage am Stück sind genug."}</div>
         <div class="lk tlk" onclick="${off ? `planOffToggle('${first.k}')` : `planForce('${first.k}')`}">${off ? "Doch, geht ›" : "Trotzdem trainieren ›"}</div>`) + `
