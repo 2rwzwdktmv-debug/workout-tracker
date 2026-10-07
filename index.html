@@ -671,6 +671,19 @@
   .chip.up { color: var(--lime); background: color-mix(in srgb, var(--lime) 13%, transparent); }
   .chip.down { color: var(--red); background: color-mix(in srgb, var(--red) 13%, transparent); }
   .chip.flat { color: var(--muted); background: var(--surface2); }
+  /* „Wirkt es?“ (07.10.) */
+  .verdict { background: var(--surface); border-radius: var(--r-md); padding: 12px 14px; margin-bottom: 10px; font-size: 14px; color: var(--ink2); border-left: 3px solid var(--line-strong); }
+  .verdict.ok { border-left-color: var(--lime); color: var(--ink); }
+  .verdict.amb { border-left-color: var(--amber); color: var(--ink); }
+  .wsub { font-size: 13px; color: var(--ink2); margin-top: 8px; }
+  .wsub b { color: var(--ink); }
+  .wsub .key { display: inline-block; width: 12px; height: 3px; border-radius: 2px; vertical-align: 3px; margin: 0 5px 0 0; }
+  .wsub .key + .key, .wsub .key.red { margin-left: 10px; }
+  .wsub .key.amb { background: var(--amber); } .wsub .key.red { background: var(--red); }
+  h2.section .ibtn { vertical-align: 4px; }
+  .lift.wide { grid-column: span 2; }
+  .lift .between2 { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+  .lift .rnote { font-size: 12px; color: var(--muted); margin-top: 2px; white-space: nowrap; }
   .ts { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid var(--line); font-size: 13.5px; }
   .ts:first-of-type { border-top: none; }
   .ts span:first-child { color: var(--muted); min-width: 0; }
@@ -843,7 +856,7 @@
     nav .go:active { transform: translateX(-50%); }
   }
 </style>
-<link rel="stylesheet" href="ernaehrung.css?v=2026-10-04h">
+<link rel="stylesheet" href="ernaehrung.css?v=2026-10-07d">
 </head>
 <script>
 /* Akzentfarbe aus dem Cache setzen, BEVOR gerendert wird — sonst blitzt
@@ -871,7 +884,7 @@
   <button id="navSet"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 13.5a7.8 7.8 0 0 0 0-3l2-1.5-2-3.4-2.4 1a7.8 7.8 0 0 0-2.6-1.5L14 2.5h-4l-.4 2.6A7.8 7.8 0 0 0 7 6.6l-2.4-1-2 3.4 2 1.5a7.8 7.8 0 0 0 0 3l-2 1.5 2 3.4 2.4-1a7.8 7.8 0 0 0 2.6 1.5l.4 2.6h4l.4-2.6a7.8 7.8 0 0 0 2.6-1.5l2.4 1 2-3.4z"/></svg>Einstellungen</button>
 </nav>
 
-<script src="ernaehrung.js?v=2026-10-07a"></script>
+<script src="ernaehrung.js?v=2026-10-07d"></script>
 <link rel="stylesheet" href="lauf.css?v=2026-10-07a">
 <link rel="stylesheet" href="apple.css?v=2026-10-07a">   <!-- Apple-naher Look, zuletzt geladen -->
 <link rel="stylesheet" href="woche.css?v=2026-10-04f">
@@ -3343,6 +3356,7 @@ function renderStats() {
       <h3>Trainingstage pro Woche · letzte 12 Wochen</h3>
       ${weekBars(weeks)}
     </div>`;
+  html += EN.bodyStats();   /* Ernährung: „Wirkt es?“ (Körper, Haut, Energie) vor Kraft und Laufen */
 
   // Kraftentwicklung 1RM
   const rmlog = S.rmLog || [];

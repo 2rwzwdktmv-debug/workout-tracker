@@ -267,3 +267,9 @@
 .en .dslots b{font-weight:600;color:var(--ink2);background:var(--surface2);border:1px solid var(--line);border-radius:6px}
 .en .dslots b.late{color:var(--amber);border-color:rgba(255,230,32,.35)}
 .en .list .it.got .qty{color:inherit}
+.sheet.en ol.how{margin:10px 0 6px}
+.en .ecb.pt{background:linear-gradient(90deg,var(--lime) 50%,transparent 50%);border-color:var(--lime)}
+.en .st.pt{background:linear-gradient(90deg,color-mix(in srgb,var(--lime) 55%,transparent) 50%,transparent 50%);border-color:color-mix(in srgb,var(--lime) 70%,transparent)}
+.en .stp{display:inline-flex;align-items:center;gap:6px;flex:none}
+.en .stp button{width:30px;height:30px;margin:0;padding:0;border-radius:50%;border:1px solid var(--line);background:var(--surface2);color:var(--ink);font-size:16px;font-weight:600;line-height:1}
+.en .stp b{min-width:34px;text-align:center;font-size:13px;font-weight:600;color:var(--ink2)}
