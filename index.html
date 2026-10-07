@@ -195,8 +195,8 @@
   .res { margin: 11px 0 0 42px; }
   .res input {
     width: 100%; font: inherit; font-size: 16px; color: var(--ink);
-    background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-sm);
-    padding: 10px 12px;
+    background: var(--bg); border: 1px solid var(--line); border-radius: 10px;
+    height: 34px; padding: 0 10px;   /* so hoch wie die Gewichtsfelder (07.10.) */
   }
   .res input:focus { outline: none; border-color: color-mix(in srgb, var(--lime) 55%, transparent); }
   .res .last { margin-top: 7px; }
@@ -379,7 +379,7 @@
   .xp { color: var(--lime); flex-shrink: 0; }
   .xin { display: flex; align-items: center; gap: 8px; margin-left: auto; }
   .xin .exn { width: 54px; height: 34px; padding: 0 7px; }
-  .xin .exn.r { width: 40px; }
+  .xin .exn.r { width: 50px; }
   .xx { font-size: 12px; color: var(--muted); }
   .exn.ok { border-color: color-mix(in srgb, var(--lime) 70%, transparent); }
   .exn.no { border-color: color-mix(in srgb, var(--amber) 75%, transparent); }
@@ -496,6 +496,14 @@
     margin-bottom: 8px; text-align: left;
   }
   .sheet button small { display: block; font-size: 12px; font-weight: 400; color: var(--muted); margin-top: 3px; }
+  .sheet.itxt h4 { margin-bottom: 10px; }
+  .sheet.itxt p { font-size: 14.5px; color: var(--ink2); line-height: 1.45; }
+  .ibtn {
+    display: inline-flex; align-items: center; justify-content: center; vertical-align: 2px;
+    width: 20px; height: 20px; margin-left: 8px; padding: 0; border-radius: 50%;
+    border: 1.5px solid var(--muted); background: none; color: var(--muted);
+    font: italic 600 12px/1 Georgia, serif;
+  }
   .sheet button.cancel { text-align: center; background: none; border: none; color: var(--muted); margin: 4px 0 0; }
 
   /* ---------- Stufenleitern ---------- */
@@ -863,9 +871,9 @@
   <button id="navSet"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 13.5a7.8 7.8 0 0 0 0-3l2-1.5-2-3.4-2.4 1a7.8 7.8 0 0 0-2.6-1.5L14 2.5h-4l-.4 2.6A7.8 7.8 0 0 0 7 6.6l-2.4-1-2 3.4 2 1.5a7.8 7.8 0 0 0 0 3l-2 1.5 2 3.4 2.4-1a7.8 7.8 0 0 0 2.6 1.5l.4 2.6h4l.4-2.6a7.8 7.8 0 0 0 2.6-1.5l2.4 1 2-3.4z"/></svg>Einstellungen</button>
 </nav>
 
-<script src="ernaehrung.js?v=2026-10-05b"></script>
-<link rel="stylesheet" href="lauf.css?v=2026-10-04f">
-<link rel="stylesheet" href="apple.css?v=2026-10-04e">   <!-- Apple-naher Look, zuletzt geladen -->
+<script src="ernaehrung.js?v=2026-10-07a"></script>
+<link rel="stylesheet" href="lauf.css?v=2026-10-07a">
+<link rel="stylesheet" href="apple.css?v=2026-10-07a">   <!-- Apple-naher Look, zuletzt geladen -->
 <link rel="stylesheet" href="woche.css?v=2026-10-04f">
 <script src="woche.js?v=2026-10-04g"></script>   <!-- Laufwoche · Anderes Training · Neue Woche -->
 <script src="lauf.js?v=2026-10-04g"></script>
@@ -2531,13 +2539,17 @@ function renderDay(pi, wi, di) {
         return;
       }
       const pace = item.paceKey && paceOf(item.paceKey);
+      // Blöcke mit doppelter Progression (Arme): sichtbar bleiben nur Übungen und Kurztipps,
+      // die Erklärung steht hinter ⓘ im Sheet, die Meta-Zeile sagt nur Supersatz + Pause.
+      const quiet = isQuietItem(item);
+      const meta = quiet ? quietMeta(item) : ct.meta;
       html += `<div class="${cls}" id="it-${item.id}">
-        ${multi ? "" : `<div class="head">${cb}<div style="min-width:0">
-            <div class="tt">${esc(ct.title)}${item.opt ? ` <span class="optb">optional</span>` : ""}</div>
-            ${ct.meta ? `<div class="st">${esc(ct.meta)}</div>` : ""}
+        ${multi ? "" : `<div class="head">${cb}<div style="min-width:0;flex:1">
+            <div class="tt">${esc(ct.title)}${item.opt ? ` <span class="optb">optional</span>` : ""}${quiet && item.body ? `<button class="ibtn" onclick="itemInfo('${item.id}')" aria-label="Erklärung">i</button>` : ""}</div>
+            ${meta ? `<div class="st">${esc(meta)}</div>` : ""}
           </div></div>`}
         ${EN.intraFor(item, pi, wi, di)}
-        ${item.body ? `<div class="body">${fmtBody(item.body, item.id + ":b")}</div>` : ""}
+        ${item.body && !quiet ? `<div class="body">${fmtBody(item.body, item.id + ":b")}</div>` : ""}
         ${pace ? `<div class="pace"><span>Zielpace</span> ${esc(pace)}${(paceDef(item.paceKey) || {}).unit ? " " + esc(paceDef(item.paceKey).unit) : ""}</div>` : ""}
         ${item.own ? `<div class="own"><span>Meine Regel ·</span> ${esc(item.own)}</div>` : ""}
         ${item.orig ? `<div class="orig"><b>Im Plan steht hier</b>${esc(item.orig)}</div>` : ""}
@@ -2553,6 +2565,25 @@ function renderDay(pi, wi, di) {
     : `Alle Texte zeigen${done > 0 ? ` · auch der ${done} erledigten ${done === 1 ? "Einheit" : "Einheiten"}` : ""}`}</button>`;
   main.innerHTML = html + (open || done > 0 || TIP_SHUT > 0 ? tbtn : "");
 }
+
+/* Ruhige Karte (07.10.): Übungsblöcke mit doppelter Progression (Armblöcke). Erklärung im Sheet statt im Text. */
+function isQuietItem(item) { return !!(item.exercises || []).some(e => e.dp); }
+function quietMeta(item) {
+  const exs = item.exercises || [], pz = (exs.find(e => e.pause) || {}).pause;
+  const sup = exs.length > 1 && exs.every(e => e.grp && e.grp === exs[0].grp);
+  return [sup ? "Supersatz" : "", pz ? pz + " Pause" : ""].filter(Boolean).join(" · ");
+}
+window.itemInfo = function (id) {
+  const item = ITEM_INDEX[id];
+  if (!item) return;
+  const paras = String(item.body || "").split(/\n\s*\n/).map(t => `<p>${esc(t.trim())}</p>`).join("");
+  const wrap = document.createElement("div");
+  wrap.className = "sheetwrap";
+  wrap.onclick = ev => { if (ev.target === wrap) closeSheet(); };
+  wrap.innerHTML = `<div class="sheet itxt"><h4>${esc(cardTitle(item).title)}${item.sub ? ` · ${esc(item.sub)}` : ""}</h4>${paras}
+    <button class="cancel" onclick="closeSheet()">Schließen</button></div>`;
+  document.body.appendChild(wrap);
+};
 
 /* Kartentitel: „Part N“ ist Nummerierung, kein Inhalt. Hat der Part einen echten
    Namen („IWT „Tristan““), ist der Titel und der Untertitel wird zur Meta-Zeile;

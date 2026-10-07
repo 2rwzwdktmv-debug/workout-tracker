@@ -65,3 +65,5 @@ h2.section { text-transform: none; letter-spacing: 0; font-size: 22px; font-weig
 .lauf input[id^="wu-k-"] { color: var(--fx-blue); }
 .lauf input[id^="wu-h-"] { color: var(--fx-red); }
 .ts .u.teal { color: var(--fx-teal); }
+/* Ernährung (07.10.): Karten flach in --surface wie Training und Übersicht, ohne hellen Verlauf */
+.en .ecard { background: var(--surface); box-shadow: none; }

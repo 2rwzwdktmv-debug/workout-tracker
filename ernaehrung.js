@@ -38,7 +38,7 @@ const dayRanges=ws=>{const out=[];let a=-1,b=-1;const flush=()=>{if(a<0)return;c
   WO.forEach(w=>{if(ws.includes(w)){if(a<0)a=w;b=w;}else flush();});flush();return out.join(', ');};
 
 /* ---------- Zustand ---------- */
-/* Synchronisiert (progress.json): S.food = {days:{datum:{st,sw,extra,water,energy,meds,packed}}, set:{protein,fast}} */
+/* Synchronisiert (progress.json): S.food = {days:{datum:{st,sw,extra,water (alt, nicht mehr genutzt),energy,meds,packed}}, set:{protein,fast}} */
 function FS(){if(!S.food||typeof S.food!=='object')S.food={};if(!S.food.days)S.food.days={};if(!S.food.set)S.food.set={protein:'whey',fast:true};if(!S.food.stock)S.food.stock={};if(!S.food.cart)S.food.cart={};if(!S.food.have)S.food.have={};if(!S.food.got)S.food.got={};if(!S.food.subst)S.food.subst={};if(!S.food.pantry)S.food.pantry={};if(!S.food.set.free)S.food.set.free={};if(!S.food.set.freeV2){if(JSON.stringify(S.food.set.free)==='{"0":["we"]}')S.food.set.free={};S.food.set.freeV2=1;}   /* Standard: jede Mahlzeit im Plan; früheres „So Mittag frei“ einmalig zurück */if(!S.food.tt)S.food.tt={};return S.food;}
 /* Nur lokal auf diesem Gerät (Gesundheitsdaten): Haut, Ausnahmen, Heißhunger, Gewicht, Heilungsfenster */
 const HKEY='wt-health-v1';
@@ -304,11 +304,10 @@ EN.pk=(key,k)=>{const N=packFor(k);if(!N)return;const s=NS(addD(N.k,-1)),all=[].
 EN.packAll=k=>{const N=packFor(k);if(!N)return;const s=NS(addD(N.k,-1));s.packed=!s.packed;if(!s.packed)s.pk={};save();markDirty();closeSheet();render();};
 EN.dayFoot=e=>C?`<div class="en">${dayFoot(dayOf(e.k))}</div>`:'';
 EN.tzChip=e=>{if(!C)return '';const D=dayOf(e.k);return D.train?`<span class="tzc" onclick="event.stopPropagation();EN.openTime('${D.k}')">${TZL[D.tz]} ⌄</span>`:'';};
-function dayFoot(D){const T=TT[D.type],t=totals(D),s=NS(D.k),goal=Math.round((T.kcal+(T.i>=2?750:0))/250);
+/* Fuß der Übersicht (07.10.): nur noch die zwei Abkürzungen. kcal stehen unter Ernährung → Tage, Wasser gibt es nicht mehr. */
+function dayFoot(D){
   return `${D.fast&&D.type==='hard'?`<div class="hint amb">Harter Tag: rund 600 kcal extra einplanen.</div>`:''}
-    <div class="frfoot"><span>${Math.round(t.kcal).toLocaleString('de-DE')} / ${T.kcal.toLocaleString('de-DE')} kcal</span><span class="row">💧 ${(s.water*.25).toFixed(2).replace('.',',')} / ${(goal*.25).toFixed(2).replace('.',',')} l<button class="btn sm ghost" onclick="EN.water(1)">+ Glas</button></span></div>
-    <div class="mbar" style="margin-top:6px"><i style="width:${Math.min(100,t.kcal/T.kcal*100)}%"></i></div>
-    <div class="links" style="margin-top:10px"><span onclick="EN.openOther()">+ Etwas anderes gegessen</span><span style="color:var(--amber)" onclick="EN.openSOS()">Lust auf Süßes?</span></div>`;}
+    <div class="links" style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line)"><span onclick="EN.openOther()">+ Etwas anderes gegessen</span><span style="color:var(--amber)" onclick="EN.openSOS()">Lust auf Süßes?</span></div>`;}
 /* Trainingszeit ändern (heute oder im Voraus); aus der Vorschau geht es danach dorthin zurück */
 let tzBack=false;
 const hmShort=m=>hm(m).replace(/^0/,'');
@@ -376,7 +375,6 @@ EN.setSkin=v=>{NS(TODAY()).haut=v;R();EN.openSkin();};
 EN.setCrave=v=>{NS(TODAY()).crave=v;closeSheet();R();};
 EN.med=(k,m)=>{const s=NS(k);s.meds[m]=!s.meds[m];R();};
 EN.flag=(k,f)=>{const s=NS(k);s[f]=!s[f];R();};
-EN.water=n=>{const s=NS(TODAY());s.water=Math.max(0,s.water+n);R();};
 EN.eat=(k,id)=>{const s=NS(k),D=dayOf(k);s.st[id]='eaten';applyUse(k,id,1);if(id===addonSlot(D))supOn().forEach(x=>{s.meds[x.n]=true;});closeSheet();R();};
 EN.toggleMeal=(k,id)=>{const s=NS(k);if(s.st[id]){delete s.st[id];applyUse(k,id,0);R();}else EN.eat(k,id);};
 EN.setSt=(k,id,st)=>{NS(k).st[id]=st;applyUse(k,id,st==='eaten'?1:st==='half'?.5:0);closeSheet();R();};
@@ -707,10 +705,31 @@ EN.openItem=it=>{const I=IT()[it],u=usage(it),sum=u.reduce((a,x)=>a+Math.max(0,x
 EN._dbg={dayOf:k=>dayOf(k),varOf:(D,id)=>varOf(D,id),IT:()=>IT(),C:()=>C,shopList:n=>shopList(n)};   /* Diagnose (Konsole) */
 /* Heimweg: frische Zutat, die morgen gebraucht wird und noch nicht da ist */
 function homewayToday(){if(!C)return [];return shopList(1).rows.filter(r=>r.fresh&&r.k===addD(TODAY(),1)&&!isGot(r));}
-function pRezepte(){const it=v=>`<div class="it" onclick="EN.openRecipe('${v}')"><div>${V[v].n}<small>${V[v].time||''}${V[v].recipe?' · Rezept':''}</small></div><span class="go">›</span></div>`;
-  return `<div class="ecard"><span class="k">🎒 Arbeit · kalt &amp; mitnehmbar</span><div class="sub" style="margin-top:4px">Kein Kochen, kein Aufwärmen, kein Teller.</div><div class="list">${Object.keys(V).filter(v=>V[v].at!=='home').map(it).join('')}</div></div>
-    <div class="ecard"><span class="k">Zuhause</span><div class="list">${Object.keys(V).filter(v=>V[v].at==='home').map(it).join('')}</div></div>
+/* Rezepte (07.10.): Gerichte | Snacks statt Arbeit | Zuhause. Snack = Gericht, das nur in Snack-Slots vorkommt (aus alt abgeleitet).
+   „Zum Ausprobieren“ = tryout aus nutrition.json (Buchrezepte), nur zum Ansehen, nicht im Plan, nicht in Bedarf und Vorrat. */
+let recTab='meal';
+EN.recTab=k=>{recTab=k;render();};
+const isSnackDish=v=>{if(V[v].at==='gym')return true;const sl=Object.keys(ALT).filter(s=>ALT[s].includes(v));return sl.length>0&&sl.every(s=>SNACK.includes(s));};   /* Sporttasche = immer Snack */
+const TRY=()=>(C&&C.tryout&&C.tryout.items)||[];
+function pRezepte(){const sn=recTab==='snack';
+  const it=v=>`<div class="it" onclick="EN.openRecipe('${v}')"><div>${V[v].n}<small>${[V[v].time,V[v].at==='work'?'🎒 mitnehmbar':''].filter(Boolean).join(' · ')}</small></div><span class="go">›</span></div>`;
+  const tr=TRY().filter(x=>(x.kind==='snack')===sn);
+  return `<div class="row" style="margin-bottom:12px">${[['meal','Gerichte'],['snack','Snacks']].map(([k,l])=>`<button class="pill ${recTab===k?'on':''}" onclick="EN.recTab('${k}')">${l}</button>`).join('')}</div>
+    <div class="ecard"><span class="k">Im Plan</span><div class="list">${Object.keys(V).filter(v=>isSnackDish(v)===sn).map(it).join('')}</div></div>
+    ${tr.length?`<div class="ecard"><span class="k">Zum Ausprobieren</span><div class="sub" style="margin-top:4px">Aus der Anti-Entzündungs-Diät, milchfrei angepasst. Nicht im Plan.</div>
+      <div class="list">${tr.map(x=>`<div class="it" onclick="EN.openTry('${x.id}')"><div>${esc(x.n)}<small>${esc(x.time)} · ≈ ${x.kcal} kcal · ${x.P} g Protein</small></div><span class="go">›</span></div>`).join('')}</div></div>`:''}
     <div class="ecard"><span class="k">Bausteine (Glossar)</span><div class="list">${Object.keys(G).map(g=>`<div class="it" onclick="EN.openGl('${g}')"><div>${G[g].n}</div><span class="go">›</span></div>`).join('')}</div></div>`;}
+EN.openTry=id=>{const x=TRY().find(y=>y.id===id);if(!x)return;
+  sheet(`<div class="between"><h3>${esc(x.n)}</h3><span class="echip">${x.kind==='snack'?'Snack':'Gericht'}</span></div>
+    <div class="mline">≈ ${x.kcal} kcal · P ${x.P} g · ⏱ ${esc(x.time)}</div>
+    ${(x.basis||[]).length?`<div class="basis">${x.basis.map(b=>`<span class="on">${esc(b)}</span>`).join('')}</div>`:''}
+    ${x.swap?`<div class="hint">${esc(x.swap)}</div>`:''}
+    <div class="km sec">Zutaten · ${x.kind==='snack'?'1 Portion':'deine Portion'}</div>
+    <table class="ing">${x.ing.map(r=>`<tr><td>${esc(r[0])}</td><td>${esc(r[1])}</td></tr>`).join('')}</table>
+    ${x.side?`<div class="sub" style="font-size:13px;margin-top:6px">${esc(x.side)}</div>`:''}
+    <div class="km sec">Zubereitung</div><ol class="steps">${x.steps.map(t=>`<li>${esc(t)}</li>`).join('')}</ol>
+    <div class="sub" style="font-size:12px;margin-top:10px">Buch ${esc(x.src)}</div>
+    <button class="cancel" onclick="closeSheet()">Schließen</button>`);};
 
 /* ---------- Einstellungen: neuer Abschnitt „Ernährung“ ---------- */
 EN.exportHealth=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(H,null,1)],{type:'application/json'}));a.download='gesundheit-'+TODAY()+'.json';a.click();};
