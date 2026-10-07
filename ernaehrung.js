@@ -72,11 +72,31 @@ let C=null,TT={},V={},G={},ALT={},SL={},AT={},EXC=[],XTRA=[],BASIS=[],AB_ROT={},
 EN.ready=()=>!!C;
 EN.load=function(json){try{C=json;TT=C.targets;SL=C.slots;AT=C.at;ALT=C.alt;BASIS=C.basis||[];GROUPS=C.groups||{};HWR=C.hw||HWR;
   AB_ROT=C.rotation.ab;VMR=C.rotation.vm;hwLen=HWR.defaultDays||7;
-  V={};Object.keys(C.dishes).forEach(k=>{const X=C.dishes[k];V[k]=Object.assign({},X,{d:i=>B_(X.d[i]),ing:(i,kk)=>X.ing[i].map(r=>bRow([P_(r[0],kk),r[1],r[2],r[3]])),steps:kk=>X.steps.map(t=>B_(P_(t,kk)))});});
+  D0=JSON.parse(JSON.stringify(C.dishes));pApplied=null;buildDishes();
   G={};Object.keys(C.glossary).forEach(k=>{G[k]={n:C.glossary[k].n,t:kk=>P_(C.glossary[k].t,kk)};});
   SUP=C.supplements||SUP;PACK=C.pack||PACK;SOS=(C.sos||[]).map(x=>Array.isArray(x)?{n:x[0],c:x[1],s:x[2],items:[]}:x);
   EXC=C.exceptions.map(e=>[e.n,e.c,e.s,mk(e.p,e.cc,e.f)]);XTRA=C.extras.map(e=>[e.n,mk(e.p,e.c,e.f)]);
 }catch(e){C=null;console.error('nutrition.json',e);}};
+/* ---------- Portionen am Abend (07.10.) ----------
+   Einstellung S.food.set.portion = −3 … +3 Stufen. Eine Stufe ändert die Beilage der Abendgerichte (alt.ab) um
+   items[b].pstep = [Gramm, g Kohlenhydrate], etwa ±200 kcal pro Tag. Angewendet direkt auf die Gerichtsdaten (Kopie D0),
+   damit Beschreibung, Zutaten, kcal, Bedarf, Packliste und „Nach Plan“ von selbst stimmen. Protein bleibt gleich.
+   Gerichte ohne Zutatenzeile für die Beilage (Frosta) bleiben unverändert. */
+let D0=null,pApplied=null;
+const PSTEP=()=>{const v=+((S.food&&S.food.set&&S.food.set.portion)||0);return Math.max(-3,Math.min(3,v||0));};
+function buildDishes(){if(!C||!D0)return;const st=PSTEP();if(pApplied===st)return;pApplied=st;const I=C.items||{};
+  C.dishes=JSON.parse(JSON.stringify(D0));
+  if(st)(ALT.ab||[]).forEach(v=>{const X=C.dishes[v];if(!X||!X.use)return;
+    Object.keys(X.use).forEach(b=>{const ps=(I[b]||{}).pstep;if(!ps)return;
+      X.use[b]=X.use[b].map((q,i)=>{const rows=X.ing[i].filter(r=>r[3]===b);if(!rows.length)return q;
+        const nq=Math.max(Math.min(q,ps[0]),q+st*ps[0]),dq=nq-q;if(!dq)return q;   /* nie unter eine Stufe (50 g Reis/Nudeln, 250 g Kartoffeln) */
+        X.C[i]=Math.max(0,Math.round(X.C[i]+dq/ps[0]*ps[1]));
+        rows.forEach(r=>{r[1]=String(r[1]).replace(new RegExp('^'+q+'\\s*g'),nq+' g');});
+        X.d[i]=X.d[i].split(' · ').map(seg=>/Kartoffel|Reis|Nudel/.test(seg)?seg.replace(new RegExp('\\b'+q+' g'),nq+' g'):seg).join(' · ');
+        return nq;});});});
+  V={};Object.keys(C.dishes).forEach(k=>{const X=C.dishes[k];V[k]=Object.assign({},X,{d:i=>B_(X.d[i]),ing:(i,kk)=>X.ing[i].map(r=>bRow([P_(r[0],kk),r[1],r[2],r[3]])),steps:kk=>X.steps.map(t=>B_(P_(t,kk)))});});}
+const pDesc=st=>st?`${st>0?'+':'−'}${Math.abs(st)} ${Math.abs(st)===1?'Stufe':'Stufen'} · ≈ ${st>0?'+':'−'}${Math.abs(st)*200} kcal pro Tag`:'normal';
+EN.setPortion=st=>{st=Math.max(-3,Math.min(3,st));FS().set.portion=st;FS().set.portionAt=TODAY();buildDishes();RS();};
 const SIZE={klein:.6,normal:1,'groß':1.5};
 /* Brot nach Einstellung: Vollkorntoast (Standard) oder Roggenbrot. Rezepte rechnen in Scheiben Roggenbrot,
    bei Toast wird umgerechnet (breadFactor in nutrition.json, 1 Scheibe Roggenbrot ≈ 1,7 Scheiben Toast). */
@@ -90,7 +110,7 @@ const bRow=r=>!toastOn()||r[3]!=='brot'?r:[B_(r[0]),String(r[1]).replace(/^(\d+)
 /* Tagestyp: aus der Minuten-Schätzung der Plan-Einheit (dayMinutes). Vorlage: nach Wochentag. */
 const WDL=['So','Mo','Di','Mi','Do','Fr','Sa'];
 let PP=null;
-EN.fresh=()=>{PP=null;DC={};};
+EN.fresh=()=>{PP=null;DC={};buildDishes();};
 function plan(){if(!PP){PP={};try{projectPlan(8).forEach(e=>{PP[e.k]=e;});}catch(e){}}return PP;}
 const TODAY=()=>dkey(today0());
 let DC={};
@@ -806,14 +826,20 @@ function perMonth(f,n,minPts){const xs=series(f).filter(([k])=>diff(TODAY(),k)<=
   const X=xs.map(([k])=>diff(k,xs[0][0])),Y=xs.map(x=>x[1]),mx=X.reduce((a,b)=>a+b)/X.length,my=Y.reduce((a,b)=>a+b)/Y.length;
   let nu=0,de=0;X.forEach((x,i)=>{nu+=(x-mx)*(Y[i]-my);de+=(x-mx)*(x-mx);});return de?nu/de*30:null;}
 const sgn=(v,d)=>(v>0?'+':v<0?'−':'±')+Math.abs(v).toFixed(d).replace('.',',');
+/* Monats-Check (07.10.): Korridor Gewicht +0,25 … +1 kg/Monat bei Taille ≤ +0,5 cm/Monat (KONZEPT.md).
+   Bremsen: erst ab ~80 % „Nach Plan“ in 4 Wochen, höchstens eine Anpassung alle 28 Tage. Liefert [Klasse, Text, Vorschlag ±1|0]. */
 function bodyVerdict(){const w=perMonth('weight',42,4),t=perMonth('waist',42,3);
-  if(w===null||t===null)return ['flat','Noch zu wenig Messungen. Die Bewertung startet, sobald Gewicht und Taille über 2 Wochen eingetragen sind.'];
-  const W=sgn(w,1)+' kg',T=sgn(t,1)+' cm';
-  if(t>1)return ['amb',`Taille steigt (${T} pro Monat). Etwas weniger essen, zuerst an Ruhetagen.`];
-  if(w< -0.3)return ['amb',`Gewicht sinkt (${W} pro Monat). Für den Aufbau etwas mehr essen.`];
-  if(w>0.8)return ['amb',`Gewicht steigt schnell (${W} pro Monat), die Taille hält noch (${T}). Im Blick behalten.`];
-  if(w>=0.1)return ['ok',`Passt: Gewicht ${W} pro Monat, Taille ${T}. Du baust auf, ohne Bauch. So weiter.`];
-  return ['flat',`Gewicht stabil (${W} pro Monat), Taille ${T}. Das ist Erhalt. Für mehr Aufbau etwas mehr essen.`];}
+  if(w===null||t===null)return ['flat','Noch zu wenig Messungen. Die Bewertung startet, sobald Gewicht und Taille über 2 Wochen eingetragen sind.',0];
+  const W=sgn(w,1)+' kg',T=sgn(t,1)+' cm',np=periodScore(addD(TODAY(),-28)),at=FS().set.portionAt,wait=at&&diff(TODAY(),at)<28;
+  let r;
+  if(t>0.5)r=['amb',`Taille steigt (${T} pro Monat), Gewicht ${W}. Ein Teil geht in den Bauch.`,-1];
+  else if(w<0.25)r=['amb',`Gewicht ${W} pro Monat, Taille ${T}. Für Aufbau ist das zu wenig.`,1];
+  else if(w>1.2)r=['amb',`Gewicht steigt sehr schnell (${W} pro Monat), die Taille hält noch (${T}). Weiter beobachten.`,0];
+  else return ['ok',`Passt: Gewicht ${W} pro Monat, Taille ${T}. Du baust auf, ohne Bauch. So weiter.`,0];
+  if(!r[2])return r;
+  if(np&&np.p<80)return [r[0],r[1]+` Erst den Plan essen: „Nach Plan“ liegt bei ${np.p} %. Anpassen lohnt sich ab etwa 80 %.`,0];
+  if(wait)return [r[0],r[1]+` Zuletzt angepasst am ${OKT(at)}, nächster Check ab ${OKT(addD(at,28))}.`,0];
+  return r;}
 function bodyTile(f){const xs=series(f);if(!xs.length)return `<div class="lift"><div class="ln">${MLAB[f]}</div><div class="lv">—</div><span class="chip flat">${MONTH.includes(f)?'Monatsmessung':'noch nicht gemessen'}</span></div>`;
   const v=xs[xs.length-1][1],d=v-xs[0][1],u=f==='weight'?'KG':'CM',good=f==='waist'?d<=-1:d>0;   /* Taille: unter 1 cm ist Messrauschen */
   const chip=xs.length<2?`<span class="chip flat">seit ${OKT(xs[0][0])}</span>`:Math.abs(d)<0.05?`<span class="chip flat">±0 seit ${OKT(xs[0][0])}</span>`
@@ -849,14 +875,15 @@ function energyTest(){const ks=Object.keys(FS().days).filter(k=>FS().days[k].ene
   const txt=a.length>=4&&b.length>=4?`Nach Plan gegessen: <b>Ø ${avg(a)}</b> · sonst <b>Ø ${avg(b)}</b> (${a.length} gegen ${b.length} Trainings)`
     :`Noch zu wenig für einen Vergleich: ${ks.length} Trainings mit Energie-Wert. Aussagekräftig ab je 4 Trainings mit und ohne Plan.`;
   return `<div class="chartcard" style="margin-top:12px"><h3>Energie im Training</h3><div class="wsub">${txt}</div></div>`;}
-EN.bodyStats=function(){if(!C)return '';const [cls,txt]=bodyVerdict();
+EN.bodyStats=function(){if(!C)return '';const [cls,txt,stp]=bodyVerdict(),cur=PSTEP();
   return `<h2 class="section">Wirkt es?<button class="ibtn" onclick="EN.openWirkt()" aria-label="Erklärung">i</button></h2>
-    <div class="verdict ${cls}">${txt}</div>
+    <div class="verdict ${cls}">${txt}${stp?`<button class="vbtn" onclick="EN.setPortion(${cur+stp})">Portionen am Abend eine Stufe ${stp>0?'höher':'niedriger'}<small>${stp>0?'+50 g Reis/Nudeln oder +250 g Kartoffeln':'−50 g Reis/Nudeln oder −250 g Kartoffeln'} · ≈ ${stp>0?'+':'−'}200 kcal pro Tag</small></button>`:''}${cur?`<div class="vnow">Portionen am Abend: ${pDesc(cur)}${FS().set.portionAt?' seit '+OKT(FS().set.portionAt):''}</div>`:''}</div>
     <div class="liftgrid">${['weight','waist'].map(bodyTile).join('')}${ratioTile()}${['shoulder','chest','arm','thigh'].map(bodyTile).join('')}</div>
     <div class="chartcard" style="margin-top:12px"><h3>Haut · letzte 8 Wochen</h3>${skinChart()}<div class="wsub"><span class="key amb"></span>Haut 1–5 <span class="key red"></span>Pizza, Süßes, Käse</div><div class="wsub">${skinTest()}</div></div>
     ${energyTest()}`;};
 EN.openWirkt=()=>sheet(`<h3>Wirkt es?</h3><div class="ink2" style="margin-top:8px">
-  <p><b>Körper:</b> Ziel ist Aufbau. Gewicht steigt langsam (+0,25–0,5 kg pro Monat), die Taille bleibt. Steigt die Taille über einen Monat, etwas weniger essen. Bewertet werden die letzten 6 Wochen als Trend, einzelne Tage schwanken um 1–2 kg.</p>
+  <p><b>Körper:</b> Ziel ist Aufbau. Gewicht steigt +0,25 bis +1 kg pro Monat, die Taille höchstens +0,5 cm. Bewertet werden die letzten 6 Wochen als Trend, einzelne Tage schwanken um 1–2 kg. Im ersten Monat mit mehr Kohlenhydraten kommen 0,5–1 kg gefüllte Speicher dazu, das ist kein Fett.</p>
+  <p><b>Anpassen</b> geht einmal im Monat, eine Stufe Portionen am Abend (≈ ±200 kcal pro Tag), Protein bleibt gleich. Erst wenn du im Schnitt etwa 80 % nach Plan isst: sonst misst die Waage nicht den Plan, sondern die Ausnahmen.</p>
   <p><b>Schultern, Brust, Oberarm, Oberschenkel</b> zeigen, ob das Gewicht dort ankommt, wo du es willst. Muskeln wachsen langsam: 0,5–1 cm in ein paar Monaten ist gut.</p>
   <p><b>Schultern ÷ Taille</b> ist „athletisch aussehen“ als Zahl: wird größer, wenn die Schultern wachsen oder die Taille schmaler wird. Um 1,6 gilt als klassische V-Form. Das ist eine Orientierung aus der Fitnesswelt, kein wissenschaftlicher Grenzwert.</p>
   <p><b>Fotos</b> zeigen, was keine Zahl kann. Vergleiche Monat gegen Monat, nicht Tag gegen Tag.</p>
@@ -873,6 +900,7 @@ EN.settings=function(main){const set=main.querySelector('.set');if(!set||!C)retu
     <div class="km">Phasen</div>
     <div class="srow"><div><b>Heilungsfenster</b><small>${HW.active?(h?`läuft · Tag ${h}/${HW.len}`:'geplant')+` · ${OKT(HW.start)}–${OKT(hwEnd())} · endet automatisch`:'aus · für einen akuten Schub'}</small></div><button class="btn sm ghost" onclick="${HW.active?'EN.openHw()':'EN.openHwStart()'}">${HW.active?'verwalten':'starten'}</button></div>
     <div class="km" style="margin-top:14px">Grundeinstellungen</div>
+    <div class="srow"><div>Portionen am Abend<small>${pDesc(PSTEP())} · eine Stufe = 50 g Reis/Nudeln oder 250 g Kartoffeln · ändern nach dem Monats-Check in Analyse → Wirkt es?</small></div><span class="stp"><button onclick="EN.setPortion(${PSTEP()-1})">−</button><b>${PSTEP()>0?'+':''}${PSTEP()}</b><button onclick="EN.setPortion(${PSTEP()+1})">+</button></span></div>
     <div class="srow"><div>Werktags fasten<small>erste Mahlzeit mittags · Vormittag entfällt, Mengen wandern auf Mittag, Snack und Abend</small></div><button class="btn sm ghost" onclick="EN.fastToggle()">${ST.fast?'an':'aus'}</button></div>
     <div class="srow" onclick="EN.openFree()" style="cursor:pointer"><div>Freie Mahlzeiten<small>${WO.flatMap(w=>freeOf(w).map(r=>WDL[w]+' '+RN[r])).join(', ')||'keine'} · ohne Plan, nicht in Bedarf und Vorrat</small></div><span class="v">ändern ›</span></div>
     <div class="srow" onclick="EN.openGuest()" style="cursor:pointer"><div>Zu zweit<small>${gLabel()}</small></div><span class="v">ändern ›</span></div>
