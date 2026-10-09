@@ -124,6 +124,8 @@ function dayOf0(k){const e=plan()[k]||pastEntry(k)||{kind:'empty'},w=D_(k).getDa
   const type=!isT?((window.WOCHE&&WOCHE.type(k))||'rest'):min>=120?'hard':min>=45?'train':'active';
   const D={k,wd:WDL[w],e,min,type,off:e.kind==='off',done:e.kind==='donetoday',train:isT?(e.d?dayTitle(e.d):'Training'):null,len:min?'≈ '+min+' min':''};
   let ab=AB_ROT[w];const vm=VMR[w]||VMR.other;
+  /* Alle 14 Tage (rotation.biweekly): in Wochen mit gleicher Parität wie der Anker gilt dieses Abendessen (z. B. jeden 2. Freitag Hüftsteak) */
+  const BW=C.rotation.biweekly;if(BW&&BW.ab&&BW.ab[w]&&V[BW.ab[w]]&&Math.floor(Math.round((D_(k)-D_(BW.anchor))/864e5)/7)%2===0)ab=BW.ab[w];
   const md=workMode(w);D.work=workLbl(md);D.md=md;
   /* Vormittag nach dem Stand AN DIESEM TAG (mHist), nie rückwirkend (09.10.) */
   const mm=modeOn(k);
