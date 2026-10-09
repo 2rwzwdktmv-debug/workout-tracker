@@ -57,7 +57,7 @@ const isEmpty=v=>v==null||v===false||v===0||(Array.isArray(v)&&!v.length)||(type
 function prune(days,defs){Object.keys(days).forEach(k=>{const d=days[k];Object.keys(d).forEach(p=>{if(isEmpty(d[p])||d[p]===defs[p])delete d[p];});if(!Object.keys(d).length)delete days[k];});}
 const save=()=>{prune(H.days,HF);prune(FS().days,SF);Object.keys(FS().stock).forEach(it=>{if(it!=='bolotk'||!(FS().stock[it]>0))delete FS().stock[it];});Object.keys(FS().have).forEach(id=>{const at=id.split('@')[1],h=FS().have[id];if(at?at<TODAY():diff(TODAY(),h)>=7)delete FS().have[id];});Object.keys(FS().got).forEach(id=>{if(FS().got[id]<TODAY())delete FS().got[id];});try{localStorage.setItem(HKEY,JSON.stringify(H));}catch(e){}};
 EN.save=save;
-const ST={get protein(){return FS().set.protein;},set protein(v){FS().set.protein=v;},get fast(){return FS().set.fast!==false;},set fast(v){FS().set.fast=v;}};
+const ST={get protein(){return FS().set.protein;},set protein(v){FS().set.protein=v;},get fast(){return FS().set.fast!==false;},set fast(v){FS().set.fast=v;},get morning(){return FS().set.morning===true;}};
 let HW=H.HW;
 const hwDay=k=>HW.active&&k>=HW.start&&diff(k,HW.start)<HW.len?diff(k,HW.start)+1:0;
 const hwEnd=()=>addD(HW.start,HW.len-1);
@@ -126,9 +126,12 @@ function dayOf0(k){const e=plan()[k]||pastEntry(k)||{kind:'empty'},w=D_(k).getDa
   let ab=AB_ROT[w];const vm=VMR[w]||VMR.other;
   const md=workMode(w);D.work=workLbl(md);D.md=md;
   D.fast=!!ST.fast&&md!=='frei';   /* Werktags-Fasten: erste Mahlzeit mittags */
-  const VM=D.fast?[]:[['vm',vm,'work']],RC=D.fast?['rc','recovShake','gym']:['rc','recov','gym'];
-  if(md==='voll'){D.tpl='Werktag';D.slots=[...VM,['mi','oats','work'],['na','pre','work'],['ab',ab,'home']];}
-  else if(md==='halb'){D.tpl='halb';D.slots=[...VM,['mi','oats','home','zuhause'],['na','pre','home'],['ab',ab,'home']];}
+  /* Vormittag werktags (09.10.): nichts (fasten) · klein = Eier & Nüsse aus dem Porridge herausgelöst (gleiche Stufe wie Mittag,
+     Tagessumme exakt gleich) · Frühstück = volle Rotation, dann alles eine Stufe kleiner */
+  D.small=D.fast&&ST.morning;
+  const VM=D.small?[['vm','morning','work']]:D.fast?[]:[['vm',vm,'work']],RC=D.fast?['rc','recovShake','gym']:['rc','recov','gym'],OA=D.small?'oatsLite':'oats';
+  if(md==='voll'){D.tpl='Werktag';D.slots=[...VM,['mi',OA,'work'],['na','pre','work'],['ab',ab,'home']];}
+  else if(md==='halb'){D.tpl='halb';D.slots=[...VM,['mi',OA,'home','zuhause'],['na','pre','home'],['ab',ab,'home']];}
   else{D.tpl='Wochenende';D.slots=[['br','brunch','home'],['we',(C.defaults&&C.defaults.we&&V[C.defaults.we])?C.defaults.we:'weLunch','home'],['wn','weSnack','home'],['ab',ab,'home']];}
   /* Lange Ausdauer (ein durchgehender Block ab 75 min, z. B. langer Lauf): Zeile „Unterwegs“ nach dem Training, Menge nach Dauer.
      Krafteinheiten kommen mit Pausen auch auf 80–90 min, brauchen aber nichts unterwegs. */
@@ -169,13 +172,13 @@ const mac=(v,i)=>mk(V[v].P[i],V[v].C[i],V[v].F[i]);
 const varOf=(D,id)=>{const s=D.slots.find(x=>x[0]===id);return NS(D.k).sw[id]||s[1];};
 const shown=D=>D.slots.filter(s=>!(s[0]==='rc'&&ti(D)<3&&!D.fast));
 /* Portion pro Mahlzeit: im Fasten-Fenster eine Stufe größer (Vormittag fällt weg) */
-const pix=(D,id)=>id==='uw'?Math.max(D.uwI,0):D.fast&&['mi','na','ab'].includes(id)?Math.min(ti(D)+1,3):ti(D);
+const pix=(D,id)=>id==='uw'?Math.max(D.uwI,0):D.fast&&(['mi','na','ab'].includes(id)||(id==='vm'&&D.small))?Math.min(ti(D)+1,3):ti(D);
 const slotWhen=(D,s)=>{const c=D.cue[s[0]];if(c)return c;if(s[3])return s[3];if(['na','wn','vm'].includes(s[0]))return 'wann es passt';
   if(s[0]==='ab')return (D.abAfter?'Post-Workout · ':'')+'bis ~'+DINNER_BY();return SL[s[0]][1];};
 const mealIds=D=>shown(D).filter(s=>s[0]!=='T').map(s=>s[0]);
 const mealDone=(D,id)=>!!NS(D.k).st[id]||!!NS(D.k).exc.find(e=>e.slot===id);
 function nextMeal(D){const ids=mealIds(D);let last=-1;ids.forEach((id,n)=>{if(mealDone(D,id))last=n;});const n=ids.findIndex((id,j)=>j>last&&!mealDone(D,id));return n<0?null:ids[n];}
-function addonSlot(D){const ids=mealIds(D);return ['mi','we','fr','br'].find(x=>ids.includes(x));}
+function addonSlot(D){const ids=mealIds(D);return [...(D.small?['vm']:[]),'mi','we','fr','br'].find(x=>ids.includes(x));}   /* Supplements zur ersten Mahlzeit */
 function totals(D){const s=NS(D.k),i=ti(D);let t={kcal:0,p:0,c:0,f:0};const add=(m,f)=>{t.kcal+=m.kcal*f;t.p+=m.p*f;t.c+=m.c*f;t.f+=m.f*f;};
   for(const id of mealIds(D)){if(s.exc.find(e=>e.slot===id))continue;const m=mac(varOf(D,id),pix(D,id));if(s.st[id]==='eaten')add(m,1);if(s.st[id]==='half')add(m,.5);
     /* teilweise gegessen (09.10.): jede abgehakte Zutat mit ihren eigenen Nährwerten (items.*.nut) */
@@ -631,6 +634,8 @@ EN.openGuest=()=>sheet(`<h3>Zu zweit</h3><div class="sub">Wie viel mehr ihr zu z
   ${Object.keys(GK).map(kd=>`<div class="km sec">${GK[kd]}</div><div class="wrow"><button class="pill" onclick="EN.gf('${kd}',-1)">−</button><b>×${String(gF(kd)).replace('.',',')}</b><button class="pill" onclick="EN.gf('${kd}',1)">+</button></div>`).join('')}
   <button class="cancel" onclick="closeSheet()">Fertig</button>`);
 EN.fastToggle=()=>{ST.fast=!ST.fast;R();};
+EN.setMorning=m=>{if(m==='full'){ST.fast=false;}else{ST.fast=true;FS().set.morning=m==='small';}RS();};
+const morningMode=()=>!ST.fast?'full':ST.morning?'small':'none';
 const RS=()=>{EN.fresh();R();};
 /* Schlafenszeit */
 EN.openBed=()=>sheet(`<h3>Schlafenszeit</h3><div class="sub">Unter der Woche. Das Abendessen liegt 1,5 h davor, eine Spätmahlzeit gibt es nicht.</div>
@@ -647,7 +652,7 @@ EN.openWork=()=>sheet(`<h3>Arbeit</h3><div class="sub">Ganztags: Mittag und Nach
 EN.wMode=(w,m)=>{const o=FS().set.work||(FS().set.work={});o[w]=WM[m];RS();EN.openWork();};
 EN.wT=(m,i,n)=>{const o=FS().set.wt||(FS().set.wt={}),t=workTime(m).slice();t[i]=Math.max(4,Math.min(22,t[i]+n));if(t[0]<t[1]){o[m]=t;RS();}EN.openWork();};
 /* Freie Mahlzeiten */
-const rolesOf=w=>workMode(w)==='frei'?['fr','mi','na','ab']:[...(ST.fast?[]:['vm']),'mi','na','ab'];
+const rolesOf=w=>workMode(w)==='frei'?['fr','mi','na','ab']:[...(ST.fast&&!ST.morning?[]:['vm']),'mi','na','ab'];
 EN.openFree=()=>sheet(`<h3>Freie Mahlzeiten</h3><div class="sub">Ohne Plan, z. B. Essen mit Freunden. Sie zählen nicht in Bedarf und Vorrat.</div>
   ${WO.map(w=>`<div class="drow"><b>${WDL[w]}</b><div class="mini">${rolesOf(w).map(r=>`<button class="${freeOf(w).includes(r)?'on':''}" onclick="EN.freeT(${w},'${r}')">${RN[r]}</button>`).join('')}</div></div>`).join('')}
   <button class="cancel" onclick="closeSheet()">Fertig</button>`);
@@ -1000,15 +1005,15 @@ EN.settings=function(main){const set=main.querySelector('.set');if(!set||!C)retu
     <div class="km" style="margin-top:14px">Grundeinstellungen</div>
     <div class="srow"><div>Protein-Minimum<small>${PMIN()} g pro Tag · auch an schlechten Tagen erreichen · grün auf der Übersicht</small></div><span class="stp"><button onclick="EN.setPmin(${PMIN()-5})">−</button><b>${PMIN()}</b><button onclick="EN.setPmin(${PMIN()+5})">+</button></span></div>
     <div class="srow"><div>Portionen am Abend<small>${pDesc(PSTEP())} · eine Stufe = 50 g Reis/Nudeln oder 250 g Kartoffeln · ändern nach dem Monats-Check in Analyse → Wirkt es?</small></div><span class="stp"><button onclick="EN.setPortion(${PSTEP()-1})">−</button><b>${PSTEP()>0?'+':''}${PSTEP()}</b><button onclick="EN.setPortion(${PSTEP()+1})">+</button></span></div>
-    <div class="srow"><div>Werktags fasten<small>erste Mahlzeit mittags · Vormittag entfällt, Mengen wandern auf Mittag, Snack und Abend</small></div><button class="btn sm ghost" onclick="EN.fastToggle()">${ST.fast?'an':'aus'}</button></div>
+    <div class="srow"><div>Vormittag (werktags)<small>${({none:'erste Mahlzeit mittags',small:'Eier & Nüsse, Porridge kleiner',full:'volles Frühstück, Rest kleiner'})[morningMode()]}</small></div><span class="vk">${[['none','nichts'],['small','klein'],['full','Frühstück']].map(([m,l])=>`<button class="${morningMode()===m?'on':''}" onclick="EN.setMorning('${m}')">${l}</button>`).join('')}</span></div>
     <div class="srow" onclick="EN.openFree()" style="cursor:pointer"><div>Freie Mahlzeiten<small>${WO.flatMap(w=>freeOf(w).map(r=>WDL[w]+' '+RN[r])).join(', ')||'keine'} · ohne Plan, nicht in Bedarf und Vorrat</small></div><span class="v">ändern ›</span></div>
     <div class="srow" onclick="EN.openGuest()" style="cursor:pointer"><div>Zu zweit<small>${gLabel()}</small></div><span class="v">ändern ›</span></div>
     <div class="srow"><div>Proteinpulver<small>im Heilungsfenster immer Erbsenprotein</small></div><button class="btn sm ghost" onclick="EN.protToggle()">${ST.protein==='plant'?'Erbsenprotein':'Whey'}</button></div>
     <div class="srow"><div>Brot<small>Scheiben werden umgerechnet</small></div><button class="btn sm ghost" onclick="EN.breadToggle()">${toastOn()?'Vollkorntoast':'Roggenbrot'}</button></div>
-    <div class="srow" onclick="EN.openSup()" style="cursor:pointer"><div>Supplements<small>${supNames()||'keine'} · hängen am Mittag</small></div><span class="v">ändern ›</span></div>
+    <div class="srow" onclick="EN.openSup()" style="cursor:pointer"><div>Supplements<small>${supNames()||'keine'} · zur ersten Mahlzeit</small></div><span class="v">ändern ›</span></div>
     <div class="srow" onclick="EN.openBed()" style="cursor:pointer"><div>Schlafenszeit<small>${BED()} · Abendessen bis ${DINNER_BY()}</small></div><span class="v">ändern ›</span></div>
     <div class="srow" onclick="EN.openWork()" style="cursor:pointer"><div>Arbeit<small>${['voll','halb'].map(m=>{const ws=WO.filter(w=>workMode(w)===m);return ws.length?dayRanges(ws)+' '+workLbl(m):'';}).filter(Boolean).join(' · ')||'keine Arbeitstage'} · 🎒 nur Kaltes</small></div><span class="v">ändern ›</span></div>
-    <div class="flow">${ST.fast?'':'<span>Vormittag 🎒</span><i>›</i>'}<span>Mittag 🎒 ~12</span><i>›</i><span>Nachmittag 🎒</span><i>›</i><span class="t">Training</span><i>›</i><span>Abend</span></div>
+    <div class="flow">${ST.fast&&!ST.morning?'':'<span>Vormittag 🎒</span><i>›</i>'}<span>Mittag 🎒 ~12</span><i>›</i><span>Nachmittag 🎒</span><i>›</i><span class="t">Training</span><i>›</i><span>Abend</span></div>
     <div class="km" style="margin-top:14px">Daten</div>
     <div class="srow"><div>Gewicht, Haut, Ausnahmen, Energie<small>nur auf diesem iPhone (Datenschutz-Entscheidung offen)</small></div><button class="btn sm ghost" onclick="EN.exportHealth()">Export</button></div>
   </div></details>`;
