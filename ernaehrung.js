@@ -125,10 +125,13 @@ function dayOf0(k){const e=plan()[k]||pastEntry(k)||{kind:'empty'},w=D_(k).getDa
   const D={k,wd:WDL[w],e,min,type,off:e.kind==='off',done:e.kind==='donetoday',train:isT?(e.d?dayTitle(e.d):'Training'):null,len:min?'≈ '+min+' min':''};
   let ab=AB_ROT[w];const vm=VMR[w]||VMR.other;
   const md=workMode(w);D.work=workLbl(md);D.md=md;
-  D.fast=!!ST.fast&&md!=='frei';   /* Werktags-Fasten: erste Mahlzeit mittags */
+  /* Vormittag nach dem Stand AN DIESEM TAG (mHist), nie rückwirkend (09.10.) */
+  const mm=modeOn(k);
+  D.fast=mm!=='full'&&md!=='frei';   /* Werktags-Fasten: erste Mahlzeit mittags */
   /* Vormittag werktags (09.10.): nichts (fasten) · klein = Eier & Nüsse aus dem Porridge herausgelöst (gleiche Stufe wie Mittag,
      Tagessumme exakt gleich) · Frühstück = volle Rotation, dann alles eine Stufe kleiner */
-  D.small=D.fast&&ST.morning;
+  /* Umstellungstag: wurde mittags noch das alte Porridge (mit Eiern) gegessen, gibt es keinen extra Vormittag */
+  D.small=D.fast&&mm==='small'&&((FS().days[k]||{}).sw||{}).mi!=='oats';
   const VM=D.small?[['vm','morning','work']]:D.fast?[]:[['vm',vm,'work']],RC=D.fast?['rc','recovShake','gym']:['rc','recov','gym'],OA=D.small?'oatsLite':'oats';
   if(md==='voll'){D.tpl='Werktag';D.slots=[...VM,['mi',OA,'work'],['na','pre','work'],['ab',ab,'home']];}
   else if(md==='halb'){D.tpl='halb';D.slots=[...VM,['mi',OA,'home','zuhause'],['na','pre','home'],['ab',ab,'home']];}
@@ -634,8 +637,12 @@ EN.openGuest=()=>sheet(`<h3>Zu zweit</h3><div class="sub">Wie viel mehr ihr zu z
   ${Object.keys(GK).map(kd=>`<div class="km sec">${GK[kd]}</div><div class="wrow"><button class="pill" onclick="EN.gf('${kd}',-1)">−</button><b>×${String(gF(kd)).replace('.',',')}</b><button class="pill" onclick="EN.gf('${kd}',1)">+</button></div>`).join('')}
   <button class="cancel" onclick="closeSheet()">Fertig</button>`);
 EN.fastToggle=()=>{ST.fast=!ST.fast;R();};
-EN.setMorning=m=>{if(m==='full'){ST.fast=false;}else{ST.fast=true;FS().set.morning=m==='small';}RS();};
 const morningMode=()=>!ST.fast?'full':ST.morning?'small':'none';
+/* Verlauf der Vormittags-Einstellung: [{from, m}]. Gilt ab „from“; davor der Stand vor der ersten Änderung. */
+function mHist(){const st=FS().set;if(!st.mHist){const now=morningMode(),before=now==='full'?'full':'none';st.mHist=[{from:'0000-00-00',m:before}];if(now!==before)st.mHist.push({from:TODAY(),m:now});}return st.mHist;}
+const modeOn=k=>{const h=mHist();let m=h[0].m;h.forEach(x=>{if(x.from<=k)m=x.m;});return m;};
+EN.setMorning=m=>{mHist();if(m==='full'){ST.fast=false;}else{ST.fast=true;FS().set.morning=m==='small';}
+  const h=FS().set.mHist,t=TODAY(),last=h[h.length-1];if(last.from===t)last.m=m;else h.push({from:t,m});RS();};
 const RS=()=>{EN.fresh();R();};
 /* Schlafenszeit */
 EN.openBed=()=>sheet(`<h3>Schlafenszeit</h3><div class="sub">Unter der Woche. Das Abendessen liegt 1,5 h davor, eine Spätmahlzeit gibt es nicht.</div>
