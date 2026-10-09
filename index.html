@@ -726,6 +726,11 @@
   }
   button:active { transform: scale(.965); }
   .card:active, .item:active, .today:active, .sheet button:active { transform: scale(.985); }
+  /* Touch (09.10.): große Flächen reagieren erst auf echtes Tippen (.press per JS), nicht schon beim Scrollen */
+  @media (hover: none) {
+    .card:active, .item:active, .today:active, .sheet button:active { transform: none; }
+    .card.press, .item.press, .today.press, .sheet button.press { transform: scale(.985); }
+  }
   .setsec summary:active { transform: scale(.99); }
   .today .cta:active, .tsave:active,
   .set .row button.primary:active, .setup .row button.primary:active { filter: brightness(.88); }
@@ -860,7 +865,8 @@
   @keyframes bgin { from { background: rgba(0,0,0,0); } }
   @keyframes bgout { to { background: rgba(0,0,0,0); } }
   .sheetwrap { animation: bgin .22s ease; }
-  .sheetwrap > .sheet { animation: shin .32s cubic-bezier(.32,.72,0,1); position: relative; touch-action: pan-y; }
+  .sheetwrap > .sheet { animation: shin .32s cubic-bezier(.32,.72,0,1); position: relative; touch-action: pan-y; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+  .sheetwrap { touch-action: none; overscroll-behavior: contain; }
   .sheetwrap > .sheet::before { content: ""; position: absolute; top: 6px; left: 50%; width: 36px; height: 5px; margin-left: -18px; border-radius: 99px; background: var(--line-strong); }
   .sheetwrap.closing { animation: bgout .2s ease forwards; pointer-events: none; }
   .sheetwrap.closing > .sheet { animation: shout .2s cubic-bezier(.4,0,1,1) forwards; }
@@ -881,7 +887,7 @@
       animation-duration: .01ms !important; animation-iteration-count: 1 !important;
       transition-duration: .01ms !important;
     }
-    button:active, .card:active, .item:active { transform: none; }
+    button:active, .card:active, .item:active, .press { transform: none !important; }
     nav .go:active { transform: translateX(-50%); }
   }
 </style>
@@ -913,7 +919,7 @@
   <button id="navSet"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 13.5a7.8 7.8 0 0 0 0-3l2-1.5-2-3.4-2.4 1a7.8 7.8 0 0 0-2.6-1.5L14 2.5h-4l-.4 2.6A7.8 7.8 0 0 0 7 6.6l-2.4-1-2 3.4 2 1.5a7.8 7.8 0 0 0 0 3l-2 1.5 2 3.4 2.4-1a7.8 7.8 0 0 0 2.6 1.5l.4 2.6h4l.4-2.6a7.8 7.8 0 0 0 2.6-1.5l2.4 1 2-3.4z"/></svg>Einstellungen</button>
 </nav>
 
-<script src="ernaehrung.js?v=2026-10-09c"></script>
+<script src="ernaehrung.js?v=2026-10-09d"></script>
 <link rel="stylesheet" href="lauf.css?v=2026-10-07a">
 <link rel="stylesheet" href="apple.css?v=2026-10-07a">   <!-- Apple-naher Look, zuletzt geladen -->
 <link rel="stylesheet" href="woche.css?v=2026-10-04f">
@@ -3721,25 +3727,59 @@ window.closeSheet = function () {
 };
 /* iPhone: Safari zeigt :active (Druck-Effekt auf Knöpfen und Karten) nur, wenn die Seite Berührungen hört */
 document.addEventListener("touchstart", () => {}, { passive: true });
-/* Sheets nach unten wegwischen, wenn sie ganz oben stehen (09.10.) */
+/* Große Flächen (Karten, Heute-Block, breite Sheet-Knöpfe): Druck-Effekt erst nach 90 ms Ruhe oder beim Loslassen
+   ohne Bewegung. Bewegt sich der Finger mehr als 6 px, ist es Scrollen und es passiert nichts (09.10.). */
 (function () {
-  let sh = null, y0 = 0, dy = 0;
+  const SEL = ".card, .item, .today, .sheet button";
+  let el = null, t = null, x0 = 0, y0 = 0;
+  const reset = () => { clearTimeout(t); t = null; if (el) el.classList.remove("press"); el = null; };
   document.addEventListener("touchstart", ev => {
-    const s = ev.target.closest && ev.target.closest(".sheetwrap:not(.closing) > .sheet");
-    if (!s || s.scrollTop > 0 || ev.target.closest("input, textarea, select")) return;
-    sh = s; y0 = ev.touches[0].clientY; dy = 0; sh.classList.remove("snap");
+    reset();
+    el = ev.target.closest && ev.target.closest(SEL);
+    if (!el) return;
+    x0 = ev.touches[0].clientX; y0 = ev.touches[0].clientY;
+    const e = el; t = setTimeout(() => e.classList.add("press"), 90);
   }, { passive: true });
   document.addEventListener("touchmove", ev => {
-    if (!sh) return;
-    dy = ev.touches[0].clientY - y0;
-    if (dy <= 0 || sh.scrollTop > 0) { sh.style.transform = ""; return; }
-    sh.classList.add("drag"); sh.style.transform = `translateY(${dy}px)`;
+    if (!el) return;
+    const p = ev.touches[0];
+    if (Math.abs(p.clientX - x0) > 6 || Math.abs(p.clientY - y0) > 6) reset();
   }, { passive: true });
+  document.addEventListener("touchend", () => {
+    if (!el) return;
+    const e = el; clearTimeout(t); t = null; el = null;
+    e.classList.add("press"); setTimeout(() => e.classList.remove("press"), 120);
+  }, { passive: true });
+  document.addEventListener("touchcancel", reset, { passive: true });
+})();
+/* Sheets nach unten wegwischen, wenn sie ganz oben stehen (09.10.).
+   Solange ein Sheet offen ist, scrollt die Seite dahinter nie mit (iPhone gibt die Geste sonst an die Seite weiter):
+   außerhalb des Sheets und in nicht scrollbaren Sheets wird die Bewegung abgefangen, oben am Rand wird daraus Wischen. */
+(function () {
+  let sh = null, y0 = 0, dy = 0, drag = false;
+  document.addEventListener("touchstart", ev => {
+    const s = ev.target.closest && ev.target.closest(".sheetwrap:not(.closing) > .sheet");
+    sh = s; y0 = ev.touches[0].clientY; dy = 0; drag = false;
+    if (s) s.classList.remove("snap");
+  }, { passive: true });
+  document.addEventListener("touchmove", ev => {
+    const wrap = document.querySelector(".sheetwrap:not(.closing)");
+    if (!wrap) return;
+    if (!sh) { if (ev.cancelable) ev.preventDefault(); return; }          // Hintergrund: nichts scrollen
+    if (ev.target.closest("input, textarea, select")) return;
+    dy = ev.touches[0].clientY - y0;
+    const canScroll = sh.scrollHeight > sh.clientHeight + 1;
+    if (drag || (dy > 0 && sh.scrollTop <= 0)) {                           // oben am Rand nach unten: Sheet ziehen
+      drag = true; if (ev.cancelable) ev.preventDefault();
+      sh.classList.add("drag"); sh.style.transform = `translateY(${Math.max(0, dy)}px)`;
+    } else if (!canScroll && ev.cancelable) ev.preventDefault();          // kurzes Sheet: Seite dahinter bleibt stehen
+  }, { passive: false });
   document.addEventListener("touchend", () => {
     if (!sh) return;
     const s = sh; sh = null; s.classList.remove("drag");
-    if (dy > 90) { s.style.transform = ""; closeSheet(); }
-    else { s.classList.add("snap"); s.style.transform = ""; }
+    if (drag && dy > 90) { s.style.transform = ""; closeSheet(); }
+    else if (drag) { s.classList.add("snap"); s.style.transform = ""; }
+    drag = false;
   }, { passive: true });
 })();
 window.planOffToggle = function (k) {

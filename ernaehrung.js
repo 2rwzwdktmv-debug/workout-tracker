@@ -500,7 +500,7 @@ function ingGroups(X,rows,k){const I=IT();
 function ingBlock(v,i,k,g,lbl,gBtn){const X=V[v];
   const rows=X.ing(i,k).map(r=>{const sb=r[3]&&subOf(r[3]);if(sb)r=[r[0].replace(IT()[r[3]].n,IT()[sb].n),r[1],r[2],sb];return g&&scaleRow(X,r[0])?[r[0],scaleAmt(r[1],gFit(r[3])),r[2],r[3]]:r;});
   const extra=TCX?claimRows(TCX.D,TCX.id,rows):[];
-  return `<div class="between sec2"><span class="km">Zutaten${lbl?' · '+lbl:''}</span>${gBtn||''}</div>${TCX?`<div class="sub" style="font-size:12.5px;margin:2px 0 4px">Nur einen Teil gegessen? Antippen, was du davon gegessen hast.</div>`:''}${ingGroups(X,rows,k)}${extra.length?ingHTML(extra,k):''}
+  return `<div class="between sec2"><span class="km">Zutaten${lbl?' · '+lbl:''}</span>${gBtn||''}</div>${ingGroups(X,rows,k)}${extra.length?ingHTML(extra,k):''}
     ${g?`<div class="sub" style="font-size:12px;margin-top:4px">Zu zweit: ${gLabel()}${X.yields?` · ${X.yields.bolotk-1} statt ${X.yields.bolotk} Portionen für den TK`:''}</div>`:''}`;}
 function stepsBlock(v,k,open){const X=V[v],st=X.steps(k);if(!st.length&&!X.tip)return '';
   return `<details class="stp2" ${open?'open':''}><summary><span class="km">Zubereitung</span><span class="meta">${st.length} ${st.length===1?'Schritt':'Schritte'} ›</span></summary><ol class="steps">${st.map(x=>`<li>${x}</li>`).join('')}</ol>${X.tip?`<div class="hint amb">${X.tip}</div>`:''}</details>`;}
@@ -647,7 +647,7 @@ EN.setBatch=(k,id,n)=>{const s=NS(k);if(n>1)s.batch[id]=n;else delete s.batch[id
 function batchBlock(D,id){if(D.k<TODAY()||!canBatch(D,id))return '';const k=D.k,K=`'${k}'`,cv=coverOf(k,id),X=V[varOf(D,id)],i=pix(D,id);
   if(cv)return `<div class="hint">🧊 <b>Vorgekocht</b> am ${dayOf(cv).wd} ${OKT(cv)}: nur aufwärmen${(X.fresh||[]).length?', '+X.fresh.map(f=>nameOf(itemFor(f,k))).join(', ')+' frisch':''}.</div>`;
   const n=batchOf(k,id);
-  const sel=`<div class="it2" style="cursor:default"><span>🍲 Vorkochen<small style="display:block;font-weight:400;font-size:12px;color:var(--muted)">${n>1?`${n} Portionen kochen, ${n-1} für später`:'mehr Portionen für später kochen'}</small></span><span class="vk">${[1,2,3,4].map(m=>`<button class="${m===n?'on':''}" onclick="EN.setBatch(${K},'${id}',${m})">×${m}</button>`).join('')}</span></div>`;
+  const sel=`<div class="it2" style="cursor:default"><span>🍲 Vorkochen</span><span class="vk">${[1,2,3,4].map(m=>`<button class="${m===n?'on':''}" onclick="EN.setBatch(${K},'${id}',${m})">×${m}</button>`).join('')}</span></div>`;
   if(n<2)return sel;
   const rows=X.ing(i,k).map(r=>{const fr=r[3]&&(X.fresh||[]).includes(r[3]);return [r[0]+(fr?' <span class="meta">nur deine Portion</span>':''),fr?r[1]:scaleAmt(r[1],n),r[2],r[3]];});
   return sel+`<div class="km sec">Zum Kochen · ${n} Portionen</div>${ingHTML(rows,k)}<div class="sub" style="font-size:12.5px;margin-top:4px">Die nächsten ${n-1}× ${X.n} im Plan gelten als vorgekocht: kein Einkauf dafür${(X.fresh||[]).length?', außer '+X.fresh.map(f=>nameOf(itemFor(f,k))).join(', '):''}.</div>`;}
