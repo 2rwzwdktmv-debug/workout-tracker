@@ -852,6 +852,29 @@
   #acwarn { color: var(--amber); font-weight: 600; min-height: 0; }
   #acwarn:empty { display: none; }
 
+  /* ---- iPhone-taugliche Effekte (09.10.) ----
+     Sheets gleiten von unten herein und lassen sich nach unten wegwischen, Ringe und Balken füllen sich beim
+     Öffnen einer Seite, Mahlzeit-Haken springen wie die Trainings-Haken. Alles fällt bei „Bewegung reduzieren“ weg. */
+  @keyframes shin { from { transform: translateY(100%); } to { transform: none; } }
+  @keyframes shout { from { transform: none; } to { transform: translateY(100%); } }
+  @keyframes bgin { from { background: rgba(0,0,0,0); } }
+  @keyframes bgout { to { background: rgba(0,0,0,0); } }
+  .sheetwrap { animation: bgin .22s ease; }
+  .sheetwrap > .sheet { animation: shin .32s cubic-bezier(.32,.72,0,1); position: relative; touch-action: pan-y; }
+  .sheetwrap > .sheet::before { content: ""; position: absolute; top: 6px; left: 50%; width: 36px; height: 5px; margin-left: -18px; border-radius: 99px; background: var(--line-strong); }
+  .sheetwrap.closing { animation: bgout .2s ease forwards; pointer-events: none; }
+  .sheetwrap.closing > .sheet { animation: shout .2s cubic-bezier(.4,0,1,1) forwards; }
+  .sheetwrap.swap > .sheet { animation: none; }
+  .sheetwrap > .sheet.drag { transition: none; }
+  .sheetwrap > .sheet.snap { transition: transform .25s cubic-bezier(.32,.72,0,1); }
+  @keyframes ringin { from { stroke-dashoffset: var(--c); } }
+  @keyframes ringin2 { from { stroke-dasharray: 0 999; } }
+  @keyframes barin { from { width: 0; } }
+  #main.vt .ring .fgc { animation: ringin .8s cubic-bezier(.2,.7,.2,1); }
+  #main.vt .enring circle + circle { animation: ringin2 .8s cubic-bezier(.2,.7,.2,1); }
+  #main.vt .mbar i { animation: barin .7s cubic-bezier(.2,.7,.2,1); }
+  .en .st.pop { animation: cbpop .36s cubic-bezier(.34,1.56,.64,1), cbring .5s ease-out; }
+
   /* ---- Systemeinstellung respektieren ---- */
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
@@ -862,7 +885,7 @@
     nav .go:active { transform: translateX(-50%); }
   }
 </style>
-<link rel="stylesheet" href="ernaehrung.css?v=2026-10-07d">
+<link rel="stylesheet" href="ernaehrung.css?v=2026-10-09b">
 </head>
 <script>
 /* Akzentfarbe aus dem Cache setzen, BEVOR gerendert wird — sonst blitzt
@@ -890,7 +913,7 @@
   <button id="navSet"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 13.5a7.8 7.8 0 0 0 0-3l2-1.5-2-3.4-2.4 1a7.8 7.8 0 0 0-2.6-1.5L14 2.5h-4l-.4 2.6A7.8 7.8 0 0 0 7 6.6l-2.4-1-2 3.4 2 1.5a7.8 7.8 0 0 0 0 3l-2 1.5 2 3.4 2.4-1a7.8 7.8 0 0 0 2.6 1.5l.4 2.6h4l.4-2.6a7.8 7.8 0 0 0 2.6-1.5l2.4 1 2-3.4z"/></svg>Einstellungen</button>
 </nav>
 
-<script src="ernaehrung.js?v=2026-10-07e"></script>
+<script src="ernaehrung.js?v=2026-10-09c"></script>
 <link rel="stylesheet" href="lauf.css?v=2026-10-07a">
 <link rel="stylesheet" href="apple.css?v=2026-10-07a">   <!-- Apple-naher Look, zuletzt geladen -->
 <link rel="stylesheet" href="woche.css?v=2026-10-04f">
@@ -1534,7 +1557,7 @@ function ring(p, size, stroke, cls) {
   return `<svg class="ring ${cls || ""}" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
     <circle class="bgc" cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke-width="${stroke}"/>
     <circle class="fgc" cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke-width="${stroke}"
-      stroke-dasharray="${c}" stroke-dashoffset="${c * (1 - p / 100)}"/>
+      stroke-dasharray="${c}" stroke-dashoffset="${c * (1 - p / 100)}" style="--c:${c}"/>
   </svg>`;
 }
 
@@ -3690,7 +3713,35 @@ window.planSheet = function (dateKey) {
   </div>`;
   document.body.appendChild(wrap);
 };
-window.closeSheet = function () { const w = document.querySelector(".sheetwrap"); if (w) w.remove(); };
+window.closeSheet = function () {
+  const w = document.querySelector(".sheetwrap:not(.closing)");
+  if (!w) return;
+  w.classList.add("closing");
+  setTimeout(() => w.remove(), 200);
+};
+/* iPhone: Safari zeigt :active (Druck-Effekt auf Knöpfen und Karten) nur, wenn die Seite Berührungen hört */
+document.addEventListener("touchstart", () => {}, { passive: true });
+/* Sheets nach unten wegwischen, wenn sie ganz oben stehen (09.10.) */
+(function () {
+  let sh = null, y0 = 0, dy = 0;
+  document.addEventListener("touchstart", ev => {
+    const s = ev.target.closest && ev.target.closest(".sheetwrap:not(.closing) > .sheet");
+    if (!s || s.scrollTop > 0 || ev.target.closest("input, textarea, select")) return;
+    sh = s; y0 = ev.touches[0].clientY; dy = 0; sh.classList.remove("snap");
+  }, { passive: true });
+  document.addEventListener("touchmove", ev => {
+    if (!sh) return;
+    dy = ev.touches[0].clientY - y0;
+    if (dy <= 0 || sh.scrollTop > 0) { sh.style.transform = ""; return; }
+    sh.classList.add("drag"); sh.style.transform = `translateY(${dy}px)`;
+  }, { passive: true });
+  document.addEventListener("touchend", () => {
+    if (!sh) return;
+    const s = sh; sh = null; s.classList.remove("drag");
+    if (dy > 90) { s.style.transform = ""; closeSheet(); }
+    else { s.classList.add("snap"); s.style.transform = ""; }
+  }, { passive: true });
+})();
 window.planOffToggle = function (k) {
   const P = planState(), i = P.off.indexOf(k);
   if (i >= 0) P.off.splice(i, 1);

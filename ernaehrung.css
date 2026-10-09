@@ -273,3 +273,10 @@
 .en .stp{display:inline-flex;align-items:center;gap:6px;flex:none}
 .en .stp button{width:30px;height:30px;margin:0;padding:0;border-radius:50%;border:1px solid var(--line);background:var(--surface2);color:var(--ink);font-size:16px;font-weight:600;line-height:1}
 .en .stp b{min-width:34px;text-align:center;font-size:13px;font-weight:600;color:var(--ink2)}
+.sheet.en table.ing td .ecb{display:inline-block;width:20px;height:20px;border-radius:6px;vertical-align:-5px;margin-right:10px;cursor:pointer}
+.sheet.en table.ing tr.tickrow{cursor:pointer}
+.sheet.en table.ing tr.got td:first-child{color:var(--muted)}
+.sheet.en table.ing td .stp b{min-width:30px}
+.en .vk{display:inline-flex;gap:4px;flex:none}
+.en .vk button{margin:0;padding:6px 9px;border-radius:99px;border:1px solid var(--line);background:var(--surface);color:var(--ink2);font-size:13px;font-weight:600}
+.en .vk button.on{background:var(--lime);border-color:var(--lime);color:var(--lime-ink)}

@@ -44,7 +44,7 @@ function FS(){if(!S.food||typeof S.food!=='object')S.food={};if(!S.food.days)S.f
 const HKEY='wt-health-v1';
 let H={days:{},HW:{active:false,start:'',len:7}};
 try{const x=JSON.parse(localStorage.getItem(HKEY)||'null');if(x)H=Object.assign(H,x);}catch(e){}
-const HF={exc:[],skin:0,haut:0,skinAt:[],crave:-1,weight:0,waist:0,arm:0,thigh:0,chest:0,shoulder:0,photo:0}, SF={st:{},sw:{},extra:[],water:0,energy:0,energyAsked:false,meds:{},packed:false,pk:{},used:{},guests:{},ing:{},part:{}};
+const HF={exc:[],skin:0,haut:0,skinAt:[],crave:-1,weight:0,waist:0,arm:0,thigh:0,chest:0,shoulder:0,photo:0}, SF={st:{},sw:{},extra:[],water:0,energy:0,energyAsked:false,meds:{},packed:false,pk:{},used:{},guests:{},ing:{},part:{},batch:{}};
 const cl=v=>typeof v==='object'?JSON.parse(JSON.stringify(v)):v;
 /* Ein Tag als ein Objekt; jedes Feld liegt im passenden Speicher */
 function NS(k){return new Proxy({},{
@@ -122,8 +122,6 @@ function dayOf0(k){const e=plan()[k]||pastEntry(k)||{kind:'empty'},w=D_(k).getDa
   const type=!isT?((window.WOCHE&&WOCHE.type(k))||'rest'):min>=120?'hard':min>=45?'train':'active';
   const D={k,wd:WDL[w],e,min,type,off:e.kind==='off',done:e.kind==='donetoday',train:isT?(e.d?dayTitle(e.d):'Training'):null,len:min?'≈ '+min+' min':''};
   let ab=AB_ROT[w];const vm=VMR[w]||VMR.other;
-  if(ab==='boloTK'&&k>=TODAY()&&tkLeft(k)<1)ab='bolo';   /* TK leer → frisch kochen (×4) */
-  else if(ab==='bolo'&&k>TODAY()&&tkLeft(k)>=2)ab='frosta';   /* noch genug im TK → nicht schon wieder vorkochen */
   const md=workMode(w);D.work=workLbl(md);D.md=md;
   D.fast=!!ST.fast&&md!=='frei';   /* Werktags-Fasten: erste Mahlzeit mittags */
   const VM=D.fast?[]:[['vm',vm,'work']],RC=D.fast?['rc','recovShake','gym']:['rc','recov','gym'];
@@ -213,7 +211,11 @@ EN.R=R;
 const mini=(arr,val,fn,off)=>`<div class="mini">${arr.map((x,n)=>`<button class="${val===n+off?'on':''}" onclick="event.stopPropagation();${fn}(${n+off})">${x}</button>`).join('')}</div>`;
 const ringSVG=(pct,big,small)=>{const r=42,C=2*Math.PI*r,p=Math.max(0,Math.min(1,pct));return `<div class="enring"><svg width="96" height="96" viewBox="0 0 96 96" style="transform:rotate(-90deg)"><circle cx="48" cy="48" r="${r}" stroke="#2c2c2e" stroke-width="8" fill="none"/>${p>0?`<circle cx="48" cy="48" r="${r}" stroke="${pct>1.08?'#ffe620':'#d7f651'}" stroke-width="8" fill="none" stroke-linecap="round" stroke-dasharray="${C*p} ${C}"/>`:''}</svg><div class="mid"><b>${big}</b><span>${small}</span></div></div>`;};
 const macHTML=(t,T)=>{const row=(n,a,b)=>`<div class="l"><span>${n} ${Math.round(a)} g</span><span>von ${b}</span></div><div class="mbar"><i style="width:${Math.min(100,a/b*100)}%"></i></div>`;return `<div class="mac">${row('Protein',t.p,T.p)+row('Kohlenhydrate',t.c,T.c)+row('Fett',t.f,T.f)}</div>`;};
-function sheet(html){closeSheet();const w=document.createElement('div');w.className='sheetwrap';w.onclick=ev=>{if(ev.target===w)closeSheet();};w.innerHTML=`<div class="sheet en">${html}</div>`;document.body.appendChild(w);}
+/* Ein offenes Ernährungs-Sheet wird an Ort und Stelle ausgetauscht (kein erneutes Hereingleiten, Scroll bleibt),
+   z. B. beim Abhaken einer Zutat; sonst gleitet ein neues Sheet herein (09.10.) */
+function sheet(html){const old=document.querySelector('.sheetwrap:not(.closing)'),os=old&&old.querySelector(':scope > .sheet.en');
+  if(os){const y=os.scrollTop;old.classList.add('swap');os.innerHTML=html;os.scrollTop=y;return;}
+  closeSheet();const w=document.createElement('div');w.className='sheetwrap';w.onclick=ev=>{if(ev.target===w)closeSheet();};w.innerHTML=`<div class="sheet en">${html}</div>`;document.body.appendChild(w);}
 EN.close=()=>closeSheet();
 
 /* =====================================================================
@@ -283,9 +285,10 @@ EN.homeBottom=function(){if(!C)return '';return `<h2 class="section">Heute eintr
 const cue=(D,id)=>D.cue[id]||'';
 /* Symbole nach Tageszeit und Training, vor der Bezeichnung jeder Zeile im Tagesablauf */
 const IC={br:'🌅',fr:'🌅',vm:'☕',mi:'☀️',we:'☀️',na:'🍎',wn:'🍎',vor:'⚡',uw:'🧃',rc:'🥤',ab:'🌙'};
-/* Snacks haben keinen eigenen Namen („Nachmittags-Snack“, „Kleiner Snack vorher“): dort ist der Inhalt der Titel */
 const SNACK=['na','wn','vor','uw','rc'];
-const titleOf=(D,id)=>{const X=V[varOf(D,id)];return SNACK.includes(id)?X.d(pix(D,id)):X.n;};
+/* Name eines Gerichts auf seiner Stufe (09.10.): Titel ist immer der Name, auch bei Snacks; nl = Name je Stufe (nutrition.json) */
+const dname=(v,i)=>{const X=V[v];return (X.nl&&X.nl[i])||X.n;};
+const titleOf=(D,id)=>dname(varOf(D,id),pix(D,id));
 const lab=id=>(IC[id]?`<i class="ic">${IC[id]}</i>`:'')+SL[id][0];
 
 /* ---------- Karte „Heute“ = Tagesablauf auf einer Zeitleiste: Mahlzeiten und Training als gleichrangige Zeilen ----------
@@ -297,15 +300,15 @@ function mealsOf(D,part){const sl=shown(D),i=sl.findIndex(s=>s[0]==='T');
 function nextStep(D){if(D.k!==TODAY())return null;const ids=shown(D).map(s=>s[0]).filter(id=>id!=='uw'),dn=id=>id==='T'?D.done:mealDone(D,id);let last=-1;ids.forEach((id,n)=>{if(dn(id))last=n;});
   const n=ids.findIndex((id,j)=>j>last&&!dn(id));return n<0?null:ids[n];}
 EN.isNext=e=>!!C&&nextStep(dayOf(e.k))==='T';
-/* Eine Zeile im Ablauf (überall gleich: Übersicht, Ernährung → Tage, Vorschau): Bezeichnung, Gericht, Inhalt;
+/* Eine Zeile im Ablauf (überall gleich: Übersicht, Ernährung → Tage, Vorschau): Zeit, Name, Inhalt · kcal (seit 09.10. auch bei Snacks);
    rechts heute der Kreis zum Abhaken (gelber Ring = als Nächstes dran), an anderen Tagen ›. Gegessenes schrumpft auf eine Zeile. */
 function mealRow(D,sl,fn){const id=sl[0],v=varOf(D,id),X=V[v],s=NS(D.k),st=s.st[id]||'',exc=s.exc.find(e=>e.slot===id),done=mealDone(D,id),i=pix(D,id),K=`'${D.k}'`,c=cue(D,id);
   const pf=D.k<=TODAY()&&openMeal(D,id)?mealFrac(D,id)||0:0,pnames=pf>0?Object.keys(realIng(D,id)).filter(it=>ateIn(D,id,it)>0).map(it=>ingName(D,id,it)).join(', '):'';
   const open=`${fn||'EN.openMeal'}(${K},'${id}')`;
-  const right=D.k<=TODAY()?`<button class="st ${done?(exc?'exc':st):nextStep(D)===id?'nx':''}${!done&&pf>0?' pt':''}" onclick="event.stopPropagation();EN.toggleMeal(${K},'${id}')">${({eaten:'✓',half:'½',skip:'✕'})[st]||(exc?'!':'')}</button>`:'<span class="go">›</span>';
+  const right=D.k<=TODAY()?`<button class="st ${done?(exc?'exc':st):nextStep(D)===id?'nx':''}${!done&&pf>0?' pt':''}${POPM===D.k+id?' pop':''}" onclick="event.stopPropagation();EN.toggleMeal(${K},'${id}')">${({eaten:'✓',half:'½',skip:'✕'})[st]||(exc?'!':'')}</button>`:'<span class="go">›</span>';
   if(done)return `<div class="slot done" onclick="${open}"><div class="body"><span class="l">${lab(id)}</span>${exc?'Ausnahme: '+exc.kind:titleOf(D,id)}</div>${right}</div>`;
   const add=supOn().length&&id===addonSlot(D)?`<div class="addon">+ ${supNames()}</div>`:'';
-  return `<div class="slot" onclick="${open}"><div class="body"><div class="when">${lab(id)}${c?` · <span>${c}</span>`:''}${sl[2]==='work'?' · <span>🎒</span>':''}</div>${SNACK.includes(id)?`<div class="n">${X.d(i)}</div><div class="d">${mac(v,i).kcal} kcal</div>`:`<div class="n">${X.n}</div><div class="d">${X.d(i)} · ${mac(v,i).kcal} kcal</div>`}${pnames?`<div class="addon" style="color:var(--lime)">teilweise: ${pnames}</div>`:''}${add}</div>${right}</div>`;}
+  return `<div class="slot" onclick="${open}"><div class="body"><div class="when">${lab(id)}${c?` · <span>${c}</span>`:''}${sl[2]==='work'?' · <span>🎒</span>':''}${canBatch(D,id)?batchOf(D.k,id)>1?` · <span>🍲 ×${batchOf(D.k,id)} kochen</span>`:coverOf(D.k,id)?' · <span>🧊 vorgekocht</span>':'':''}</div><div class="n">${dname(v,i)}</div><div class="d">${X.d(i)} · ${mac(v,i).kcal} kcal</div>${pnames?`<div class="addon" style="color:var(--lime)">teilweise: ${pnames}</div>`:''}${add}</div>${right}</div>`;}
 const mealList=(D,part,fn)=>mealsOf(D,part).map(sl=>mealRow(D,sl,fn)).join('');
 EN.dayPre=e=>C?mealList(dayOf(e.k),'pre'):'';
 /* Übersicht: Intra-Workout steht nicht als eigene Zeile, sondern leise in der Trainingszeile (EN.todayLine) */
@@ -426,7 +429,8 @@ EN.setSkin=v=>{NS(TODAY()).haut=v;R();EN.openSkin();};
 EN.setCrave=v=>{NS(TODAY()).crave=v;closeSheet();R();};
 EN.med=(k,m)=>{const s=NS(k);s.meds[m]=!s.meds[m];R();};
 EN.flag=(k,f)=>{const s=NS(k);s[f]=!s[f];R();};
-EN.eat=(k,id)=>{const s=NS(k),D=dayOf(k);s.st[id]='eaten';delete s.part[id];applyUse(k,id,1);if(id===addonSlot(D))supOn().forEach(x=>{s.meds[x.n]=true;});closeSheet();R();};
+EN.eat=(k,id)=>{const s=NS(k),D=dayOf(k);s.st[id]='eaten';POPM=k+id;setTimeout(()=>{POPM='';},400);delete s.part[id];applyUse(k,id,1);if(id===addonSlot(D))supOn().forEach(x=>{s.meds[x.n]=true;});closeSheet();R();};
+let POPM='';   /* gerade abgehakte Mahlzeit: ihr Kreis springt einmal (wie bei den Trainings-Haken) */
 EN.toggleMeal=(k,id)=>{const s=NS(k);if(s.st[id]){delete s.st[id];applyUse(k,id,0);R();}else EN.eat(k,id);};
 EN.setSt=(k,id,st)=>{NS(k).st[id]=st;delete NS(k).part[id];applyUse(k,id,st==='eaten'?1:st==='half'?.5:0);closeSheet();R();};
 EN.swap=(k,id,v)=>{NS(k).sw[id]=v;R();EN.openMeal(k,id,mealBack);};
@@ -449,7 +453,29 @@ EN.saveEnergy=()=>{NS(TODAY()).energy=finE;closeSheet();R();};
 /* =====================================================================
    SHEETS: Mahlzeit / Rezept / Glossar / Ausnahme / Extra / SOS / Heilungsfenster
    ===================================================================== */
-const ingHTML=(rows,k)=>`<table class="ing">${rows.map(([a,b,g])=>g&&G[g]?`<tr class="gl" onclick="this.nextElementSibling.classList.toggle('hid')"><td>${a} ⓘ</td><td>${b}</td></tr><tr class="glx hid"><td colspan="2">${G[g].t(k)}</td></tr>`:`<tr><td>${a}</td><td>${b}</td></tr>`).join('')}</table>`;
+/* TCX = {D,id}, solange das Mahlzeit-Sheet einer offenen Mahlzeit von heute/früher gebaut wird: dann tragen Zeilen,
+   die zu echten Zutaten gehören (r[4]), ein Kästchen zum Abhaken, Stückzahlen − / + (09.10., ersetzt „Nur einen Teil gegessen?“) */
+let TCX=null;
+function tickCell(r){if(!TCX||!r[4]||!r[4].length)return '';const {D,id}=TCX,K=`'${D.k}'`,its=r[4],ing=realIng(D,id);
+  const f=its.reduce((a,it)=>a+Math.min(1,ateIn(D,id,it)/ing[it]),0)/its.length;
+  return `<span class="ecb ${f>=.999?'on':f>0?'pt':''}" onclick="event.stopPropagation();EN.rowTog(${K},'${id}','${its.join(',')}')"></span>`;}
+function qtyCell(r,b){if(!TCX||!r[4]||r[4].length!==1)return b;const {D,id}=TCX,it=r[4][0],q=realIng(D,id)[it];if(!isCnt(it)||Math.round(q)<2)return b;const K=`'${D.k}'`,c=ateIn(D,id,it);
+  return `<span class="stp" onclick="event.stopPropagation()"><button onclick="EN.partStep(${K},'${id}','${it}',-1)">−</button><b>${fmtN(c)}/${fmtN(q)}</b><button onclick="EN.partStep(${K},'${id}','${it}',1)">+</button></span>`;}
+const ingHTML=(rows,k)=>`<table class="ing">${rows.map(r=>{const [a,b,g]=r,tc=tickCell(r),done=tc.includes('ecb on');
+  const tap=tc?`onclick="EN.rowTog('${TCX.D.k}','${TCX.id}','${r[4].join(',')}')"`:'';
+  return g&&G[g]?`<tr class="gl${done?' got':''}"><td>${tc}<span onclick="event.stopPropagation();this.closest('tr').nextElementSibling.classList.toggle('hid')">${a} ⓘ</span></td><td>${qtyCell(r,b)}</td></tr><tr class="glx hid"><td colspan="2">${G[g].t(k)}</td></tr>`
+    :`<tr class="${tc?'tickrow':''}${done?' got':''}" ${tap}><td>${tc}${a}</td><td>${qtyCell(r,b)}</td></tr>`;}).join('')}</table>`;
+/* Welche echten Zutaten (realIng) gehört zu welcher Rezeptzeile? Erst die Item-ID, dann Shake/Pulver, dann der Name.
+   Jede Zutat gehört nur zur ersten passenden Zeile; was keine Zeile findet, steht unten als eigene Zeile. */
+const stem=t=>String(t).toLowerCase().replace(/<[^>]+>/g,' ').replace(/^tk-|\btk-/g,' ').split(/[^a-zäöüß]+/).filter(w=>w.length>=4).map(w=>w.slice(0,5));
+function claimRows(D,id,rows){const ing=realIng(D,id),left=new Set(Object.keys(ing)),P=itemFor('protein',D.k);
+  rows.forEach(r=>{r[4]=[];});const take=(r,it)=>{if(left.has(it)){left.delete(it);r[4].push(it);}};
+  rows.forEach(r=>{if(r[3])take(r,itemFor(r[3],D.k));});
+  rows.forEach(r=>{if(r[2]==='shake'||r[2]==='protein'||/\{PROT\}|Whey|Erbsenprotein|Proteinpulver/.test(r[0]))take(r,P);});
+  rows.forEach(r=>{if(r[4].length||r[3])return;const ws=stem(r[0]);[...left].forEach(it=>{if(stem(nameOf(it)).concat(stem(it)).some(w=>ws.includes(w)))take(r,it);});});
+  return [...left].map(it=>[nameOf(it),fmtQ(it,ing[it])||'',null,it,[it]]);}
+EN.rowTog=(k,id,list)=>{const D=dayOf(k),its=list.split(','),ing=realIng(D,id);its.forEach(it=>unLegacy(D,it));
+  const full=its.every(it=>ateIn(D,id,it)>=ing[it]-1e-9);its.forEach(it=>partSet(D,id,it,full?0:ing[it]));R();EN.openMeal(k,id,mealBack);};
 /* Zu zweit: Faktor aus den Einstellungen (Start 1,7 = deine 1,5 Buchportionen + 1 Portion für die zweite Person) */
 const GK={protein:'Fisch, Fleisch, Eier',beilage:'Beilagen (Kartoffeln, Reis, Nudeln, Brot)',other:'Gemüse und Rest'};
 const gF=kd=>{const own=(FS().set.guest||{})[kd];if(own!=null)return own;const c=(C&&C.guest)||{};return c[kd]!=null?c[kd]:(c.other||1.7);};
@@ -458,7 +484,7 @@ const gFit=it=>gF(it?kindOf(it):'other');
 const gLabel=()=>`Fisch/Fleisch ×${String(gF('protein')).replace('.',',')} · Beilage ×${String(gF('beilage')).replace('.',',')} · Rest ×${String(gF('other')).replace('.',',')}`;
 const isGuest=(k,id)=>!!(k&&id&&NS(k).guests[id]);
 const fmtN=n=>{if(n>=50)return String(Math.round(n/10)*10);const h=Math.round(n*2)/2,w=Math.floor(h);return h%1?(w?w+'½':'½'):String(h);};
-const scaleAmt=(t,f)=>f===1||!t?t:String(t).replace(/(\d+(?:[.,]\d+)?|½|¼)(\s*(?:–|-)\s*(\d+(?:[.,]\d+)?))?/g,(m,a,r,b)=>{const v=x=>x==='½'?.5:x==='¼'?.25:parseFloat(String(x).replace(',','.'));return fmtN(v(a)*f)+(b?'–'+fmtN(v(b)*f):'');});
+const scaleAmt=(t,f)=>f===1||!t?t:String(t).replace(/(\d+(?:[.,]\d+)?|½|¼|¾)(\s*(?:–|-)\s*(\d+(?:[.,]\d+)?))?/g,(m,a,r,b)=>{const v=x=>x==='½'?.5:x==='¼'?.25:x==='¾'?.75:parseFloat(String(x).replace(',','.'));return fmtN(v(a)*f)+(b?'–'+fmtN(v(b)*f):'');});
 /* bei Batch-Gerichten (×4) wird nur „deine Portion“ hochgerechnet, dafür eine Portion weniger für den TK */
 const scaleRow=(X,label)=>!X.yields||/nur deine Portion/.test(label);
 /* Detailansicht schlank: Nährwerte als eine Zeile, Status als Leiste, Tauschen als eine Zeile, Zubereitung zugeklappt */
@@ -472,8 +498,9 @@ function ingGroups(X,rows,k){const I=IT();
   const by={main:[],side:[],basic:[]};rows.forEach(r=>by[grp(r)].push(r));
   return ingHTML(by.main,k)+[['side','Beilage'],['basic','Öl & Gewürze']].filter(([g])=>by[g].length).map(([g,l])=>`<div class="km ing-sec">${l}</div>${ingHTML(by[g],k)}`).join('');}
 function ingBlock(v,i,k,g,lbl,gBtn){const X=V[v];
-  const rows=X.ing(i,k).map(r=>{const sb=r[3]&&subOf(r[3]);if(sb)r=[r[0].replace(IT()[r[3]].n,IT()[sb].n),r[1],r[2],sb];return g&&scaleRow(X,r[0])?[r[0],scaleAmt(r[1],gFit(r[3])),r[2]]:r;});
-  return `<div class="between sec2"><span class="km">Zutaten${lbl?' · '+lbl:''}</span>${gBtn||''}</div>${ingGroups(X,rows,k)}
+  const rows=X.ing(i,k).map(r=>{const sb=r[3]&&subOf(r[3]);if(sb)r=[r[0].replace(IT()[r[3]].n,IT()[sb].n),r[1],r[2],sb];return g&&scaleRow(X,r[0])?[r[0],scaleAmt(r[1],gFit(r[3])),r[2],r[3]]:r;});
+  const extra=TCX?claimRows(TCX.D,TCX.id,rows):[];
+  return `<div class="between sec2"><span class="km">Zutaten${lbl?' · '+lbl:''}</span>${gBtn||''}</div>${TCX?`<div class="sub" style="font-size:12.5px;margin:2px 0 4px">Nur einen Teil gegessen? Antippen, was du davon gegessen hast.</div>`:''}${ingGroups(X,rows,k)}${extra.length?ingHTML(extra,k):''}
     ${g?`<div class="sub" style="font-size:12px;margin-top:4px">Zu zweit: ${gLabel()}${X.yields?` · ${X.yields.bolotk-1} statt ${X.yields.bolotk} Portionen für den TK`:''}</div>`:''}`;}
 function stepsBlock(v,k,open){const X=V[v],st=X.steps(k);if(!st.length&&!X.tip)return '';
   return `<details class="stp2" ${open?'open':''}><summary><span class="km">Zubereitung</span><span class="meta">${st.length} ${st.length===1?'Schritt':'Schritte'} ›</span></summary><ol class="steps">${st.map(x=>`<li>${x}</li>`).join('')}</ol>${X.tip?`<div class="hint amb">${X.tip}</div>`:''}</details>`;}
@@ -483,11 +510,12 @@ EN.openMealB=(k,id)=>EN.openMeal(k,id,true);
 EN.openMeal=function(k,id,back){mealBack=!!back;const D=dayOf(k),i=pix(D,id),s=NS(k),v=varOf(D,id),X=V[v],sl=D.slots.find(x=>x[0]===id),at=sl[2],K=`'${k}'`;
   const alts=(ALT[id]||[]).filter(a=>a!==v&&(at!=='work'||V[a].at==='work')),st=s.st[id]||'',exc=s.exc.find(e=>e.slot===id);
   const gBtn=at==='home'?`<button class="gbtn ${isGuest(k,id)?'on':''}" onclick="EN.guest(${K},'${id}')">👥 zu zweit${isGuest(k,id)?' ✓':''}</button>`:'';
-  sheet(`<div class="km">${k===TODAY()?'Heute':D.wd} · ${SL[id][0]} · ${slotWhen(D,sl)}${at!=='home'?' · '+AT[at]:''}</div>
-    ${SNACK.includes(id)?`<h3>${X.d(i)}</h3>`:`<h3>${X.n}</h3><div class="sub">${X.d(i)}</div>`}${macLine(v,i)}
+  sheet(`<div class="km">${k===TODAY()?'Heute':D.wd} · ${SL[id][0]} · ${slotWhen(D,sl)}${at!=='home'&&!/Sporttasche/.test(slotWhen(D,sl))?' · '+AT[at]:''}</div>
+    <h3>${dname(v,i)}</h3><div class="sub">${X.d(i)}</div>${macLine(v,i)}
     ${k<=TODAY()?`<div class="stbar"><button class="${st==='eaten'?'on':''}" onclick="EN.eat(${K},'${id}')">✓ Gegessen</button><button class="${st==='half'?'on':''}" onclick="EN.setSt(${K},'${id}','half')">½ Halb</button><button class="${st==='skip'?'on':''}" onclick="EN.setSt(${K},'${id}','skip')">✕ Nicht</button><button class="${exc?'on':''}" onclick="EN.openExc(${K},'${id}')">! Anders</button></div>`:''}
+    ${batchBlock(D,id)}
     ${alts.length?`<div class="it2" onclick="EN.openSwap(${K},'${id}')"><span>Tauschen</span><span class="meta">${alts.length} ${alts.length===1?'Alternative':'Alternativen'} ›</span></div>`:''}
-    ${partBlock(D,id)}${ingBlock(v,i,k,isGuest(k,id),'',gBtn)}${stepsBlock(v,k,false)}
+    ${(()=>{TCX=k<=TODAY()&&openMeal(D,id)&&Object.keys(realIng(D,id)).length>1?{D,id}:null;const h=ingBlock(v,i,k,isGuest(k,id),'',gBtn);TCX=null;return h;})()}${stepsBlock(v,k,false)}
     <button class="cancel" onclick="${mealBack?`EN.openDay('${k}')`:'closeSheet()'}">${mealBack?'Zurück':'Schließen'}</button>`);};
 EN.openSwap=(k,id)=>{const D=dayOf(k),v=varOf(D,id),at=D.slots.find(x=>x[0]===id)[2],i=pix(D,id);
   const alts=[v,...(ALT[id]||[]).filter(a=>a!==v&&(at!=='work'||V[a].at==='work'))];
@@ -530,7 +558,7 @@ EN.openHw=function(){const k=TODAY(),h=hwDay(k);
   sheet(`<div class="km" style="color:var(--amber)">Heilungsfenster · ${h?`Tag ${h}/${HW.len}`:HW.active?'ab '+OKT(HW.start):'aus'}</div><h3>Was ist das?</h3>
     <div class="ink2" style="margin-top:6px">Ein <b>befristeter Schutzmodus für einen akuten Schub</b>. ${HW.len} Tage lang gelten strengere Regeln, damit die Entzündung schneller abklingt. Danach geht es automatisch mit Stufe 1 weiter.</div>
     <div class="km sec">Regeln</div><ul class="rules">${HWR.rules.map(r=>`<li>${r}</li>`).join('')}</ul>
-    <div class="km sec">Was die App dann anders macht</div><ul class="rules"><li>Streifen „Heilungsfenster · Tag x/14“ auf der Übersicht.</li><li>🔴-Ausnahmen werden als Trigger markiert.</li><li>Mengen nie unter dem Ruhetag.</li><li>Harte Einheiten bekommen in der Karte „Heute“ den Hinweis „lieber locker“.</li><li>Shake und Power-Hafer automatisch mit Erbsenprotein statt Whey.</li></ul>
+    <div class="km sec">Was die App dann anders macht</div><ul class="rules"><li>Streifen „Heilungsfenster · Tag x/14“ auf der Übersicht.</li><li>🔴-Ausnahmen werden als Trigger markiert.</li><li>Mengen nie unter dem Ruhetag.</li><li>Harte Einheiten bekommen in der Karte „Heute“ den Hinweis „lieber locker“.</li><li>Shake und Porridge automatisch mit Erbsenprotein statt Whey.</li></ul>
     <div class="km sec">Wie es endet</div><div class="ink2">${HW.active?`<b>Automatisch am ${OKT(hwEnd())}</b>, mit kurzem Rückblick (Haut am Anfang und am Ende, Ausnahmen, Heißhunger).`:'Es läuft gerade nicht.'} Verwalten auch unter <b>Einstellungen → Ernährung</b>.</div>
     ${HW.active?`<div class="row" style="margin-top:12px"><button class="btn ghost" onclick="EN.hwExt()">+ 7 Tage</button><button class="btn warn" onclick="EN.hwC(true)">Vorzeitig beenden</button></div>`:`<button class="btn" onclick="EN.openHwStart()">Starten …</button>`}
     <button class="cancel" onclick="closeSheet()">Schließen</button>`);};
@@ -601,6 +629,28 @@ function mealIng(D,id){const tot={},X=C.dishes[varOf(D,id)];if(!X||!X.use)return
   Object.entries(X.use).forEach(([it0,q])=>{const it=itemFor(it0,D.k),I=IT()[it];if(!I)return;const f=(g&&(!X.yields||kindOf(it)==='beilage')?gFit(it):1)/(batch&&batch.has(it0)?n:1);
     if(I.unit!=='basic'&&!q[i])return;tot[it]=(tot[it]||0)+(I.unit==='basic'?0:qB(it0,q[i])*f);});return tot;}
 function dayIngredients(D){const tot={};mealIds(D).forEach(id=>Object.entries(mealIng(D,id)).forEach(([it,q])=>{tot[it]=(tot[it]||0)+q;}));return tot;}
+/* ---------- Vorkochen (09.10.) ----------
+   S.food.days[k].batch[Mahlzeit] = n (2–4): an diesem Tag n Portionen kochen. Einkauf: n-fach, außer Zutaten in X.fresh
+   (bei Bolognese die Nudeln). Die nächsten n−1 Male dasselbe Gericht im Plan gelten als vorgekocht: kein Einkauf
+   für die vorgekochten Zutaten, nur das Frische. Kein TK-Zählen, was wann aufgetaut wird, entscheidet Marc. */
+const canBatch=(D,id)=>{const X=C.dishes[varOf(D,id)];return !!X&&X.at==='home'&&!X.nobatch&&!SNACK.includes(id);};
+const batchOf=(k,id)=>+((FS().days[k]||{}).batch||{})[id]||1;
+/* Von welchem Kochtag ist diese Mahlzeit vorgekocht? → Datum oder null */
+function coverOf(k,id){const v=varOf(dayOf(k),id);let seen=0;
+  for(let d=addD(k,-1),n=0;n<21;d=addD(d,-1),n++){const D=dayOf(d),ids=mealIds(D).filter(x=>varOf(D,x)===v);
+    for(const x of ids){const b=batchOf(d,x);if(b>1)return seen<b-1?d:null;}
+    seen+=ids.length;}
+  return null;}
+/* Faktor je Zutat für den Einkauf: Kochtag n, vorgekochte Mahlzeit 0, Frisches immer 1 */
+function shopFactor(k,id,it0){const X=C.dishes[varOf(dayOf(k),id)];if(X&&(X.fresh||[]).includes(it0))return 1;const b=batchOf(k,id);if(b>1)return b;return coverOf(k,id)?0:1;}
+EN.setBatch=(k,id,n)=>{const s=NS(k);if(n>1)s.batch[id]=n;else delete s.batch[id];RS();EN.openMeal(k,id,mealBack);};
+function batchBlock(D,id){if(D.k<TODAY()||!canBatch(D,id))return '';const k=D.k,K=`'${k}'`,cv=coverOf(k,id),X=V[varOf(D,id)],i=pix(D,id);
+  if(cv)return `<div class="hint">🧊 <b>Vorgekocht</b> am ${dayOf(cv).wd} ${OKT(cv)}: nur aufwärmen${(X.fresh||[]).length?', '+X.fresh.map(f=>nameOf(itemFor(f,k))).join(', ')+' frisch':''}.</div>`;
+  const n=batchOf(k,id);
+  const sel=`<div class="it2" style="cursor:default"><span>🍲 Vorkochen<small style="display:block;font-weight:400;font-size:12px;color:var(--muted)">${n>1?`${n} Portionen kochen, ${n-1} für später`:'mehr Portionen für später kochen'}</small></span><span class="vk">${[1,2,3,4].map(m=>`<button class="${m===n?'on':''}" onclick="EN.setBatch(${K},'${id}',${m})">×${m}</button>`).join('')}</span></div>`;
+  if(n<2)return sel;
+  const rows=X.ing(i,k).map(r=>{const fr=r[3]&&(X.fresh||[]).includes(r[3]);return [r[0]+(fr?' <span class="meta">nur deine Portion</span>':''),fr?r[1]:scaleAmt(r[1],n),r[2],r[3]];});
+  return sel+`<div class="km sec">Zum Kochen · ${n} Portionen</div>${ingHTML(rows,k)}<div class="sub" style="font-size:12.5px;margin-top:4px">Die nächsten ${n-1}× ${X.n} im Plan gelten als vorgekocht: kein Einkauf dafür${(X.fresh||[]).length?', außer '+X.fresh.map(f=>nameOf(itemFor(f,k))).join(', '):''}.</div>`;}
 /* ---------- Teilweise gegessen (07.10.) ----------
    S.food.days[k].part = {Mahlzeit: {Zutat: Menge}}. Geschrieben aus dem Mahlzeit-Sheet („Nur einen Teil gegessen?“)
    und aus „Zutaten für heute“ (− / + bei Stückzahlen: „noch eine Banane“ geht in die nächste offene Mahlzeit damit).
@@ -625,17 +675,12 @@ EN.ingAll=(k,it)=>{const D=dayOf(k),tot=dayIngredients(D)[it]||0;unLegacy(D,it);
 EN.ingStep=(k,it,n)=>{const D=dayOf(k),s=NS(k);unLegacy(D,it);const ids=mealIds(D).filter(id=>realIng(D,id)[it]&&openMeal(D,id));
   if(n>0){const id=ids.find(x=>((s.part[x]||{})[it]||0)<realIng(D,x)[it]-1e-9);if(id){const q=realIng(D,id)[it],c=(s.part[id]||{})[it]||0;partSet(D,id,it,Math.min(q,c+1));}}
   else{const id=ids.slice().reverse().find(x=>((s.part[x]||{})[it]||0)>0);if(id){const c=s.part[id][it];partSet(D,id,it,Math.max(0,c-1));}}R();};
-/* Mahlzeit-Sheet: eine Zutat dieser Mahlzeit an/aus bzw. ±1 */
-EN.partTog=(k,id,it)=>{const D=dayOf(k);unLegacy(D,it);const q=realIng(D,id)[it],c=(NS(k).part[id]||{})[it]||0;partSet(D,id,it,c>=q-1e-9?0:q);R();EN.openMeal(k,id,mealBack);};
+/* Mahlzeit-Sheet: eine Zutat dieser Mahlzeit ±1 (an/aus: EN.rowTog) */
 EN.partStep=(k,id,it,n)=>{const D=dayOf(k);unLegacy(D,it);const q=realIng(D,id)[it],c=(NS(k).part[id]||{})[it]||0;partSet(D,id,it,Math.max(0,Math.min(q,c+n)));R();EN.openMeal(k,id,mealBack);};
 /* Name wie in der Zutatenliste der Mahlzeit („Shake“ statt „Whey“) */
 function ingName(D,id,it){const rows=V[varOf(D,id)].ing(pix(D,id),D.k);if(it===itemFor('protein',D.k)&&rows.some(r=>r[2]==='shake'))return 'Shake';
   const r=rows.find(r=>r[3]&&itemFor(r[3],D.k)===it);return r?String(r[0]).replace(/<[^>]+>/g,'').replace(/^·\s*/,'').replace(/\s*\(.*\)$/,''):nameOf(it);}
-function partBlock(D,id){const s=NS(D.k),its=realIng(D,id),ks=Object.keys(its);if(D.k>TODAY()||!openMeal(D,id)||ks.length<2)return '';const K=`'${D.k}'`;
-  const nm=it=>ingName(D,id,it);
-  return `<div class="km sec">Nur einen Teil gegessen?</div><div class="sub" style="font-size:12.5px">Antippen, was du davon gegessen hast. Zählt anteilig für „Nach Plan“.</div><div class="list">${ks.map(it=>{const q=its[it],c=ateIn(D,id,it),on=c>=q-1e-9,cnt=isCnt(it)&&Math.round(q)>1;
-    return `<div class="it ${on?'got':''}" onclick="EN.partTog(${K},'${id}','${it}')"><span class="ecb ${on?'on':c>0?'pt':''}"></span><div style="flex:1;min-width:0">${nm(it)}</div>${cnt?`<span class="stp" onclick="event.stopPropagation()"><button onclick="EN.partStep(${K},'${id}','${it}',-1)">−</button><b>${fmtN(c)}/${fmtN(q)}</b><button onclick="EN.partStep(${K},'${id}','${it}',1)">+</button></span>`:`<span class="meta">${fmtQ(it,q)||''}</span>`}</div>`;}).join('')}</div>`;}
-EN.render=function(main,sub){EN.fresh();if(!C){main.innerHTML='<div class="en"><div class="ecard"><span class="k">Ernährung</span><div class="sub" style="margin-top:6px">Keine Inhalte gefunden: <b>nutrition.json</b> fehlt im Daten-Repo.</div></div></div>';return;}sub=sub||'tage';const tabs=[['tage','Tage'],['woche','Woche'],['einkauf','Bedarf'],['vorrat','Vorrat'],['rezepte','Rezepte']];
+EN.render=function(main,sub){EN.fresh();if(!C){main.innerHTML='<div class="en"><div class="ecard"><span class="k">Ernährung</span><div class="sub" style="margin-top:6px">Keine Inhalte gefunden: <b>nutrition.json</b> fehlt im Daten-Repo.</div></div></div>';return;}sub=sub||'tage';const tabs=[['tage','Tage'],['woche','Woche'],['einkauf','Bedarf'],['rezepte','Rezepte']];   /* Vorrat ausgeblendet (Marc, 09.10.); #food/vorrat geht weiter */
   if(sub==='pack'){sub='tage';setTimeout(EN.openPack,0);}   /* alte Adresse #food/pack: Packen ist jetzt ein Sheet */
   let h=`<div class="en">${`<div class="seg">${tabs.map(([k,l])=>`<button class="${k===sub?'on':''}" onclick="location.hash='#food/${k}'">${l}</button>`).join('')}</div>`}`;
   h+=({tage:pTage,woche:pWoche,einkauf:pEinkauf,vorrat:pVorrat,rezepte:pRezepte}[sub]||pTage)();
@@ -668,7 +713,7 @@ function pTage(){const ks=days7();if(!selK||!ks.includes(selK))selK=ks[0];const 
 function pWoche(){const ab=days7().map(k=>varOf(dayOf(k),'ab')),cnt=g=>ab.filter(v=>(GROUPS[g]||[]).includes(v)).length;
   const goals=[['Fisch abends',cnt('fish')+' / 3',cnt('fish')>=3?'ok':'warn'],['Rotes Fleisch',cnt('red')+' / max. 3',cnt('red')<=3?'ok':'warn']];
   let h=`<div class="ecard"><span class="km">Wochenziele</span>${goals.map(([a,b,c])=>`<div class="goal"><span>${a}</span><b class="${c}">${b}</b></div>`).join('')}</div><div class="ecard">`;
-  days7().forEach(k=>{const D=dayOf(k),T=TT[D.type];h+=`<div class="wd" onclick="EN.sel('${k}');location.hash='#food/tage'"><div class="between"><b>${D.wd} ${OKT(k)}</b><span class="echip ${D.type==='rest'?'':'lime'}">${T.l} · ${T.kcal}</span></div>${D.train?`<div class="ln"><span style="color:var(--lime)">Training</span><span style="color:var(--lime)">${esc(D.train)}</span></div>`:''}${mealIds(D).map(id=>`<div class="ln"><span>${SL[id][0]}${D.slots.find(x=>x[0]===id)[2]==='work'?' 🎒':''}</span><span>${V[varOf(D,id)].n}</span></div>`).join('')}</div>`;});
+  days7().forEach(k=>{const D=dayOf(k),T=TT[D.type];h+=`<div class="wd" onclick="EN.sel('${k}');location.hash='#food/tage'"><div class="between"><b>${D.wd} ${OKT(k)}</b><span class="echip ${D.type==='rest'?'':'lime'}">${T.l} · ${T.kcal}</span></div>${D.train?`<div class="ln"><span style="color:var(--lime)">Training</span><span style="color:var(--lime)">${esc(D.train)}</span></div>`:''}${mealIds(D).map(id=>`<div class="ln"><span>${SL[id][0]}${D.slots.find(x=>x[0]===id)[2]==='work'?' 🎒':''}</span><span>${titleOf(D,id)}</span></div>`).join('')}</div>`;});
   return h+'</div>';}
 /* =====================================================================
    EINKAUF + VORRAT (einfach, 01.10. abends nach Marcs Vorschlag)
@@ -689,8 +734,6 @@ const nameOf=it=>{const I=IT()[it];if(!I)return it;return it==='saisonobst'&&sea
 const isPantry=it=>{const I=IT()[it];return !!I&&it!=='bolotk'&&(I.unit==='basic'||I.pantry===true||(I.keep==='lang'&&(I.min||0)>0));};
 const pState=it=>FS().pantry[it]||'';   /* '' = noch nicht geprüft */
 /* Bolognese-Portionen im TK, die vor Tag k übrig sind (ab morgen die geplanten Abende) */
-function tkLeft(k){let a=STK().bolotk||0;for(let d=addD(TODAY(),1);d<k;d=addD(d,1)){const D=dayOf(d);if(!mealIds(D).includes('ab')||NS(d).used.ab)continue;
-  const v=varOf(D,'ab');if(v==='bolo')a+=isGuest(d,'ab')?2:3;if(v==='boloTK')a-=1;}return a;}
 /* Beim Abhaken: nur Bolognese-Portionen zählen (gekocht +3, aufgetaut −1) und das Gericht festhalten */
 function applyUse(k,id,f){if(!C)return;const D=dayOf(k),s=NS(k),X=C.dishes[varOf(D,id)];if(!X)return;
   const old=s.used[id]||0;if(f===old)return;const on=f>=1?1:0,was=old>=1?1:0,st=STK();
@@ -721,6 +764,7 @@ EN.have=(id,until)=>{const g=FS().got;if(g[id]&&g[id]>=until)delete g[id];else g
 EN.pset=(it,st)=>{FS().pantry[it]=st;R();};
 EN.subst=(it,sb)=>{if(sb)FS().subst[it]=sb;else delete FS().subst[it];R();EN.openItem(it);};
 EN.tk=dir=>{const st=STK();st.bolotk=Math.max(0,(st.bolotk||0)+dir);R();};
+
 const infoBtn=it=>`<button class="btn sm ghost" onclick="event.stopPropagation();EN.openItem('${it}')" aria-label="Details">ⓘ</button>`;
 const staleNote=()=>`<div class="ecard"><div class="sub">Die Artikelliste fehlt in den geladenen Inhalten (veralteter Stand von <b>nutrition.json</b>). Bitte die Seite neu laden.</div><button class="btn ghost" onclick="location.reload()">Neu laden</button></div>`;
 /* Immer ausreichend da (Marc 04.10.): Obst, Snacks/Ersatz (always in nutrition.json), Öl und Gewürze.
@@ -730,7 +774,7 @@ const ALW=()=>{const s=new Set(((C&&C.always)||[]).filter(a=>!(a.hw===false&&hwD
 function needs(n){const start=addD(TODAY(),1),o={};
   for(let d=0;d<n;d++){const k=addD(start,d),D=dayOf(k);
     mealIds(D).forEach(id=>{const X=C.dishes[varOf(D,id)];if(!X||!X.use)return;const i=pix(D,id),g=isGuest(k,id);
-      Object.entries(X.use).forEach(([it0,q])=>{const it=itemFor(it0,k),I=IT()[it];if(!I)return;const f=g&&(!X.yields||kindOf(it)==='beilage')?gFit(it):1,v=I.unit==='basic'?0:qB(it0,q[i]||0)*f;
+      Object.entries(X.use).forEach(([it0,q])=>{const it=itemFor(it0,k),I=IT()[it];if(!I)return;const f=(g&&(!X.yields||kindOf(it)==='beilage')?gFit(it):1)*shopFactor(k,id,it0),v=I.unit==='basic'?0:qB(it0,q[i]||0)*f;
         if(!v&&I.unit!=='basic')return;(o[it]=o[it]||[]).push({k,q:v});});});}
   return {o,start,end:addD(start,n-1)};}
 function shopList(n){const {o,start,end}=needs(n),A=ALW(),rows=[];
@@ -800,7 +844,7 @@ function pRezepte(){const sn=recTab==='snack';
   const it=v=>`<div class="it" onclick="EN.openRecipe('${v}')"><div>${V[v].n}<small>${[V[v].time,V[v].at==='work'?'🎒 mitnehmbar':''].filter(Boolean).join(' · ')}</small></div><span class="go">›</span></div>`;
   const tr=TRY().filter(x=>(x.kind==='snack')===sn);
   return `<div class="row" style="margin-bottom:12px">${[['meal','Gerichte'],['snack','Snacks']].map(([k,l])=>`<button class="pill ${recTab===k?'on':''}" onclick="EN.recTab('${k}')">${l}</button>`).join('')}</div>
-    <div class="ecard"><span class="k">Im Plan</span><div class="list">${Object.keys(V).filter(v=>isSnackDish(v)===sn).map(it).join('')}</div></div>
+    <div class="ecard"><span class="k">Im Plan</span><div class="list">${Object.keys(V).filter(v=>!V[v].hidden&&isSnackDish(v)===sn).map(it).join('')}</div></div>
     ${tr.length?`<div class="ecard"><span class="k">Zum Ausprobieren</span><div class="sub" style="margin-top:4px">Aus der Anti-Entzündungs-Diät, milchfrei angepasst. Nicht im Plan.</div>
       <div class="list">${tr.map(x=>`<div class="it" onclick="EN.openTry('${x.id}')"><div>${esc(x.n)}<small>${esc(x.time)} · ≈ ${x.kcal} kcal · ${x.P} g Protein</small></div><span class="go">›</span></div>`).join('')}</div></div>`:''}
     <div class="ecard"><span class="k">Bausteine (Glossar)</span><div class="list">${Object.keys(G).map(g=>`<div class="it" onclick="EN.openGl('${g}')"><div>${G[g].n}</div><span class="go">›</span></div>`).join('')}</div></div>`;}
