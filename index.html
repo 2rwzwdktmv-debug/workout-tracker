@@ -2008,6 +2008,11 @@ document.getElementById("navWeek").onclick = () => { location.hash = "#weeks"; }
 document.getElementById("navGo").onclick = () => goContinue();
 document.getElementById("navStats").onclick = () => { location.hash = "#food"; }; /* ERNÄHRUNG: Analyse über die Fortschrittskarte */
 document.getElementById("navSet").onclick = () => { location.hash = "#settings"; };
+/* Versionsnummer unten auf der Übersicht (09.10.): MAJOR.MINOR.BUILD
+   MAJOR 1 = Trainings-Tracker, 2 = mit Ernährung (ab 01.10.2026). MINOR = Umbau seit MAJOR (UMBAU-….md, 2.0 = Ernährung Phase 1).
+   BUILD = laufende Push-Nummer = Anzahl Commits in workout-tracker nach dem Commit (git rev-list --count HEAD), vierstellig.
+   Bei JEDEM Push hochzählen. Steht am iPhone die neue Nummer, ist der neue Stand da; sonst ist es noch der Cache. */
+const APP_VERSION = "2.10.0089";
 let navScroll = false;
 window.addEventListener("hashchange", () => { navScroll = true; if (PROGRAM) render(); });
 
@@ -2209,7 +2214,7 @@ function renderHome() {
     <div class="topc">${EN.topFood()}</div>${WOCHE.card(projectPlan(7))} <!-- ERNÄHRUNG 03.10.: Nach Plan -->
     <div style="margin-top:12px"></div>` + renderPlan();
   html += EN.homeBottom(); /* ERNÄHRUNG */ 
-  html += `<div class="foot">privater Tracker · ${mode === "github" ? "Sync: GitHub" : "lokaler Modus"}</div>`;
+  html += `<div class="foot">privater Tracker · ${mode === "github" ? "Sync: GitHub" : "lokaler Modus"} · V${APP_VERSION}</div>`;
   main.innerHTML = html;
 }
 
