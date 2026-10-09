@@ -292,3 +292,9 @@
 .en .xtra .xr2{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13.5px;color:var(--ink2);padding:4px 0}
 .en .xtra .xr2 b{color:var(--ink);font-weight:600}
 .en .xtra .xdel{margin:0 0 0 8px;padding:0;width:24px;height:24px;border-radius:50%;border:1px solid var(--line);background:none;color:var(--muted);font-size:11px}
+.sheet.en details.infod{margin-top:10px}
+.sheet.en details.infod summary{list-style:none;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;padding:6px 0}
+.sheet.en details.infod summary::-webkit-details-marker{display:none}
+.sheet.en details.infod .ii{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;border:1.5px solid var(--muted);font:italic 600 11px/1 Georgia,serif}
+.sheet.en details.infod[open] summary{color:var(--ink2)}
+.sheet.en details.infod .hint{margin-top:4px}
