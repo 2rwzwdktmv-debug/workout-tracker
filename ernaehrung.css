@@ -280,3 +280,15 @@
 .en .vk{display:inline-flex;gap:4px;flex:none}
 .en .vk button{margin:0;padding:6px 9px;border-radius:99px;border:1px solid var(--line);background:var(--surface);color:var(--ink2);font-size:13px;font-weight:600}
 .en .vk button.on{background:var(--lime);border-color:var(--lime);color:var(--lime-ink)}
+.topc .tc-t{display:grid;grid-template-columns:auto 1fr 1fr 1fr;gap:4px 10px;align-items:baseline;margin-top:9px}
+.topc .tc-t>span{color:var(--muted);font-weight:600;font-size:12px;white-space:nowrap}
+.topc .tc-t b{font-size:17px;font-weight:600;color:var(--ink);white-space:nowrap}
+.topc .tc-t i{font-style:normal;font-size:12px;font-weight:600;color:var(--muted);white-space:nowrap}
+.topc b.ok,.en .meta b.ok{color:var(--lime)}.topc b.mid,.en .meta b.mid{color:var(--amber)}.topc b.low,.en .meta b.low{color:var(--muted)}
+.sheet.en .ftxt{display:block;width:100%;margin-top:8px;font:inherit;font-size:16px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;height:40px;padding:0 12px}
+.sheet.en .ftime{font:inherit;font-size:16px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;height:34px;padding:0 8px;margin-left:6px}
+.en .xtra{margin-top:10px;padding-top:8px;border-top:1px solid var(--line)}
+.en .xtra .l{font-size:12px;font-weight:600;color:var(--muted)}
+.en .xtra .xr2{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13.5px;color:var(--ink2);padding:4px 0}
+.en .xtra .xr2 b{color:var(--ink);font-weight:600}
+.en .xtra .xdel{margin:0 0 0 8px;padding:0;width:24px;height:24px;border-radius:50%;border:1px solid var(--line);background:none;color:var(--muted);font-size:11px}
