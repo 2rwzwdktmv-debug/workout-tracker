@@ -270,8 +270,7 @@
   .trsw { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
   .trsw > span { flex: 1; min-width: 0; font-weight: 600; }
   .trsw .sqsw { margin-top: 0; flex: 0 0 150px; }
-  /* Optionale Einheit: gestrichelt, klar als Ergänzung erkennbar */
-  .card.item.opt { border: 1px dashed color-mix(in srgb, var(--lime) 45%, transparent); }
+  /* Optionale Einheit: erkennbar am Badge „optional“, ohne eigenen Rahmen (10.10.) */
   .optb {
     display: inline-block; margin-left: 6px; font-size: 10.5px; font-weight: 600; letter-spacing: .3px;
     color: var(--lime); background: color-mix(in srgb, var(--lime) 13%, transparent);
@@ -347,7 +346,6 @@
      (Gewicht, Pause, Zielpace) und Struktur (Session-Köpfe). Einzug 38 px. */
   .item { border: 1.5px solid var(--line-strong); margin-bottom: 12px; opacity: 1; }
   .item.checked { opacity: 1; }
-  .item.opt { border: 1.5px dashed color-mix(in srgb, var(--lime) 55%, transparent); }
   .item .head { gap: 10px; align-items: flex-start; }
   .item .cb, .blk .gcb { width: 28px; height: 28px; position: relative; margin-top: 0; }
   .item .cb::after, .blk .gcb::after { content: ""; position: absolute; inset: -8px; }   /* Tippfläche ~44 px */
@@ -891,7 +889,7 @@
     nav .go:active { transform: translateX(-50%); }
   }
 </style>
-<link rel="stylesheet" href="ernaehrung.css?v=2026-10-09h">
+<link rel="stylesheet" href="ernaehrung.css?v=2026-10-10b">
 </head>
 <script>
 /* Akzentfarbe aus dem Cache setzen, BEVOR gerendert wird — sonst blitzt
@@ -919,7 +917,7 @@
   <button id="navSet"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 13.5a7.8 7.8 0 0 0 0-3l2-1.5-2-3.4-2.4 1a7.8 7.8 0 0 0-2.6-1.5L14 2.5h-4l-.4 2.6A7.8 7.8 0 0 0 7 6.6l-2.4-1-2 3.4 2 1.5a7.8 7.8 0 0 0 0 3l-2 1.5 2 3.4 2.4-1a7.8 7.8 0 0 0 2.6 1.5l.4 2.6h4l.4-2.6a7.8 7.8 0 0 0 2.6-1.5l2.4 1 2-3.4z"/></svg>Einstellungen</button>
 </nav>
 
-<script src="ernaehrung.js?v=2026-10-10a"></script>
+<script src="ernaehrung.js?v=2026-10-10b"></script>
 <link rel="stylesheet" href="lauf.css?v=2026-10-07a">
 <link rel="stylesheet" href="apple.css?v=2026-10-07a">   <!-- Apple-naher Look, zuletzt geladen -->
 <link rel="stylesheet" href="woche.css?v=2026-10-04f">
@@ -2014,7 +2012,7 @@ document.getElementById("navSet").onclick = () => { location.hash = "#settings";
    MAJOR 1 = Trainings-Tracker, 2 = mit Ernährung (ab 01.10.2026). MINOR = Umbau seit MAJOR (UMBAU-….md, 2.0 = Ernährung Phase 1).
    BUILD = laufende Push-Nummer = Anzahl Commits in workout-tracker nach dem Commit (git rev-list --count HEAD), vierstellig.
    Bei JEDEM Push hochzählen. Steht am iPhone die neue Nummer, ist der neue Stand da; sonst ist es noch der Cache. */
-const APP_VERSION = "2.13.0096";
+const APP_VERSION = "2.14.0097";
 let navScroll = false;
 window.addEventListener("hashchange", () => { navScroll = true; if (PROGRAM) render(); });
 

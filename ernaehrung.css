@@ -207,6 +207,9 @@
 .sheet.en .stbar button{flex:1;margin:0;padding:9px 0;border-radius:var(--r-sm);background:var(--surface2);border:1px solid var(--line);font-weight:600;font-size:13px;color:var(--ink);text-align:center}
 .sheet.en .stbar button:first-child{flex:1.5}
 .sheet.en .stbar button.on{background:var(--lime);color:var(--lime-ink);border-color:var(--lime)}
+.sheet.en .stbar.ico button{font-size:20px;padding:11px 0;line-height:1}
+.sheet.en .stbar.ico button:first-child{flex:1}
+.sheet.en .it.sel > div:first-child{color:var(--lime);font-weight:600}
 .sheet.en .it2{display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding:11px 12px;border-radius:var(--r-sm);background:var(--surface2);border:1px solid var(--line);font-weight:600;font-size:14px;cursor:pointer}
 .sheet.en .sec2{margin:18px 0 2px;align-items:center}
 .sheet.en .gbtn{width:auto;margin:0;font-size:12px;font-weight:600;padding:4px 11px;border-radius:99px;background:none;border:1px solid var(--line);color:var(--muted)}
