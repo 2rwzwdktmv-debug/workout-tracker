@@ -45,7 +45,7 @@ const HKEY='wt-health-v1';
 let H={days:{},HW:{active:false,start:'',len:7}};
 try{const x=JSON.parse(localStorage.getItem(HKEY)||'null');if(x)H=Object.assign(H,x);}catch(e){}
 const HMIG='wt-health-synced-v1',LEG=JSON.parse(JSON.stringify(H));   /* LEG = lokaler Altbestand dieses Geräts, wird einmal in S.health eingemischt (10.10.) */
-const HF={exc:[],skin:0,haut:0,skinAt:[],crave:-1,weight:0,waist:0,arm:0,thigh:0,chest:0,shoulder:0,photo:0}, SF={st:{},sw:{},extra:[],water:0,energy:0,energyAsked:false,meds:{},packed:false,pk:{},used:{},guests:{},ing:{},part:{},batch:{},xlog:[],own:{}};
+const HF={exc:[],skin:0,haut:0,skinAt:[],crave:-1,weight:0,waist:0,arm:0,thigh:0,chest:0,shoulder:0,photo:0}, SF={st:{},sw:{},extra:[],water:0,energy:0,energyAsked:false,meds:{},packed:false,pk:{},used:{},guests:{},ing:{},part:{},batch:{},xlog:[],own:{},ty:''};
 const cl=v=>typeof v==='object'?JSON.parse(JSON.stringify(v)):v;
 /* Ein Tag als ein Objekt; jedes Feld liegt im passenden Speicher */
 function NS(k){adopt();return new Proxy({},{
@@ -137,8 +137,8 @@ function dayOf(k){return DC[k]||(DC[k]=dayOf0(k));}
 function pastEntry(k){if(k>=TODAY())return null;try{const d=dayWorkedOn(k);if(d)return {kind:'donetoday',d};if(planState().off.includes(k))return {kind:'off'};}catch(e){}return null;}
 function dayOf0(k){const e=plan()[k]||pastEntry(k)||{kind:'empty'},w=D_(k).getDay();
   const isT=e.kind==='train'||e.kind==='donetoday',min=e.d?dayMinutes(e.d.day):0;
-  const type=!isT?((window.WOCHE&&WOCHE.type(k))||'rest'):min>=120?'hard':min>=45?'train':'active';
-  const D={k,wd:WDL[w],e,min,type,off:e.kind==='off',done:e.kind==='donetoday',train:isT?(e.d?dayTitle(e.d):'Training'):null,len:min?'≈ '+min+' min':''};
+  const type0=!isT?((window.WOCHE&&WOCHE.type(k))||'rest'):min>=120?'hard':min>=45?'train':'active',ov=(FS().days[k]||{}).ty,type=TT[ov]?ov:type0;   /* ov: Tagtyp von Hand (10.10.) */
+  const D={k,wd:WDL[w],e,min,type,auto:type0,ov:type===ov?ov:'',off:e.kind==='off',done:e.kind==='donetoday',train:isT?(e.d?dayTitle(e.d):'Training'):null,len:min?'≈ '+min+' min':''};
   let ab=AB_ROT[w];const vm=VMR[w]||VMR.other;
   /* Alle 14 Tage (rotation.biweekly): in Wochen mit gleicher Parität wie der Anker gilt dieses Abendessen (z. B. jeden 2. Freitag Hüftsteak) */
   const BW=C.rotation.biweekly;if(BW&&BW.ab&&BW.ab[w]&&V[BW.ab[w]]&&Math.floor(Math.round((D_(k)-D_(BW.anchor))/864e5)/7)%2===0)ab=BW.ab[w];
@@ -405,7 +405,7 @@ EN.openDay=k=>{const D=dayOf(k),T=TT[D.type],e=D.e;
   const tr=D.train?`<div class="slot train"><div class="body"><div class="when"><i class="ic">🏋️</i>Training · <span class="tzc" onclick="EN.openTime('${k}',1)">${TZL[D.tz]} ⌄</span>${D.len?` · <span>${D.len}</span>`:''}</div>
       <div class="n">${esc(D.train)}</div>${e.d?`<div class="d">${esc(daySub(e.d))}</div><div class="lk" style="margin-top:4px;font-size:13.5px" onclick="closeSheet();location.hash='#d/${e.d.pi}/${e.d.wi}/${e.d.di}'">Einheit ansehen ›</div>`:''}</div></div>`
     :`<div class="slot train"><div class="body"><div class="when"><i class="ic">🏋️</i>Training</div><div class="n">${D.off?'Geht nicht':'Ruhetag'}</div></div></div>`;
-  sheet(`<div class="between"><span class="km">${D.wd} ${OKT(k)}</span><span class="echip lime">${T.l} · ${T.kcal.toLocaleString('de-DE')} kcal</span></div>
+  sheet(`<div class="between"><span class="km">${D.wd} ${OKT(k)}</span><span class="echip lime" style="cursor:pointer" onclick="EN.openType('${D.k}')">${T.l} · ${T.kcal.toLocaleString('de-DE')} kcal ⌄</span></div>
     <div class="en tl">${D.train?mealList(D,'pre','EN.openMealB')+tr:tr}${mealList(D,'post','EN.openMealB')}</div>
     <button class="cancel" onclick="closeSheet()">Schließen</button>`);};
 
@@ -695,6 +695,17 @@ function plausi(){const ks=[];for(let n=1;n<=28;n++){const k=addD(TODAY(),-n);if
   if(Math.abs(d)<=0.8)return ['ok',`Passt. ${base}${more}`];
   if(d>0.8)return ['amb',`${base} Du nimmst schneller zu, als die Einträge erklären (Unterschied rund ${miss} kcal pro Tag). Entweder fehlen Einträge, oder dein Bedarf liegt unter der Faustrechnung. Schau zuerst, ob Mahlzeiten oder Kleinigkeiten fehlen.${more}`];
   return ['amb',`${base} Du nimmst weniger zu als erwartet (Unterschied rund ${miss} kcal pro Tag). Entweder liegt dein Bedarf höher als die Faustrechnung (Training, Alltag), oder Einträge sind zu hoch geschätzt.${more}`];}
+/* ---------- Tagtyp von Hand (10.10., Marc) ----------
+   Die App schätzt ihn aus der Dauer des geplanten Trainings (< 45 min Aktiv, ab 45 Training, ab 120 Hart, ohne Training Ruhetag).
+   S.food.days[k].ty überschreibt das für diesen Tag: Ziele, Portionen (Reis, Nudeln, Kartoffeln), Plan-Wert. Leer = automatisch. */
+EN.openType=k=>{const D=dayOf(k),cur=D.ov||'';
+  sheet(`<div class="km">${D.wd} ${OKT(k)}</div><h3>Tagtyp</h3>
+    <div class="sub">${D.train?`Training: ${esc(D.train)}${D.len?' · '+D.len:''}. `:'Kein Training geplant. '}Die App schätzt <b>${TT[D.auto].l}</b>${cur?'':' (so ist es gerade eingestellt)'}.</div>
+    <div class="egrid" style="margin-top:12px">${['rest','active','train','hard'].map(t=>`<button class="opt ${cur===t||(!cur&&D.auto===t&&false)?'on':''}" onclick="EN.setType('${k}','${t}')">${TT[t].l}<small>${TT[t].kcal.toLocaleString('de-DE')} kcal · ${TT[t].c} g KH${!cur&&D.auto===t?' · geschätzt':''}</small></button>`).join('')}</div>
+    <div class="sub" style="font-size:12.5px;margin-top:10px">Gilt nur für diesen Tag und wirkt auf Tagesziel, Portionen (Reis, Nudeln, Kartoffeln) und „Nach Plan“. Schätzung: unter 45 min Aktiv, ab 45 min Trainingstag, ab 120 min Harter Tag.</div>
+    ${cur?`<button class="btn ghost" style="margin-top:10px" onclick="EN.setType('${k}','')">Wieder automatisch (${TT[D.auto].l})</button>`:''}
+    <button class="cancel" onclick="closeSheet()">Schließen</button>`);};
+EN.setType=(k,t)=>{if(t)NS(k).ty=t;else delete NS(k).ty;closeSheet();RS();};
 EN.openExtra=()=>sheet(`<h3>Extra</h3><div class="sub">Grob, kein Abwiegen. Ein Tipp genügt.</div><div class="egrid">${XTRA.map(([n,m],j)=>`<button class="opt" onclick="EN.addExtra(${j})">${n}<small>${m.kcal} kcal</small></button>`).join('')}</div><button class="cancel" onclick="closeSheet()">Abbrechen</button>`);
 EN.addExtra=j=>{const [n,m]=XTRA[j];NS(TODAY()).extra.push({...m,n,t:nowHM()});closeSheet();R();};
 EN.openSOS=()=>{const D=dayOf(TODAY()),T=TT[D.type],open=Math.round(T.kcal-totals(D).kcal);
@@ -848,7 +859,7 @@ const days7=()=>Array.from({length:7},(_,n)=>addD(TODAY(),n));
 EN.sel=k=>{selK=k;render();};
 function pTage(){const ks=days7();if(!selK||!ks.includes(selK))selK=ks[0];const D=dayOf(selK),T=TT[D.type],t=totals(D),i=T.i,K=`'${D.k}'`;
   let h=`<div class="daychips">${ks.map(k=>{const d=dayOf(k);return `<button class="${k===selK?'on':''}" onclick="EN.sel('${k}')"><b>${d.wd}</b>${D_(k).getDate()}.<i class="ty-${d.type}"></i></button>`;}).join('')}</div>`;
-  h+=`<div class="ecard"><div class="between"><span class="k">${selK===TODAY()?'Heute · ':''}${D.wd} ${OKT(D.k)}</span><span class="echip lime">${T.l}</span></div><div class="sub" style="margin-top:2px">${D.train?esc(D.train)+(D.len?' · '+D.len:''):D.off?'Geht nicht':'kein Training'}</div>
+  h+=`<div class="ecard"><div class="between"><span class="k">${selK===TODAY()?'Heute · ':''}${D.wd} ${OKT(D.k)}</span><span class="echip lime" style="cursor:pointer" onclick="EN.openType('${D.k}')">${T.l} ⌄</span></div><div class="sub" style="margin-top:2px">${D.train?esc(D.train)+(D.len?' · '+D.len:''):D.off?'Geht nicht':'kein Training'}</div>
     <div class="bil">${ringSVG(t.kcal/T.kcal,Math.round(t.kcal),'von '+T.kcal)}${macHTML(t,T)}</div></div>`;
   h+=`<div class="ecard"><span class="km">Tagesablauf</span>`;
   h+=`<div class="en tl">${mealList(D,'pre')}${D.train?`<div class="trainline" onclick="EN.openTime('${D.k}')"><i class="ic">🏋️</i>Training <span class="tzc">${TZL[D.tz]} ⌄</span></div>`:''}${mealList(D,'post')}</div>${extrasBlock(D)}`;
