@@ -30,7 +30,7 @@ document.addEventListener("input", e => {
 const DAUER = ["endurance-run", "long-run"];
 /* Intervall-Einheiten mit Metern je Intervall: Ultimate-Engine-Montag (8 min) und
    Bakken-Schwelle im Rennblock (8 × 5 min, Part 4). Gleiche Erfassung, eigene Gruppe. */
-const IV = { "tempo-8min": { g: "tempo", min: 8, max: 4, pz: 2 }, "threshold-5min": { g: "schwelle", min: 5, max: 8, pz: 1 } };
+const IV = { "tempo-8min": { g: "tempo", min: 8, max: 4, pz: 2, all: true }, "threshold-5min": { g: "schwelle", min: 5, max: 8, pz: 1 } };
 const IVG = { tempo: "tempo-8min", schwelle: "threshold-5min" };
 const isIv = g => !!IVG[g];
 const ivOf = g => IV[IVG[g]];
@@ -263,8 +263,8 @@ function rowT(id, i, r) {
     <input id="th-${id}-${i}" inputmode="numeric" value="${r && r.hf ? r.hf : ""}" onchange="LAUF.saveT('${id}')"></div>`;
 }
 function fieldsT(item) {
-  const rows = parseT(S.resultsByItem[item.id]), max = ivOf(group(item.id)).max;
-  const n = Math.min(max, Math.max(2, rows.length + 1));   // immer eine leere Zeile mehr, bis zum Maximum
+  const rows = parseT(S.resultsByItem[item.id]), iv = ivOf(group(item.id)), max = iv.max;
+  const n = iv.all ? max : Math.min(max, Math.max(2, rows.length + 1));   // Tempo: alle 4 Zeilen gleich da (10.10.); sonst immer eine leere Zeile mehr, bis zum Maximum
   let h = `<div class="tf" id="tf-${item.id}"><div class="tr th"><span></span><span>Meter</span><span>Pause (m)</span><span>Ø-HF</span></div>`;
   for (let i = 0; i < n; i++) h += rowT(item.id, i, rows[i]);
   return h + `</div>`;

@@ -922,7 +922,7 @@
 <link rel="stylesheet" href="apple.css?v=2026-10-07a">   <!-- Apple-naher Look, zuletzt geladen -->
 <link rel="stylesheet" href="woche.css?v=2026-10-04f">
 <script src="woche.js?v=2026-10-04g"></script>   <!-- Laufwoche · Anderes Training · Neue Woche -->
-<script src="lauf.js?v=2026-10-04g"></script>
+<script src="lauf.js?v=2026-10-10a"></script>
 <script src="rennen.js?v=2026-10-04g"></script>   <!-- Rennblock (Part 4) mit Countdown -->
 <script>
 "use strict";
@@ -2012,7 +2012,7 @@ document.getElementById("navSet").onclick = () => { location.hash = "#settings";
    MAJOR 1 = Trainings-Tracker, 2 = mit Ernährung (ab 01.10.2026). MINOR = Umbau seit MAJOR (UMBAU-….md, 2.0 = Ernährung Phase 1).
    BUILD = laufende Push-Nummer = Anzahl Commits in workout-tracker nach dem Commit (git rev-list --count HEAD), vierstellig.
    Bei JEDEM Push hochzählen. Steht am iPhone die neue Nummer, ist der neue Stand da; sonst ist es noch der Cache. */
-const APP_VERSION = "2.14.0098";
+const APP_VERSION = "2.14.0099";
 let navScroll = false;
 window.addEventListener("hashchange", () => { navScroll = true; if (PROGRAM) render(); });
 
