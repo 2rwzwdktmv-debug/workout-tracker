@@ -40,14 +40,15 @@ const dayRanges=ws=>{const out=[];let a=-1,b=-1;const flush=()=>{if(a<0)return;c
 /* ---------- Zustand ---------- */
 /* Synchronisiert (progress.json): S.food = {days:{datum:{st,sw,extra,water (alt, nicht mehr genutzt),energy,meds,packed}}, set:{protein,fast}} */
 function FS(){if(!S.food||typeof S.food!=='object')S.food={};if(!S.food.days)S.food.days={};if(!S.food.set)S.food.set={protein:'whey',fast:true};if(!S.food.stock)S.food.stock={};if(!S.food.cart)S.food.cart={};if(!S.food.have)S.food.have={};if(!S.food.got)S.food.got={};if(!S.food.subst)S.food.subst={};if(!S.food.pantry)S.food.pantry={};if(!S.food.set.free)S.food.set.free={};if(!S.food.set.freeV2){if(JSON.stringify(S.food.set.free)==='{"0":["we"]}')S.food.set.free={};S.food.set.freeV2=1;}   /* Standard: jede Mahlzeit im Plan; früheres „So Mittag frei“ einmalig zurück */if(!S.food.tt)S.food.tt={};return S.food;}
-/* Nur lokal auf diesem Gerät (Gesundheitsdaten): Haut, Ausnahmen, Heißhunger, Gewicht, Heilungsfenster */
+/* Gesundheitsdaten: Haut, Ausnahmen, Heißhunger, Gewicht und Messungen, Heilungsfenster. Seit 10.10. ebenfalls synchronisiert (S.health in progress.json, siehe adopt unten) */
 const HKEY='wt-health-v1';
 let H={days:{},HW:{active:false,start:'',len:7}};
 try{const x=JSON.parse(localStorage.getItem(HKEY)||'null');if(x)H=Object.assign(H,x);}catch(e){}
+const HMIG='wt-health-synced-v1',LEG=JSON.parse(JSON.stringify(H));   /* LEG = lokaler Altbestand dieses Geräts, wird einmal in S.health eingemischt (10.10.) */
 const HF={exc:[],skin:0,haut:0,skinAt:[],crave:-1,weight:0,waist:0,arm:0,thigh:0,chest:0,shoulder:0,photo:0}, SF={st:{},sw:{},extra:[],water:0,energy:0,energyAsked:false,meds:{},packed:false,pk:{},used:{},guests:{},ing:{},part:{},batch:{},xlog:[]};
 const cl=v=>typeof v==='object'?JSON.parse(JSON.stringify(v)):v;
 /* Ein Tag als ein Objekt; jedes Feld liegt im passenden Speicher */
-function NS(k){return new Proxy({},{
+function NS(k){adopt();return new Proxy({},{
   get(_,p){const loc=p in HF?(H.days[k]||(H.days[k]={})):(FS().days[k]||(FS().days[k]={}));const def=p in HF?HF[p]:SF[p];
     if(loc[p]===undefined){if(def===undefined)return undefined;if(typeof def!=='object')return def;loc[p]=cl(def);}return loc[p];},
   set(_,p,v){const loc=p in HF?(H.days[k]||(H.days[k]={})):(FS().days[k]||(FS().days[k]={}));loc[p]=v;return true;},
@@ -55,10 +56,25 @@ function NS(k){return new Proxy({},{
 /* leere Einträge nicht mitspeichern */
 const isEmpty=v=>v==null||v===false||v===0||(Array.isArray(v)&&!v.length)||(typeof v==='object'&&!Array.isArray(v)&&!Object.keys(v).length);
 function prune(days,defs){Object.keys(days).forEach(k=>{const d=days[k];Object.keys(d).forEach(p=>{if(isEmpty(d[p])||d[p]===defs[p])delete d[p];});if(!Object.keys(d).length)delete days[k];});}
-const save=()=>{prune(H.days,HF);prune(FS().days,SF);Object.keys(FS().stock).forEach(it=>{if(it!=='bolotk'||!(FS().stock[it]>0))delete FS().stock[it];});Object.keys(FS().have).forEach(id=>{const at=id.split('@')[1],h=FS().have[id];if(at?at<TODAY():diff(TODAY(),h)>=7)delete FS().have[id];});Object.keys(FS().got).forEach(id=>{if(FS().got[id]<TODAY())delete FS().got[id];});try{localStorage.setItem(HKEY,JSON.stringify(H));}catch(e){}};
+const save=()=>{adopt();prune(H.days,HF);prune(FS().days,SF);S.health=H;Object.keys(FS().stock).forEach(it=>{if(it!=='bolotk'||!(FS().stock[it]>0))delete FS().stock[it];});Object.keys(FS().have).forEach(id=>{const at=id.split('@')[1],h=FS().have[id];if(at?at<TODAY():diff(TODAY(),h)>=7)delete FS().have[id];});Object.keys(FS().got).forEach(id=>{if(FS().got[id]<TODAY())delete FS().got[id];});try{if(!hMig())localStorage.setItem(HKEY,JSON.stringify(H));}catch(e){}};   /* Sicherungskopie des Geräts; vor der Übernahme bleibt der Altbestand unberührt */
 EN.save=save;
 const ST={get protein(){return FS().set.protein;},set protein(v){FS().set.protein=v;},get fast(){return FS().set.fast!==false;},set fast(v){FS().set.fast=v;},get morning(){return FS().set.morning===true;}};
 let HW=H.HW;
+/* ---------- Gesundheitsdaten synchronisiert (10.10., Marc: alles soll auf allen Geräten gleich sein) ----------
+   H ist die Arbeitskopie, S.health zeigt auf H und liegt damit in progress.json. Wird S neu geladen (Start, Sync), nimmt adopt() den Stand von dort.
+   Der Altbestand dieses Geräts (LEG, aus wt-health-v1) wird einmal eingemischt: nur was in S.health fehlt, nichts wird überschrieben oder gelöscht.
+   Hat S noch kein health, bleibt der lokale Stand erhalten und wird mitgeschickt. */
+let hChanged=false;
+function hMig(){try{return !localStorage.getItem(HMIG);}catch(e){return false;}}
+function adopt(){if(typeof S==='undefined'||!S||S.health===H)return;
+  const rem=S.health&&typeof S.health==='object'?S.health:null,mig=hMig(),dflt={active:false,start:'',len:7};
+  let days=rem?cl(rem.days||{}):H.days,hw=rem?(rem.HW||null):H.HW;
+  if(rem&&mig){Object.keys(LEG.days||{}).forEach(k=>{const l=LEG.days[k],d=days[k]||(days[k]={});Object.keys(l).forEach(f=>{if(isEmpty(d[f])&&!isEmpty(l[f]))d[f]=cl(l[f]);});});if(!hw)hw=cl(LEG.HW||dflt);}
+  const changed=!rem||JSON.stringify(days)!==JSON.stringify(rem.days||{})||(!rem.HW&&!!hw);
+  H.days=days;H.HW=hw||dflt;HW=H.HW;S.health=H;
+  if(changed&&(Object.keys(days).length||H.HW.active))hChanged=true;}
+/* Nach einem frischen Stand von GitHub aufrufen: schließt die Übernahme ab; true = lokaler Stand weicht ab und soll hochgeladen werden */
+EN.syncPoint=()=>{adopt();try{if(hMig())localStorage.setItem(HMIG,'1');}catch(e){}const p=hChanged;hChanged=false;return p;};
 const hwDay=k=>HW.active&&k>=HW.start&&diff(k,HW.start)<HW.len?diff(k,HW.start)+1:0;
 const hwEnd=()=>addD(HW.start,HW.len-1);
 const plantProt=k=>!!hwDay(k)||ST.protein==='plant';
@@ -112,7 +128,7 @@ const bRow=r=>!toastOn()||r[3]!=='brot'?r:[B_(r[0]),String(r[1]).replace(/^(\d+)
 /* Tagestyp: aus der Minuten-Schätzung der Plan-Einheit (dayMinutes). Vorlage: nach Wochentag. */
 const WDL=['So','Mo','Di','Mi','Do','Fr','Sa'];
 let PP=null;
-EN.fresh=()=>{PP=null;DC={};buildDishes();};
+EN.fresh=()=>{adopt();PP=null;DC={};buildDishes();};
 function plan(){if(!PP){PP={};try{projectPlan(8).forEach(e=>{PP[e.k]=e;});}catch(e){}}return PP;}
 const TODAY=()=>dkey(today0());
 let DC={};
