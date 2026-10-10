@@ -136,11 +136,13 @@ function dayOf(k){return DC[k]||(DC[k]=dayOf0(k));}
 /* Vergangene Tage (für „Nach Plan“): trainiert laut Log, sonst Ausfall- oder Ruhetag */
 function pastEntry(k){if(k>=TODAY())return null;try{const d=dayWorkedOn(k);if(d)return {kind:'donetoday',d};if(planState().off.includes(k))return {kind:'off'};}catch(e){}return null;}
 /* Gelernte Dauer (10.10., Marc): echte Zeiten aus der Energie-Frage verbessern die Schätzung KÜNFTIGER Tage, nie die vergangener.
-   Median der letzten 4 Einträge derselben Tagesart (Day 1–6), erst ab 2 Einträgen; sonst bleibt die Plan-Rechnung. */
-function learnedMin(label){if(!label)return 0;const days=FS().days,xs=Object.keys(days).filter(k=>k<TODAY()&&days[k].dur>0).sort().map(k=>{const d=dayWorkedOn(k);return d&&d.day&&d.day.label===label?days[k].dur:0;}).filter(Boolean).slice(-4);
+   Median der letzten 4 Einträge derselben Tagesart: gleicher Part, gleicher Day (1–6), Recovery-Woche (4. Woche) getrennt von den normalen Wochen.
+   Gleicher Part, weil die Tage je Part andere Einheiten haben (Part 2 Day 4 = Rad, Part 3 Day 4 = Kreuzheben), erst ab 2 Einträgen; sonst bleibt die Plan-Rechnung. */
+const dkind=d=>d&&d.day&&d.day.label?d.pi+'|'+d.day.label+(d.wi===3?'|R':'|N'):'';
+function learnedMin(pd){const key=dkind(pd);if(!key)return 0;const days=FS().days,xs=Object.keys(days).filter(k=>k<TODAY()&&days[k].dur>0).sort().map(k=>dkind(dayWorkedOn(k))===key?days[k].dur:0).filter(Boolean).slice(-4);
   if(xs.length<2)return 0;xs.sort((a,b)=>a-b);const n=xs.length,m=n%2?xs[(n-1)/2]:(xs[n/2-1]+xs[n/2])/2;return Math.round(m/5)*5;}
 function dayOf0(k){const e=plan()[k]||pastEntry(k)||{kind:'empty'},w=D_(k).getDay();
-  const isT=e.kind==='train'||e.kind==='donetoday',lm=e.d&&k>=TODAY()?learnedMin(e.d.day.label):0,min=lm||(e.d?dayMinutes(e.d.day):0);   /* lm: aus deinen echten Zeiten, nur für heute und künftig */
+  const isT=e.kind==='train'||e.kind==='donetoday',lm=e.d&&k>=TODAY()?learnedMin(e.d):0,min=lm||(e.d?dayMinutes(e.d.day):0);   /* lm: aus deinen echten Zeiten, nur für heute und künftig */
   const type0=!isT?((window.WOCHE&&WOCHE.type(k))||'rest'):min>=120?'hard':min>=45?'train':'active',ov=(FS().days[k]||{}).ty,type=TT[ov]?ov:type0;   /* ov: Tagtyp von Hand (10.10.) */
   const D={k,wd:WDL[w],e,min,type,auto:type0,ov:type===ov?ov:'',off:e.kind==='off',done:e.kind==='donetoday',train:isT?(e.d?dayTitle(e.d):'Training'):null,len:min?'≈ '+min+' min'+(lm?' (nach deinen Zeiten)':''):''};
   let ab=AB_ROT[w];const vm=VMR[w]||VMR.other;
