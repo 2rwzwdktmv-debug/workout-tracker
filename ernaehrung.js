@@ -45,7 +45,7 @@ const HKEY='wt-health-v1';
 let H={days:{},HW:{active:false,start:'',len:7}};
 try{const x=JSON.parse(localStorage.getItem(HKEY)||'null');if(x)H=Object.assign(H,x);}catch(e){}
 const HMIG='wt-health-synced-v1',LEG=JSON.parse(JSON.stringify(H));   /* LEG = lokaler Altbestand dieses Geräts, wird einmal in S.health eingemischt (10.10.) */
-const HF={exc:[],skin:0,haut:0,skinAt:[],crave:-1,weight:0,waist:0,arm:0,thigh:0,chest:0,shoulder:0,photo:0}, SF={st:{},sw:{},extra:[],water:0,energy:0,energyAsked:false,meds:{},packed:false,pk:{},used:{},guests:{},ing:{},part:{},batch:{},xlog:[],own:{},ty:''};
+const HF={exc:[],skin:0,haut:0,skinAt:[],crave:-1,weight:0,waist:0,arm:0,thigh:0,chest:0,shoulder:0,photo:0}, SF={st:{},sw:{},extra:[],water:0,energy:0,energyAsked:false,meds:{},packed:false,pk:{},used:{},guests:{},ing:{},part:{},batch:{},xlog:[],own:{},ty:'',dur:0,kc:0};
 const cl=v=>typeof v==='object'?JSON.parse(JSON.stringify(v)):v;
 /* Ein Tag als ein Objekt; jedes Feld liegt im passenden Speicher */
 function NS(k){adopt();return new Proxy({},{
@@ -135,10 +135,14 @@ let DC={};
 function dayOf(k){return DC[k]||(DC[k]=dayOf0(k));}
 /* Vergangene Tage (für „Nach Plan“): trainiert laut Log, sonst Ausfall- oder Ruhetag */
 function pastEntry(k){if(k>=TODAY())return null;try{const d=dayWorkedOn(k);if(d)return {kind:'donetoday',d};if(planState().off.includes(k))return {kind:'off'};}catch(e){}return null;}
+/* Gelernte Dauer (10.10., Marc): echte Zeiten aus der Energie-Frage verbessern die Schätzung KÜNFTIGER Tage, nie die vergangener.
+   Median der letzten 4 Einträge derselben Tagesart (Day 1–6), erst ab 2 Einträgen; sonst bleibt die Plan-Rechnung. */
+function learnedMin(label){if(!label)return 0;const days=FS().days,xs=Object.keys(days).filter(k=>k<TODAY()&&days[k].dur>0).sort().map(k=>{const d=dayWorkedOn(k);return d&&d.day&&d.day.label===label?days[k].dur:0;}).filter(Boolean).slice(-4);
+  if(xs.length<2)return 0;xs.sort((a,b)=>a-b);const n=xs.length,m=n%2?xs[(n-1)/2]:(xs[n/2-1]+xs[n/2])/2;return Math.round(m/5)*5;}
 function dayOf0(k){const e=plan()[k]||pastEntry(k)||{kind:'empty'},w=D_(k).getDay();
-  const isT=e.kind==='train'||e.kind==='donetoday',min=e.d?dayMinutes(e.d.day):0;
+  const isT=e.kind==='train'||e.kind==='donetoday',lm=e.d&&k>=TODAY()?learnedMin(e.d.day.label):0,min=lm||(e.d?dayMinutes(e.d.day):0);   /* lm: aus deinen echten Zeiten, nur für heute und künftig */
   const type0=!isT?((window.WOCHE&&WOCHE.type(k))||'rest'):min>=120?'hard':min>=45?'train':'active',ov=(FS().days[k]||{}).ty,type=TT[ov]?ov:type0;   /* ov: Tagtyp von Hand (10.10.) */
-  const D={k,wd:WDL[w],e,min,type,auto:type0,ov:type===ov?ov:'',off:e.kind==='off',done:e.kind==='donetoday',train:isT?(e.d?dayTitle(e.d):'Training'):null,len:min?'≈ '+min+' min':''};
+  const D={k,wd:WDL[w],e,min,type,auto:type0,ov:type===ov?ov:'',off:e.kind==='off',done:e.kind==='donetoday',train:isT?(e.d?dayTitle(e.d):'Training'):null,len:min?'≈ '+min+' min'+(lm?' (nach deinen Zeiten)':''):''};
   let ab=AB_ROT[w];const vm=VMR[w]||VMR.other;
   /* Alle 14 Tage (rotation.biweekly): in Wochen mit gleicher Parität wie der Anker gilt dieses Abendessen (z. B. jeden 2. Freitag Hüftsteak) */
   const BW=C.rotation.biweekly;if(BW&&BW.ab&&BW.ab[w]&&V[BW.ab[w]]&&Math.floor(Math.round((D_(k)-D_(BW.anchor))/864e5)/7)%2===0)ab=BW.ab[w];
@@ -328,7 +332,7 @@ EN.intraFor=function(item,pi,wi,di){if(!C||!V.gel||!item||item.rest||pvMinutes(i
   const m=pvMinutes(item),i=m>=180?2:m>=120?1:0;return `<div class="en"><div class="intra"><span><i class="ic">🧃</i><b>Intra-Workout</b> · ${V.gel.d(i)}</span></div></div>`;};
 /* in der Karte „erledigt“: Energie im Training (falls beim Abschließen übersprungen) */
 EN.energyLine=function(){const s=NS(TODAY());
-  return `<div class="en">${s.energy?`<div class="tfood">Energie <b>${s.energy}/5</b> · <span class="lk" onclick="EN.setEnergy(0)">ändern</span></div>`
+  return `<div class="en">${s.energy?`<div class="tfood">Energie <b>${s.energy}/5</b> · <span class="lk" onclick="EN.setEnergy(0)">ändern</span> · <span class="lk" onclick="EN.openEnergy('')">${s.dur||s.kc?[s.dur?s.dur+' min':'',s.kc?s.kc+' kcal':''].filter(Boolean).join(' · '):'Dauer, kcal'}</span></div>`
     :`<div class="tfood ask"><b>Energie im Training?</b>${mini(['1','2','3','4','5'],0,'EN.setEnergy',1)}</div>`}</div>`;};
 EN.setEnergy=v=>{NS(TODAY()).energy=v;R();};
 EN.homeBottom=function(){if(!C)return '';return `<h2 class="section">Heute eintragen</h2><div class="en">${quickRow(dayOf(TODAY()))}</div>`;};
@@ -495,13 +499,18 @@ EN.afterCheck=function(itemId){try{const loc=ITEM_LOC[itemId];if(!loc)return;con
   const items=dayItems(day);if(!items.length||!items.every(i=>S.checked[i.id]))return;
   const s=NS(TODAY());if(s.energy||s.energyAsked)return;s.energyAsked=true;save();
   EN.openEnergy(PROGRAM[loc.pi].weeks[loc.wi].name+' · '+day.label);}catch(e){}};
-let finE=0,finT='';
-EN.openEnergy=t=>{finT=t||finT;finE=NS(TODAY()).energy||0;drawEnergy();};
-function drawEnergy(){sheet(`<div class="km">Alle Parts erledigt ✓</div><h3>${esc(finT)}</h3><div class="sub">Gespeichert ist schon alles. Eine Frage zum Schluss:</div>
+let finE=0,finT='',finD='',finK='';
+EN.openEnergy=t=>{finT=t||finT;const s=NS(TODAY());finE=s.energy||0;finD=s.dur?String(s.dur):'';finK=s.kc?String(s.kc):'';drawEnergy();};
+function drawEnergy(){sheet(`<div class="km">${finT?'Alle Parts erledigt ✓':'Heute'}</div><h3>${esc(finT||'Training')}</h3><div class="sub">Gespeichert ist schon alles. Eine Frage zum Schluss:</div>
   <div class="km sec">Energie im Training</div>${mini(['1','2','3','4','5'],finE,'EN.setFinE',1)}<div class="between scale"><span>leer, zäh</span><span>okay</span><span>voller Tank</span></div>
-  <button class="btn" onclick="EN.saveEnergy()">${finE?'Fertig':'Ohne Angabe'}</button>`);}
+  <div class="km sec">Optional</div>
+  <div class="between" style="gap:10px"><label class="meta" style="flex:1">Dauer (min)<input class="ftxt" type="number" inputmode="numeric" placeholder="z. B. 75" value="${esc(finD)}" oninput="EN.setFinX('D',this.value)"></label>
+    <label class="meta" style="flex:1">Aktive kcal (Apple)<input class="ftxt" type="number" inputmode="numeric" placeholder="z. B. 600" value="${esc(finK)}" oninput="EN.setFinX('K',this.value)"></label></div>
+  <div class="sub" style="font-size:12px;margin-top:6px">Die Dauer macht die Schätzung für künftige Tage genauer (vergangene bleiben unverändert). Die kcal werden erst gesammelt.</div>
+  <button class="btn" style="margin-top:12px" onclick="EN.saveEnergy()">${finE||finD||finK?'Fertig':'Ohne Angabe'}</button>`);}
 EN.setFinE=v=>{finE=v;drawEnergy();};
-EN.saveEnergy=()=>{NS(TODAY()).energy=finE;closeSheet();R();};
+EN.setFinX=(f,v)=>{if(f==='D')finD=v;else finK=v;};
+EN.saveEnergy=()=>{const s=NS(TODAY()),d=Math.round(+finD),k=Math.round(+finK);s.energy=finE;if(d>=5&&d<=480)s.dur=d;else delete s.dur;if(k>=10&&k<=3000)s.kc=k;else delete s.kc;closeSheet();R();};
 
 /* =====================================================================
    SHEETS: Mahlzeit / Rezept / Glossar / Ausnahme / Extra / SOS / Heilungsfenster
