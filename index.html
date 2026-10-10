@@ -889,7 +889,7 @@
     nav .go:active { transform: translateX(-50%); }
   }
 </style>
-<link rel="stylesheet" href="ernaehrung.css?v=2026-10-10b">
+<link rel="stylesheet" href="ernaehrung.css?v=2026-10-10c">
 </head>
 <script>
 /* Akzentfarbe aus dem Cache setzen, BEVOR gerendert wird — sonst blitzt
@@ -917,7 +917,7 @@
   <button id="navSet"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 13.5a7.8 7.8 0 0 0 0-3l2-1.5-2-3.4-2.4 1a7.8 7.8 0 0 0-2.6-1.5L14 2.5h-4l-.4 2.6A7.8 7.8 0 0 0 7 6.6l-2.4-1-2 3.4 2 1.5a7.8 7.8 0 0 0 0 3l-2 1.5 2 3.4 2.4-1a7.8 7.8 0 0 0 2.6 1.5l.4 2.6h4l.4-2.6a7.8 7.8 0 0 0 2.6-1.5l2.4 1 2-3.4z"/></svg>Einstellungen</button>
 </nav>
 
-<script src="ernaehrung.js?v=2026-10-10e"></script>
+<script src="ernaehrung.js?v=2026-10-10f"></script>
 <link rel="stylesheet" href="lauf.css?v=2026-10-07a">
 <link rel="stylesheet" href="apple.css?v=2026-10-07a">   <!-- Apple-naher Look, zuletzt geladen -->
 <link rel="stylesheet" href="woche.css?v=2026-10-04f">
@@ -2012,7 +2012,7 @@ document.getElementById("navSet").onclick = () => { location.hash = "#settings";
    MAJOR 1 = Trainings-Tracker, 2 = mit Ernährung (ab 01.10.2026). MINOR = Umbau seit MAJOR (UMBAU-….md, 2.0 = Ernährung Phase 1).
    BUILD = laufende Push-Nummer = Anzahl Commits in workout-tracker nach dem Commit (git rev-list --count HEAD), vierstellig.
    Bei JEDEM Push hochzählen. Steht am iPhone die neue Nummer, ist der neue Stand da; sonst ist es noch der Cache. */
-const APP_VERSION = "2.14.0101";
+const APP_VERSION = "2.15.0102";
 let navScroll = false;
 window.addEventListener("hashchange", () => { navScroll = true; if (PROGRAM) render(); });
 
@@ -2104,7 +2104,7 @@ function renderPlan() {
     const istQuelle = swapFrom === first.d.key, go = `location.hash='#d/${first.d.pi}/${first.d.wi}/${first.d.di}'`;
     html += `<div class="today ${istQuelle ? "sel" : ""}">
       <div class="k">${hk}</div>
-      <div class="en tl">${EN.dayPre(first)}${trRow(`<i class='ic'>🏋️</i>Training · ${EN.tzChip(first)}${dayMinutes(first.d.day) ? ` · <span>≈ ${dayMinutes(first.d.day)} min</span>` : ""}`,
+      <div class="en tl">${EN.dayPre(first)}${trRow(`<i class='ic'>🏋️</i>Training · ${EN.tzChip(first)}${EN.minHtml(first)}`,
         `<div class="n">${esc(dayTitle(first.d))}</div>
         <div class="d">${esc(daySub(first.d))}</div>${EN.todayLine(first)}
         ${(swapFrom && !istQuelle)
@@ -2568,7 +2568,7 @@ function renderDay(pi, wi, di) {
   day.sessions.forEach((sess, si) => {
     const checkable = sess.items.filter(i => !i.rest && !i.opt);
     if (sess.label || day.sessions.length > 1) {
-      html += `<div class="sesshead"><h3>${esc(sess.label || "Session")}</h3>
+      html += `<div class="sesshead"><h3>${esc(sess.label || "Session")}${EN.sesMin(pi, wi, di, si) ? ` <span class="smin">${EN.sesMin(pi, wi, di, si)}</span>` : ""}</h3>
         ${checkable.length > 1 ? `<button onclick="checkSession(${pi},${wi},${di},${si})">alle ✓</button>` : ""}</div>`;
     } else {
       html += `<div style="margin-top:14px"></div>`;

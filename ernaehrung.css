@@ -301,3 +301,5 @@
 .sheet.en details.infod .ii{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;border:1.5px solid var(--muted);font:italic 600 11px/1 Georgia,serif}
 .sheet.en details.infod[open] summary{color:var(--ink2)}
 .sheet.en details.infod .hint{margin-top:4px}
+
+.sesshead h3 .smin{display:block;margin-top:2px;font-size:12.5px;font-weight:500;color:var(--muted);letter-spacing:0}
