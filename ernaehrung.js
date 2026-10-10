@@ -150,17 +150,23 @@ const entryDay=(k,x)=>{if(x&&x.p){const [pi,wi,di]=String(x.p).split('.').map(Nu
 function learnedSes(pd,si){const se=pd.day.sessions[si],sig=sesSig(se),pm=sesPlanMin(se);if(!sig||!pm)return 0;const days=FS().days,rs=[];
   Object.keys(days).filter(k=>k<TODAY()).sort().forEach(k=>Object.entries(sesOf(k)).forEach(([kk,x])=>{if(!(x.d>0))return;const i=x.i!=null?x.i:+kk,day=entryDay(k,x),s2=day&&day.sessions[i];if(s2&&sesSig(s2)===sig){const p2=sesPlanMin(s2);if(p2)rs.push(x.d/p2);}}));
   const xs=rs.slice(-4);if(xs.length<2)return 0;xs.sort((a,b)=>a-b);const n=xs.length,m=n%2?xs[(n-1)/2]:(xs[n/2-1]+xs[n/2])/2;return Math.round(pm*m/5)*5;}
-/* Schätzung eines Plan-Tages je Einheit: {tot, parts:[{i, tag, min, lm}]}; lm = aus deinen Zeiten (nur k ≥ heute) */
-function dayEst(pd,k){const day=pd.day,parts=realSess(day).map(x=>{const lm=k>=TODAY()?learnedSes(pd,x.i):0;return {i:x.i,tag:sesTag(day,x.i),min:lm||Math.round(x.its.reduce((a,it)=>a+pvMinutes(it),0)/5)*5,lm:!!lm};});
-  return {tot:parts.some(p=>p.lm)?parts.reduce((a,p)=>a+p.min,0):dayMinutes(day),parts};}
+/* Art einer Einheit (10.10.): lauf, rad oder kraft (Kraft, Crosstraining, Zirkel) – bestimmt die kcal je Minute */
+const sessKind=its=>{const t=its.map(i=>((i.sub||'')+' '+(i.title||'')).toLowerCase()).join(' | '),lift=/(squat|deadlift|kreuzheben|bench|bank|press|lift|emom|rounds|wall ball|sled|ski|row|rudern|burpee|klimmzug|chin|dips|zercher|clean)/.test(t);
+  if(/bike/.test(t)&&!/emom|rounds/.test(t))return 'rad';if(!lift&&/(run|jog|bahn|×|mile|endurance|recovery)/.test(t))return 'lauf';return 'kraft';};
+/* kcal je Minute aus deinen Apple-Daten (49 Einheiten, 10.10.), änderbar in nutrition.json → training; tiers = Schwellen Aktiv/Training/Hart in aktiven kcal */
+const TRN=()=>Object.assign({tiers:[525,950],kpmPlan:{lauf:11.6,rad:7.6,kraft:9.8},kpmIst:{lauf:12.3,rad:8.2,kraft:8.1}},(C&&C.training)||{});
+/* Schätzung eines Plan-Tages je Einheit: {tot, kc, parts:[{i, tag, min, lm, kind, kc}]}; lm = aus deinen Zeiten (nur k ≥ heute); kc = geschätzte aktive kcal */
+function dayEst(pd,k){const day=pd.day,T=TRN(),parts=realSess(day).map(x=>{const lm=k>=TODAY()?learnedSes(pd,x.i):0,min=lm||Math.round(x.its.reduce((a,it)=>a+pvMinutes(it),0)/5)*5,kind=sessKind(x.its);
+    return {i:x.i,tag:sesTag(day,x.i),min,lm:!!lm,kind,kc:Math.round(min*((lm?T.kpmIst:T.kpmPlan)[kind]||0))};});
+  return {tot:parts.some(p=>p.lm)?parts.reduce((a,p)=>a+p.min,0):dayMinutes(day),kc:parts.reduce((a,p)=>a+p.kc,0),parts};}
 const estTxt=est=>est.parts.length>1?' ('+est.parts.map(p=>(p.tag||'Einheit '+(p.i+1))+' '+p.min).join(' · ')+')':'';
 EN.minHtml=first=>{try{const e=first.d;if(!e)return '';if(!C){const m=dayMinutes(e.day);return m?` · <span>≈ ${m} min</span>`:'';}
   const est=dayEst(e,first.k||TODAY());return est.tot?` · <span>≈ ${est.tot} min${est.parts.length>1?' · '+est.parts.map(p=>(p.tag||'E'+(p.i+1))+' '+p.min).join(' · '):''}</span>`:'';}catch(x){return '';}};
 EN.sesMin=(pi,wi,di,si)=>{try{if(!C)return '';const day=PROGRAM[pi].weeks[wi].days[di],x=realSess(day).find(r=>r.i===si);if(!x)return '';const lm=learnedSes({pi,wi,day},si),m=lm||Math.round(x.its.reduce((a,it)=>a+pvMinutes(it),0)/5)*5;return m?`≈ ${m} min${lm?' (nach deinen Zeiten)':''}`:'';}catch(e){return '';}};
 function dayOf0(k){const e=plan()[k]||pastEntry(k)||{kind:'empty'},w=D_(k).getDay();
   const isT=e.kind==='train'||e.kind==='donetoday',est=e.d?dayEst(e.d,k):null,min=est?est.tot:0;   /* est: Plan-Rechnung, ab heute aus deinen echten Zeiten je Einheit */
-  const type0=!isT?((window.WOCHE&&WOCHE.type(k))||'rest'):min>=120?'hard':min>=45?'train':'active',ov=(FS().days[k]||{}).ty,type=TT[ov]?ov:type0;   /* ov: Tagtyp von Hand (10.10.) */
-  const D={k,wd:WDL[w],e,min,type,auto:type0,ov:type===ov?ov:'',off:e.kind==='off',done:e.kind==='donetoday',train:isT?(e.d?dayTitle(e.d):'Training'):null,len:min?'≈ '+min+' min'+estTxt(est)+(est.parts.some(p=>p.lm)?' · nach deinen Zeiten':''):''};
+  const type0=!isT?((window.WOCHE&&WOCHE.type(k))||'rest'):est&&k>=TODAY()?(est.kc>=TRN().tiers[1]?'hard':est.kc>=TRN().tiers[0]?'train':'active'):min>=120?'hard':min>=45?'train':'active',ov=(FS().days[k]||{}).ty,type=TT[ov]?ov:type0;   /* ov: Tagtyp von Hand (10.10.) */
+  const D={k,wd:WDL[w],e,min,ek:est&&k>=TODAY()?est.kc:0,type,auto:type0,ov:type===ov?ov:'',off:e.kind==='off',done:e.kind==='donetoday',train:isT?(e.d?dayTitle(e.d):'Training'):null,len:min?'≈ '+min+' min'+estTxt(est)+(est.parts.some(p=>p.lm)?' · nach deinen Zeiten':''):''};
   let ab=AB_ROT[w];const vm=VMR[w]||VMR.other;
   /* Alle 14 Tage (rotation.biweekly): in Wochen mit gleicher Parität wie der Anker gilt dieses Abendessen (z. B. jeden 2. Freitag Hüftsteak) */
   const BW=C.rotation.biweekly;if(BW&&BW.ab&&BW.ab[w]&&V[BW.ab[w]]&&Math.floor(Math.round((D_(k)-D_(BW.anchor))/864e5)/7)%2===0)ab=BW.ab[w];
@@ -732,9 +738,9 @@ function plausi(){const ks=[];for(let n=1;n<=28;n++){const k=addD(TODAY(),-n);if
    S.food.days[k].ty überschreibt das für diesen Tag: Ziele, Portionen (Reis, Nudeln, Kartoffeln), Plan-Wert. Leer = automatisch. */
 EN.openType=k=>{const D=dayOf(k),cur=D.ov||'';
   sheet(`<div class="km">${D.wd} ${OKT(k)}</div><h3>Tagtyp</h3>
-    <div class="sub">${D.train?`Training: ${esc(D.train)}${D.len?' · '+D.len:''}. `:'Kein Training geplant. '}Die App schätzt <b>${TT[D.auto].l}</b>${cur?'':' (so ist es gerade eingestellt)'}.</div>
+    <div class="sub">${D.train?`Training: ${esc(D.train)}${D.len?' · '+D.len:''}. `:'Kein Training geplant. '}Die App schätzt <b>${TT[D.auto].l}</b>${D.ek?` (≈ ${D.ek.toLocaleString('de-DE')} kcal aktiv)`:''}${cur?'':', so ist es gerade eingestellt'}.</div>
     <div class="egrid" style="margin-top:12px">${['rest','active','train','hard'].map(t=>`<button class="opt ${cur===t||(!cur&&D.auto===t&&false)?'on':''}" onclick="EN.setType('${k}','${t}')">${TT[t].l}<small>${TT[t].kcal.toLocaleString('de-DE')} kcal · ${TT[t].c} g KH${!cur&&D.auto===t?' · geschätzt':''}</small></button>`).join('')}</div>
-    <div class="sub" style="font-size:12.5px;margin-top:10px">Gilt nur für diesen Tag und wirkt auf Tagesziel, Portionen (Reis, Nudeln, Kartoffeln) und „Nach Plan“. Schätzung: unter 45 min Aktiv, ab 45 min Trainingstag, ab 120 min Harter Tag.</div>
+    <div class="sub" style="font-size:12.5px;margin-top:10px">Gilt nur für diesen Tag und wirkt auf Tagesziel, Portionen (Reis, Nudeln, Kartoffeln) und „Nach Plan“. Die Schätzung rechnet ab heute aus den aktiven kcal des geplanten Trainings (Minuten × kcal pro Minute nach Art): unter ${TRN().tiers[0]} Aktiv, bis ${TRN().tiers[1]} Training, darüber Harter Tag. Vergangene Tage bleiben, wie sie waren.</div>
     ${cur?`<button class="btn ghost" style="margin-top:10px" onclick="EN.setType('${k}','')">Wieder automatisch (${TT[D.auto].l})</button>`:''}
     <button class="cancel" onclick="closeSheet()">Schließen</button>`);};
 EN.setType=(k,t)=>{if(t)NS(k).ty=t;else delete NS(k).ty;closeSheet();RS();};
