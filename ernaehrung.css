@@ -303,3 +303,7 @@
 .sheet.en details.infod .hint{margin-top:4px}
 
 .sesshead h3 .smin{display:block;margin-top:2px;font-size:12.5px;font-weight:500;color:var(--muted);letter-spacing:0}
+/* AM/PM (11.10.): zwei Trainingszeilen mit Haken; der Kreis steht wie bei den Mahlzeiten rechts */
+.today .en .slot.train.unit .st{align-self:center;margin-left:10px}
+.today .en .slot.train.unit[onclick]{cursor:pointer}
+.en .trainline+.trainline{margin-top:0}

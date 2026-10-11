@@ -889,7 +889,7 @@
     nav .go:active { transform: translateX(-50%); }
   }
 </style>
-<link rel="stylesheet" href="ernaehrung.css?v=2026-10-10c">
+<link rel="stylesheet" href="ernaehrung.css?v=2026-10-11a">
 </head>
 <script>
 /* Akzentfarbe aus dem Cache setzen, BEVOR gerendert wird — sonst blitzt
@@ -917,7 +917,7 @@
   <button id="navSet"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 13.5a7.8 7.8 0 0 0 0-3l2-1.5-2-3.4-2.4 1a7.8 7.8 0 0 0-2.6-1.5L14 2.5h-4l-.4 2.6A7.8 7.8 0 0 0 7 6.6l-2.4-1-2 3.4 2 1.5a7.8 7.8 0 0 0 0 3l-2 1.5 2 3.4 2.4-1a7.8 7.8 0 0 0 2.6 1.5l.4 2.6h4l.4-2.6a7.8 7.8 0 0 0 2.6-1.5l2.4 1 2-3.4z"/></svg>Einstellungen</button>
 </nav>
 
-<script src="ernaehrung.js?v=2026-10-10g"></script>
+<script src="ernaehrung.js?v=2026-10-11a"></script>
 <link rel="stylesheet" href="lauf.css?v=2026-10-07a">
 <link rel="stylesheet" href="apple.css?v=2026-10-07a">   <!-- Apple-naher Look, zuletzt geladen -->
 <link rel="stylesheet" href="woche.css?v=2026-10-04f">
@@ -2012,7 +2012,7 @@ document.getElementById("navSet").onclick = () => { location.hash = "#settings";
    MAJOR 1 = Trainings-Tracker, 2 = mit Ernährung (ab 01.10.2026). MINOR = Umbau seit MAJOR (UMBAU-….md, 2.0 = Ernährung Phase 1).
    BUILD = laufende Push-Nummer = Anzahl Commits in workout-tracker nach dem Commit (git rev-list --count HEAD), vierstellig.
    Bei JEDEM Push hochzählen. Steht am iPhone die neue Nummer, ist der neue Stand da; sonst ist es noch der Cache. */
-const APP_VERSION = "2.15.0103";
+const APP_VERSION = "2.16.0104";
 let navScroll = false;
 window.addEventListener("hashchange", () => { navScroll = true; if (PROGRAM) render(); });
 
@@ -2100,7 +2100,24 @@ function renderPlan() {
      Training sind gleichrangige Zeilen; Trainingszeit als Chip (EN.tzChip). Inhalt der Trainingszeile wie bisher. */
   const hk = `Heute · ${WD[first.date.getDay()]} ${esc(fmtDay(first.date))}`;
   const trRow = (lbl, body, dots, cls) => `<div class="slot train ${cls || ""}"><div class="body"><div class="when">${lbl}</div>${body}</div>${dots ? `<span class="dots tdots" ${dots}>⋯</span>` : ""}</div>`;
-  if (first.kind === "train") {
+  /* AM/PM (11.10.): Tage mit AM- und PM-Einheit bekommen zwei Trainingszeilen, jede mit eigener Zeit und eigenem Haken
+     (= „alle ✓“ der Einheit). Erledigtes schrumpft auf eine Zeile wie eine gegessene Mahlzeit. Beim Tauschen gilt die alte Karte. */
+  const U = first.kind === "train" && !swapFrom ? EN.units(first) : null;
+  if (U) {
+    const d = first.d, go = `location.hash='#d/${d.pi}/${d.wi}/${d.di}'`, open = U.findIndex(u => !u.done);
+    const unitRow = n => {
+      const u = U[n], chk = `<button class="st ${u.done ? "eaten" : ""}" onclick="event.stopPropagation();checkSession(${d.pi},${d.wi},${d.di},${u.si})">${u.done ? "✓" : ""}</button>`;
+      if (u.done) return `<div class="slot done" onclick="${go}"><div class="body"><span class="l"><i class='ic'>🏋️</i>${u.tag}</span>${esc(u.txt)}</div>${chk}</div>`;
+      return `<div class="slot train unit" ${n !== open ? `onclick="${go}"` : ""}><div class="body"><div class="when"><i class='ic'>🏋️</i>${u.tag} · ${EN.tzChip(first, n)} · <span>≈ ${u.min} min</span></div>
+        <div class="n">${esc(u.txt)}</div>${n === open ? `<div class="d">${esc(dayTitle(d))}</div>` : ""}${EN.todayLine(first, n)}
+        ${n === open ? `<button class="cta ${EN.isNext(first, n) || !EN.ready() ? "" : "ghost"}" onclick="${go}">Training starten</button>` : ""}
+        ${n === U.length - 1 ? xBtns : ""}</div>${chk}${n === open ? `<span class="dots tdots" onclick="planSheet('${first.k}')">⋯</span>` : ""}</div>`;
+    };
+    html += `<div class="today">
+      <div class="k">${hk}</div>
+      <div class="en tl">${EN.dayFlow(first, unitRow)}</div>${EN.dayFoot(first)}
+    </div>`;
+  } else if (first.kind === "train") {
     const istQuelle = swapFrom === first.d.key, go = `location.hash='#d/${first.d.pi}/${first.d.wi}/${first.d.di}'`;
     html += `<div class="today ${istQuelle ? "sel" : ""}">
       <div class="k">${hk}</div>

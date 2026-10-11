@@ -39,7 +39,7 @@ const dayRanges=ws=>{const out=[];let a=-1,b=-1;const flush=()=>{if(a<0)return;c
 
 /* ---------- Zustand ---------- */
 /* Synchronisiert (progress.json): S.food = {days:{datum:{st,sw,extra,water (alt, nicht mehr genutzt),energy,meds,packed}}, set:{protein,fast}} */
-function FS(){if(!S.food||typeof S.food!=='object')S.food={};if(!S.food.days)S.food.days={};if(!S.food.set)S.food.set={protein:'whey',fast:true};if(!S.food.stock)S.food.stock={};if(!S.food.cart)S.food.cart={};if(!S.food.have)S.food.have={};if(!S.food.got)S.food.got={};if(!S.food.subst)S.food.subst={};if(!S.food.pantry)S.food.pantry={};if(!S.food.set.free)S.food.set.free={};if(!S.food.set.freeV2){if(JSON.stringify(S.food.set.free)==='{"0":["we"]}')S.food.set.free={};S.food.set.freeV2=1;}   /* Standard: jede Mahlzeit im Plan; früheres „So Mittag frei“ einmalig zurück */if(!S.food.tt)S.food.tt={};return S.food;}
+function FS(){if(!S.food||typeof S.food!=='object')S.food={};if(!S.food.days)S.food.days={};if(!S.food.set)S.food.set={protein:'whey',fast:true};if(!S.food.stock)S.food.stock={};if(!S.food.cart)S.food.cart={};if(!S.food.have)S.food.have={};if(!S.food.got)S.food.got={};if(!S.food.subst)S.food.subst={};if(!S.food.pantry)S.food.pantry={};if(!S.food.set.free)S.food.set.free={};if(!S.food.set.freeV2){if(JSON.stringify(S.food.set.free)==='{"0":["we"]}')S.food.set.free={};S.food.set.freeV2=1;}   /* Standard: jede Mahlzeit im Plan; früheres „So Mittag frei“ einmalig zurück */if(!S.food.tt)S.food.tt={};if(!S.food.tp)S.food.tp={};return S.food;}
 /* Gesundheitsdaten: Haut, Ausnahmen, Heißhunger, Gewicht und Messungen, Heilungsfenster. Seit 10.10. ebenfalls synchronisiert (S.health in progress.json, siehe adopt unten) */
 const HKEY='wt-health-v1';
 let H={days:{},HW:{active:false,start:'',len:7}};
@@ -184,8 +184,13 @@ function dayOf0(k){const e=plan()[k]||pastEntry(k)||{kind:'empty'},w=D_(k).getDa
   else{D.tpl='Wochenende';D.slots=[['br','brunch','home'],['we',(C.defaults&&C.defaults.we&&V[C.defaults.we])?C.defaults.we:'weLunch','home'],['wn','weSnack','home'],['ab',ab,'home']];}
   /* Lange Ausdauer (ein durchgehender Block ab 75 min, z. B. langer Lauf): Zeile „Unterwegs“ nach dem Training, Menge nach Dauer.
      Krafteinheiten kommen mit Pausen auch auf 80–90 min, brauchen aber nichts unterwegs. */
-  let sm=0;try{(e.d&&e.d.day&&e.d.day.sessions||[]).forEach(se=>(se.items||[]).forEach(it=>{if(!it.rest&&!it.opt)sm=Math.max(sm,pvMinutes(it));}));}catch(x){}
+  let sm=0,smS=0;try{(e.d&&e.d.day&&e.d.day.sessions||[]).forEach((se,si)=>(se.items||[]).forEach(it=>{if(!it.rest&&!it.opt&&pvMinutes(it)>sm){sm=pvMinutes(it);smS=si;}}));}catch(x){}
   D.uwI=!V.gel||!SL.uw?-1:sm>=180?2:sm>=120?1:sm>=75?0:-1;   /* ältere nutrition.json ohne Gel: nichts anzeigen */
+  /* AM/PM (11.10.): Hat der Plan-Tag eine AM- und eine PM-Einheit, sind es zwei Einheiten mit eigener Zeit und eigenem Haken.
+     units = [{tag, si, min, done}], uwU = Einheit mit dem langen Block (Intra-Workout) */
+  D.units=null;if(isT&&e.d&&est&&est.parts.length===2&&est.parts.every(p=>p.tag)){const day=e.d.day;
+    D.units=est.parts.map(p=>{const its=sesItems(day.sessions[p.i]);return {tag:p.tag,si:p.i,min:p.min,done:its.length>0&&its.every(it=>S.checked[it.id])};});
+    D.uwU=Math.max(0,D.units.findIndex(u=>u.si===smS));}
   /* Anderes Training (woche.js): steht als Trainingszeile im Ablauf, Zeit wählbar wie beim Plan (05.10.) */
   const oth=e.kind==='off'&&((planState().other||{})[k]);if(oth){D.train=oth.n;D.other=true;}
   D.cue={};if(D.train)placeTraining(D,RC);   /* vor dem Filtern: eine freie Mahlzeit wird trotzdem gegessen */
@@ -197,24 +202,37 @@ function dayOf0(k){const e=plan()[k]||pastEntry(k)||{kind:'empty'},w=D_(k).getDa
 const TZ=['frueh','mittag','nachm','abend'],TZL={frueh:'früh',mittag:'mittags',nachm:'nachmittags',abend:'abends'};
 const tzDef=md=>md==='frei'?'frueh':'nachm';
 const tzOf=(k,md)=>FS().tt[k]||tzDef(md);
+/* PM (11.10.): eigene Zeit, Standard nachmittags, nie vor AM. Gleiche Zeit wie AM = direkt hintereinander (ein Block). */
+const tz2Def='nachm';
+const tz2Of=(k,md)=>TZ[Math.max(TZ.indexOf(tzOf(k,md)),TZ.indexOf(FS().tp[k]||tz2Def))];
 function tMin(tz,md){const [a,b]=md==='frei'?[0,0]:workTime(md);
   if(tz==='frueh')return md==='frei'?480:a*60-90;
   if(tz==='mittag')return md==='halb'?b*60+30:720;
   if(tz==='nachm')return md==='voll'?b*60+30:930;
   return Math.max(1110,md==='voll'?b*60+90:0);}
 const MT={vm:570,br:570,mi:720,we:780,na:900,wn:960};
-function placeTraining(D,RC){const md=D.md,tz=D.tz=tzOf(D.k,md),t=tMin(tz,md),M=D.slots;
-  const mt=s=>s[0]==='ab'?Math.max(1140,t+1):md==='halb'&&s[0]==='mi'?750:md==='halb'&&s[0]==='na'?870:MT[s[0]];
-  let pos=M.findIndex(s=>mt(s)>=t);if(pos<0)pos=M.length;
-  const pre=M[pos-1],gap=pre?t-mt(pre):999,ins=[];
-  if(gap>180){const atWork=md==='voll'&&t>=workTime(md)[0]*60&&t<workTime(md)[1]*60;ins.push(['vor','preWE',atWork?'work':'home']);D.cue.vor='30–60 min vorher';}
-  else D.cue[pre[0]]='Pre-Workout · '+(['na','wn','vm'].includes(pre[0])?(md==='halb'?'1–2 h':'1–3 h'):'2–3 h')+' vorher';
-  ins.push(['T']);if(D.uwI>=0)ins.push(['uw','gel','gym']);
-  if(md==='voll'||(md==='halb'&&(D.fast||tz==='frueh'||tz==='mittag')))ins.push(RC);
-  M.splice(pos,0,...ins);
-  const nx=M[pos+ins.length];
-  if(nx&&nx[0]==='br')nx[0]='fr';   /* Frühstück nach dem Training */
-  if(nx&&md==='frei'&&nx[0]!=='ab')D.cue[nx[0]]='Post-Workout';
+/* AM/PM (11.10.): Jede Einheit sitzt nach ihrer Zeit zwischen den Mahlzeiten, die es sowieso gibt. Neu dazu kommt höchstens
+   EIN kleiner Snack (vor der ersten Einheit, wenn > 3 h nichts kam) und der Shake EINMAL, nach der zweiten Einheit. Eine Mahlzeit
+   zwischen AM und PM ist „Post AM · Pre PM“. Gleiche Zeit = direkt hintereinander: ein Block, Intra ab 2 h zusammen (Variante A). */
+function placeTraining(D,RC){const md=D.md,M=D.slots,U=D.units;D.tz=tzOf(D.k,md);
+  if(U){D.tz2=tz2Of(D.k,md);D.b2b=D.tz2===D.tz;
+    if(D.b2b&&D.uwI<0&&V.gel&&SL.uw){const m=U[0].min+U[1].min;if(m>=120){D.uwI=m>=180?2:1;D.uwU=1;}}}
+  const B=!U?[{u:[null],tz:D.tz}]:D.b2b?[{u:[0,1],tz:D.tz}]:[{u:[0],tz:D.tz},{u:[1],tz:D.tz2}];
+  const sp=U&&!D.b2b,tm=new Map(),tL=tMin(B[B.length-1].tz,md),tg=b=>b.u.map(n=>U[n].tag).join('+');
+  const mt=s=>tm.has(s)?tm.get(s):s[0]==='ab'?Math.max(1140,tL+1):md==='halb'&&s[0]==='mi'?750:md==='halb'&&s[0]==='na'?870:MT[s[0]==='fr'?'br':s[0]];
+  B.forEach((b,bi)=>{const t=tMin(b.tz,md),last=bi===B.length-1;
+    let pos=M.findIndex(s=>mt(s)>=t);if(pos<0)pos=M.length;
+    const pre=M[pos-1],gap=pre?t-mt(pre):999,ins=[],rng=pre?(['na','wn','vm'].includes(pre[0])?(md==='halb'?'1–2 h':'1–3 h'):'2–3 h'):'';
+    if(pre&&['T','uw','rc'].includes(pre[0])){}   /* direkt nach der anderen Einheit */
+    else if(gap>180&&!M.some(s=>s[0]==='vor')){const atWork=md==='voll'&&t>=workTime(md)[0]*60&&t<workTime(md)[1]*60;const v=['vor','preWE',atWork?'work':'home'];tm.set(v,t-45);ins.push(v);D.cue.vor=(sp?'Pre '+tg(b)+' · ':'')+'30–60 min vorher';}
+    else if(pre)D.cue[pre[0]]=!sp?'Pre-Workout · '+rng+' vorher':D.cue[pre[0]]?'Post '+U[0].tag+' · Pre '+tg(b):'Pre '+tg(b)+' · '+rng+' vorher';
+    b.u.forEach(n=>{const x=n==null?['T']:['T',n];tm.set(x,t);ins.push(x);});
+    if(D.uwI>=0&&(!U||b.u.includes(D.uwU))){const x=['uw','gel','gym'];tm.set(x,t);ins.push(x);}
+    if(last&&(md==='voll'||(md==='halb'&&(D.fast||b.tz==='frueh'||b.tz==='mittag')))){tm.set(RC,t+1);ins.push(RC);}
+    M.splice(pos,0,...ins);
+    const nx=M[pos+ins.length];
+    if(nx&&nx[0]==='br')nx[0]='fr';   /* Frühstück nach dem Training */
+    if(nx&&nx[0]!=='ab'&&nx[0]!=='T'&&(md==='frei'||(U&&!last)))D.cue[nx[0]]=sp?'Post '+tg(b):'Post-Workout';});
   const ai=M.findIndex(s=>s[0]==='ab');D.abAfter=ai>0&&M[ai-1][0]==='T';}   /* nach dem Shake ist das Abendessen kein Post-Workout mehr */
 const ti=D=>TT[D.type].i;
 const mac=(v,i)=>mk(V[v].P[i],V[v].C[i],V[v].F[i]);
@@ -340,8 +358,8 @@ EN.openScore=()=>{const st=startDay(),ws=addD(TODAY(),-7);
     <details class="infod"><summary><span class="ii">i</span>So wird gezählt</summary><div class="hint"><b>Farben:</b> ab 80 % grün, ab 50 % gelb, darunter grau. Protein ist grün ab deinem Minimum (${PMIN()} g, Einstellungen → Ernährung), gelb ab der Hälfte des Tagesziels.<br><br>Jede Zutat zählt <b>halb nach Wichtigkeit</b> (Must-have wie Fisch, Beeren, Brokkoli, Fischöl und Protein 3 · Gemüse & Obst und Beilagen 2 · Rest 1 · Würze 0) und <b>halb nach Kalorien</b>. Eine ausgelassene Mahlzeit oder Ausnahme zählt 0, einzeln abgehakte Zutaten zählen anteilig. 7 und 30 Tage zählen nur abgeschlossene Tage (ohne heute)${st?' seit deinem Start ('+OKT(st)+')':''}. Tage ganz ohne Eintrag zählen nicht mit.</div></details>
     <button class="btn" onclick="closeSheet();selK=null;location.hash='#food/tage'">Zutaten für heute ›</button><button class="cancel" onclick="closeSheet()">Fertig</button>`);};
 /* In der Original-Karte „Heute“ nur, was sonst nirgends steht: Hinweis bei harter Einheit im Heilungsfenster */
-EN.todayLine=function(first){if(!C)return '';const D=dayOf(first.k);
-  return (hwDay(D.k)&&D.type==='hard'?`<div class="en"><div class="tfood amb">Heilungsfenster: Ist die Rötung noch da, heute lieber locker.</div></div>`:'')+intraLine(D);};
+EN.todayLine=function(first,n){if(!C)return '';const D=dayOf(first.k);
+  return (hwDay(D.k)&&D.type==='hard'&&!n?`<div class="en"><div class="tfood amb">Heilungsfenster: Ist die Rötung noch da, heute lieber locker.</div></div>`:'')+(n==null||D.uwU===n?intraLine(D):'');};
 /* Intra-Workout als eine Zeile: in der Trainingszeile der Übersicht und in der Trainingsansicht beim langen Block.
    Heute mit Kreis zum Abhaken (zählt wie eine Mahlzeit), sonst nur zur Info. */
 function intraLine(D){if(!D||D.uwI<0||!D.slots.some(s=>s[0]==='uw'))return '';const v=varOf(D,'uw'),i=pix(D,'uw'),st=NS(D.k).st.uw||'',K=`'${D.k}'`,can=D.k<=TODAY();
@@ -378,9 +396,15 @@ const lab=id=>(IC[id]?`<i class="ic">${IC[id]}</i>`:'')+SL[id][0];
 function mealsOf(D,part){const sl=shown(D),i=sl.findIndex(s=>s[0]==='T');
   return (i<0?(part==='pre'?[]:sl):part==='pre'?sl.slice(0,i):sl.slice(i+1)).filter(s=>s[0]!=='T');}
 /* Nächster offener Schritt des Tages (Mahlzeit oder Training): nur er bekommt den gelben Ring */
-function nextStep(D){if(D.k!==TODAY())return null;const ids=shown(D).map(s=>s[0]).filter(id=>id!=='uw'),dn=id=>id==='T'?D.done:mealDone(D,id);let last=-1;ids.forEach((id,n)=>{if(dn(id))last=n;});
+function nextStep(D){if(D.k!==TODAY())return null;const ids=shown(D).map(s=>s[0]==='T'&&s.length>1?'T'+s[1]:s[0]).filter(id=>id!=='uw'),dn=id=>id==='T'?D.done:/^T\d$/.test(id)?D.units[+id[1]].done:mealDone(D,id);let last=-1;ids.forEach((id,n)=>{if(dn(id))last=n;});
   const n=ids.findIndex((id,j)=>j>last&&!dn(id));return n<0?null:ids[n];}
-EN.isNext=e=>!!C&&nextStep(dayOf(e.k))==='T';
+EN.isNext=(e,n)=>!!C&&nextStep(dayOf(e.k))===(n==null?'T':'T'+n);
+/* AM/PM (11.10.): Ablauf in Abschnitte zwischen den Trainingszeilen geteilt; row(n) baut die Zeile der Einheit n */
+const segs=D=>{const r=[[]];shown(D).forEach(s=>{if(s[0]==='T')r.push([]);else r[r.length-1].push(s);});return r;};
+const flow=(D,row,fn,noUw)=>{const sg=segs(D);return sg.map((x,j)=>x.filter(s=>!(noUw&&s[0]==='uw')).map(sl=>mealRow(D,sl,fn)).join('')+(j<sg.length-1?row(j):'')).join('');};
+const unitTxt=(D,n)=>{try{const se=D.e.d.day.sessions[D.units[n].si];return pvRank(pvSession(se),2).join(' + ')||se.label||D.units[n].tag;}catch(x){return D.units[n].tag;}};
+EN.units=e=>{if(!C)return null;const D=dayOf(e.k);return D.units?D.units.map((u,n)=>Object.assign({txt:unitTxt(D,n)},u)):null;};
+EN.dayFlow=(e,row)=>{const D=dayOf(e.k);return flow(D,row,null,true)+packRow(D);};
 /* Eine Zeile im Ablauf (überall gleich: Übersicht, Ernährung → Tage, Vorschau): Zeit, Name, Inhalt · kcal (seit 09.10. auch bei Snacks);
    rechts heute der Kreis zum Abhaken (gelber Ring = als Nächstes dran), an anderen Tagen ›. Gegessenes schrumpft auf eine Zeile. */
 function mealRow(D,sl,fn){const id=sl[0],v=varOf(D,id),X=V[v],s=NS(D.k),st=s.st[id]||'',exc=s.exc.find(e=>e.slot===id),done=mealDone(D,id),i=pix(D,id),K=`'${D.k}'`,c=cue(D,id);
@@ -415,7 +439,8 @@ EN.pk=(key,k)=>{const N=packFor(k);if(!N)return;const s=NS(addD(N.k,-1)),all=[].
   if(s.pk[key])delete s.pk[key];else s.pk[key]=1;s.packed=all.every(x=>s.pk[x[0]]);save();markDirty();render();EN.openPack(N.k);};
 EN.packAll=k=>{const N=packFor(k);if(!N)return;const s=NS(addD(N.k,-1));s.packed=!s.packed;if(!s.packed)s.pk={};save();markDirty();closeSheet();render();};
 EN.dayFoot=e=>C?`<div class="en">${dayFoot(dayOf(e.k))}</div>`:'';
-EN.tzChip=e=>{if(!C)return '';const D=dayOf(e.k);return D.train?`<span class="tzc" onclick="event.stopPropagation();EN.openTime('${D.k}')">${TZL[D.tz]} ⌄</span>`:'';};
+EN.tzChip=(e,n)=>{if(!C)return '';const D=dayOf(e.k);return D.train?`<span class="tzc" onclick="event.stopPropagation();EN.openTime('${D.k}',0${n!=null?','+n:''})">${tzLbl(D,n)} ⌄</span>`:'';};
+const tzLbl=(D,n)=>n===1?(D.b2b?'direkt nach AM':TZL[D.tz2]):TZL[D.tz];
 /* Fuß der Übersicht (07.10.): nur noch die zwei Abkürzungen. kcal stehen unter Ernährung → Tage, Wasser gibt es nicht mehr. */
 function dayFoot(D){
   return `${extrasBlock(D)}${D.fast&&D.type==='hard'?`<div class="hint amb">Harter Tag: rund 600 kcal extra einplanen.</div>`:''}
@@ -423,19 +448,19 @@ function dayFoot(D){
 /* Trainingszeit ändern (heute oder im Voraus); aus der Vorschau geht es danach dorthin zurück */
 let tzBack=false;
 const hmShort=m=>hm(m).replace(/^0/,'');
-EN.openTime=(k,back)=>{tzBack=!!back;const D=dayOf(k),def=tzDef(D.md);
-  sheet(`<div class="km">${k===TODAY()?'Heute':D.wd+' '+OKT(k)} · ${esc(D.train)}</div><h3>Wann trainierst du?</h3>
-    <div class="egrid">${TZ.map(z=>`<button class="opt ${D.tz===z?'on':''}" onclick="EN.setTime('${k}','${z}')">${TZL[z][0].toUpperCase()+TZL[z].slice(1)}<small>ca. ${hmShort(tMin(z,D.md))} Uhr${z===def?' · Standard':''}</small></button>`).join('')}</div>
-    <div class="sub" style="margin-top:10px;font-size:13px">Snack davor, Shake danach und die Mahlzeiten passen sich an.</div>
+EN.openTime=(k,back,n)=>{tzBack=!!back;const D=dayOf(k),u=D.units&&n!=null?D.units[n]:null,pm=!!u&&n===1,def=pm?tz2Def:tzDef(D.md),cur=pm?D.tz2:D.tz;
+  sheet(`<div class="km">${k===TODAY()?'Heute':D.wd+' '+OKT(k)} · ${esc(D.train)}</div><h3>Wann trainierst du${u?' '+u.tag:''}?</h3>
+    <div class="egrid">${TZ.slice(pm?TZ.indexOf(D.tz):0).map(z=>`<button class="opt ${cur===z?'on':''}" onclick="EN.setTime('${k}','${z}'${pm?',1':''})">${pm&&z===D.tz?'Direkt nach AM':TZL[z][0].toUpperCase()+TZL[z].slice(1)}<small>ca. ${hmShort(tMin(z,D.md))} Uhr${z===def?' · Standard':''}</small></button>`).join('')}</div>
+    <div class="sub" style="margin-top:10px;font-size:13px">${D.units?'Die Mahlzeiten passen sich an, neu dazu kommt höchstens ein kleiner Snack und der Shake nach PM. Ob nachmittags oder abends, ändert am Essen kaum etwas.':'Snack davor, Shake danach und die Mahlzeiten passen sich an.'}</div>
     <button class="cancel" onclick="${tzBack?`EN.openDay('${k}')`:'closeSheet()'}">${tzBack?'Zurück':'Abbrechen'}</button>`);};
-EN.setTime=(k,z)=>{const D=dayOf(k);if(z===tzDef(D.md))delete FS().tt[k];else FS().tt[k]=z;RS();if(tzBack)EN.openDay(k);else closeSheet();};
+EN.setTime=(k,z,pm)=>{const D=dayOf(k);if(pm){if(z===tz2Def)delete FS().tp[k];else FS().tp[k]=z;}else if(z===tzDef(D.md))delete FS().tt[k];else FS().tt[k]=z;RS();if(tzBack)EN.openDay(k);else closeSheet();};
 /* Tagesvorschau aus „Danach“: derselbe Ablauf, Mahlzeiten ohne Abhaken */
 EN.openDay=k=>{const D=dayOf(k),T=TT[D.type],e=D.e;
   const tr=D.train?`<div class="slot train"><div class="body"><div class="when"><i class="ic">🏋️</i>Training · <span class="tzc" onclick="EN.openTime('${k}',1)">${TZL[D.tz]} ⌄</span>${D.len?` · <span>${D.len}</span>`:''}</div>
       <div class="n">${esc(D.train)}</div>${e.d?`<div class="d">${esc(daySub(e.d))}</div><div class="lk" style="margin-top:4px;font-size:13.5px" onclick="closeSheet();location.hash='#d/${e.d.pi}/${e.d.wi}/${e.d.di}'">Einheit ansehen ›</div>`:''}</div></div>`
     :`<div class="slot train"><div class="body"><div class="when"><i class="ic">🏋️</i>Training</div><div class="n">${D.off?'Geht nicht':'Ruhetag'}</div></div></div>`;
   sheet(`<div class="between"><span class="km">${D.wd} ${OKT(k)}</span><span class="echip lime" style="cursor:pointer" onclick="EN.openType('${D.k}')">${T.l} · ${T.kcal.toLocaleString('de-DE')} kcal ⌄</span></div>
-    <div class="en tl">${D.train?mealList(D,'pre','EN.openMealB')+tr:tr}${mealList(D,'post','EN.openMealB')}</div>
+    <div class="en tl">${D.units?flow(D,n=>`<div class="slot train"><div class="body"><div class="when"><i class="ic">🏋️</i>${D.units[n].tag} · <span class="tzc" onclick="EN.openTime('${k}',1,${n})">${tzLbl(D,n)} ⌄</span> · <span>≈ ${D.units[n].min} min</span></div><div class="n">${esc(unitTxt(D,n))}</div>${n?'':`<div class="d">${esc(D.train)}</div><div class="lk" style="margin-top:4px;font-size:13.5px" onclick="closeSheet();location.hash='#d/${e.d.pi}/${e.d.wi}/${e.d.di}'">Einheit ansehen ›</div>`}</div></div>`,'EN.openMealB'):D.train?mealList(D,'pre','EN.openMealB')+tr+mealList(D,'post','EN.openMealB'):tr+mealList(D,'post','EN.openMealB')}</div>
     <button class="cancel" onclick="closeSheet()">Schließen</button>`);};
 
 /* Kleine Felder statt Checkliste: nichts ist Pflicht, eingetragene Werte stehen direkt im Feld */
@@ -906,7 +931,7 @@ function pTage(){const ks=days7();if(!selK||!ks.includes(selK))selK=ks[0];const 
   h+=`<div class="ecard"><div class="between"><span class="k">${selK===TODAY()?'Heute · ':''}${D.wd} ${OKT(D.k)}</span><span class="echip lime" style="cursor:pointer" onclick="EN.openType('${D.k}')">${T.l} ⌄</span></div><div class="sub" style="margin-top:2px">${D.train?esc(D.train)+(D.len?' · '+D.len:''):D.off?'Geht nicht':'kein Training'}</div>
     <div class="bil">${ringSVG(t.kcal/T.kcal,Math.round(t.kcal),'von '+T.kcal)}${macHTML(t,T)}</div></div>`;
   h+=`<div class="ecard"><span class="km">Tagesablauf</span>`;
-  h+=`<div class="en tl">${mealList(D,'pre')}${D.train?`<div class="trainline" onclick="EN.openTime('${D.k}')"><i class="ic">🏋️</i>Training <span class="tzc">${TZL[D.tz]} ⌄</span></div>`:''}${mealList(D,'post')}</div>${extrasBlock(D)}`;
+  h+=`<div class="en tl">${D.units?flow(D,n=>`<div class="trainline" onclick="EN.openTime('${D.k}',0,${n})"><span><i class="ic">🏋️</i>Training ${D.units[n].tag}${D.units[n].done?' ✓':''}</span><span class="tzc">${tzLbl(D,n)} ⌄</span></div>`):`${mealList(D,'pre')}${D.train?`<div class="trainline" onclick="EN.openTime('${D.k}')"><i class="ic">🏋️</i>Training <span class="tzc">${TZL[D.tz]} ⌄</span></div>`:''}${mealList(D,'post')}`}</div>${extrasBlock(D)}`;
   const eb=basisOf(D),pb=planBasis(D),pn=BASIS.filter(b=>pb.has(b)),got=BASIS.filter(b=>eb.has(b));
   h+=`</div><div class="ecard"><div class="between"><span class="km">Pyramiden-Basis</span><span class="meta">${pn.filter(b=>eb.has(b)).length} / ${pn.length} geplant${got.length>pn.filter(b=>eb.has(b)).length?' · +'+(got.length-pn.filter(b=>eb.has(b)).length)+' extra':''}</span></div>
     <div class="basis">${BASIS.map(b=>`<span class="${eb.has(b)?'on':pb.has(b)?'':'np'}">${eb.has(b)?'✓ ':''}${b}</span>`).join('')}</div>
