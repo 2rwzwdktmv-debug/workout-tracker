@@ -727,7 +727,7 @@ function ownPct(D,id,own){const ing=realIng(D,id),cov=ownCover(D,id,own);let sw=
 let OW=null;
 const OWG=[['protein','Eiweiß'],['beilage','Beilage'],['veg','Gemüse & Obst'],['rest','Sonstiges']];
 const owGroup=it=>{const I=IT()[it]||{};return I.kind==='protein'?'protein':I.kind==='beilage'?'beilage':(I.kind==='gemuese'||I.prio==='veg'||I.basis==='Beeren')?'veg':'rest';};
-const owStep=it=>isCnt(it)?1:(((IT()[it]||{}).nut||[0])[0]>=300?10:50);
+const owStep=it=>isCnt(it)?1:(IT()[it]||{}).step||(((IT()[it]||{}).nut||[0])[0]>=300?10:50);   /* step: feste Schrittweite je Zutat (11.10., Sonntagsessen 50 g) */
 const owQty=(it,q)=>!q?'0':isCnt(it)?fmtN(q):Math.round(q)+(IT()[it].unit==='ml'?' ml':' g');
 const owList=()=>Object.keys(IT()).filter(it=>{const I=IT()[it];return I.nut&&I.unit!=='basic'&&!I.hide;});
 EN.openOwn=(k,id)=>{OW={k,id,q:{...(ownOf(k,id)||{})},open:{}};drawOwn();};
