@@ -917,7 +917,7 @@
   <button id="navSet"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 13.5a7.8 7.8 0 0 0 0-3l2-1.5-2-3.4-2.4 1a7.8 7.8 0 0 0-2.6-1.5L14 2.5h-4l-.4 2.6A7.8 7.8 0 0 0 7 6.6l-2.4-1-2 3.4 2 1.5a7.8 7.8 0 0 0 0 3l-2 1.5 2 3.4 2.4-1a7.8 7.8 0 0 0 2.6 1.5l.4 2.6h4l.4-2.6a7.8 7.8 0 0 0 2.6-1.5l2.4 1 2-3.4z"/></svg>Einstellungen</button>
 </nav>
 
-<script src="ernaehrung.js?v=2026-10-11a"></script>
+<script src="ernaehrung.js?v=2026-10-11b"></script>
 <link rel="stylesheet" href="lauf.css?v=2026-10-07a">
 <link rel="stylesheet" href="apple.css?v=2026-10-07a">   <!-- Apple-naher Look, zuletzt geladen -->
 <link rel="stylesheet" href="woche.css?v=2026-10-04f">
@@ -1582,6 +1582,7 @@ function planState() {
   if (!Array.isArray(P.force)) P.force = [];    // "YYYY-MM-DD" — Ruhetag überstimmt
   if (!Array.isArray(P.dropped)) P.dropped = [];// "pi.wi.di"   — gestrichene Einheit
   if (!Array.isArray(P.swaps)) P.swaps = [];    // [["pi.wi.di","pi.wi.di"], …]
+  if (!Array.isArray(P.later)) P.later = [];    // "YYYY-MM-DD" — PM an diesem Tag nicht, rückt auf den nächsten (11.10.)
   return P;
 }
 function dkey(d) {
@@ -1762,6 +1763,26 @@ function daySub(d) {
   return dayPreview(d.day) || d.day.sessions.map(s => s.label).filter(Boolean).join(" · ");
 }
 function dayDone(d) { return d.items.every(i => S.checked[i.id]); }
+/* AM/PM als zwei Einheiten (11.10.): Hat ein Plan-Tag eine AM- und eine PM-Session, plant die App sie wie zwei Workouts.
+   Normal liegen beide am selben Tag; „PM heute nicht“ (P.later) oder ein an einem früheren Tag erledigtes AM lässt den
+   Rest allein auf den nächsten Tag rutschen. part = Session-Indizes, die an diesem Kalendertag anstehen. */
+const sessReal = s => (s.items || []).filter(i => !i.rest && !i.opt);
+function amPm(day) {
+  if (!day || (day.sessions || []).length !== 2 || !day.sessions.every(s => sessReal(s).length)) return null;
+  const t = pvSlots(day.sessions);
+  return t[0] === "AM" && t[1] === "PM" ? [0, 1] : null;
+}
+function sessDoneBefore(day, si, k) {
+  const its = sessReal(day.sessions[si]);
+  return its.length > 0 && its.every(i => typeof S.checked[i.id] === "string" && dkey(new Date(S.checked[i.id])) < k);
+}
+function sessOnDay(day, k) {   // Sessions mit Haken an diesem Datum
+  return day.sessions.map((s, si) => si).filter(si => sessReal(day.sessions[si]).some(i => typeof S.checked[i.id] === "string" && dkey(new Date(S.checked[i.id])) === k));
+}
+const onePart = e => e && e.d && e.part && e.part.length === 1 && amPm(e.d.day);
+function entTitle(e) { return dayTitle(e.d) + (onePart(e) ? " · " + pvSlots(e.d.day.sessions)[e.part[0]] : ""); }
+function entSub(e) { return onePart(e) ? pvRank(pvSession(e.d.day.sessions[e.part[0]]), 2).join(" + ") : daySub(e.d); }
+function entGo(e) { return `location.hash='#d/${e.d.pi}/${e.d.wi}/${e.d.di}${onePart(e) ? "/" + e.part[0] : ""}'`; }
 /* Offene Einheiten in Reihenfolge, Streichungen raus, Tausche angewendet. */
 function planQueue() {
   const P = planState();
@@ -1779,6 +1800,7 @@ function prunePlan() {
   const P = planState(), t = dkey(today0());
   P.off = P.off.filter(k => k >= t);
   P.force = P.force.filter(k => k >= t);
+  P.later = P.later.filter(k => k >= t);
   const byKey = {};
   planDays().forEach(d => { byKey[d.key] = d; });
   const dropped = new Set(P.dropped);
@@ -1804,6 +1826,13 @@ function projectPlan(n) {
   const trained = trainedDayKeys();
   const q = planQueue();
   const out = [];
+  const later = new Set(P.later), given = {};   // given[Plan-Tag] = Sessions, die schon einem früheren Kalendertag gehören
+  const partOf = (pd, k) => {
+    const ap = amPm(pd.day); if (!ap) return null;
+    const g = given[pd.key] || new Set(), rest = ap.filter(si => !g.has(si) && !sessDoneBefore(pd.day, si, k));
+    if (rest.length === 2 && later.has(k)) return { part: [ap[0]], cont: true };   // PM heute nicht: Plan-Tag bleibt vorne
+    return { part: rest.length ? rest : ap, cont: false };
+  };
   // Wie viele Trainingstage liegen unmittelbar vor heute? (für die Ruhetagsregel)
   let streak = 0, back = addDays(today0(), -1);
   while (trained.has(dkey(back)) && streak < 14) { streak++; back = addDays(back, -1); }
@@ -1815,15 +1844,24 @@ function projectPlan(n) {
     // Heute gilt erst als abgeschlossen, wenn die Einheit nicht mehr offen ist.
     // Ein einzelnes Häkchen macht den Tag noch nicht fertig — sonst verschwindet
     // die laufende Einheit (und ihre Zusatzarbeit) beim ersten Abhaken.
-    const headOpen = i === 0 && q.length && q[0].items.some(it => S.checked[it.id]);
+    // AM/PM: nur die Sessions von heute zählen; ist der heutige Teil fertig (PM verschoben), ist heute erledigt
+    const hp = i === 0 && q.length ? partOf(q[0], k) : null;
+    const hIts = hp ? hp.part.flatMap(si => sessReal(q[0].day.sessions[si])) : q.length ? q[0].items : [];
+    const headOpen = i === 0 && q.length && hIts.some(it => S.checked[it.id]) && !(hp && hIts.every(it => S.checked[it.id]));
     if (i === 0 && trained.has(k) && !headOpen) {
-      out.push({ date: new Date(d), k, kind: "donetoday", d: dayWorkedOn(k) }); streak++;
+      const wd = dayWorkedOn(k), ent = { date: new Date(d), k, kind: "donetoday", d: wd };
+      if (wd && amPm(wd.day)) ent.part = sessOnDay(wd.day, k);
+      out.push(ent); streak++;
     }
     else if (fixed && fixed[k]) { out.push({ date: new Date(d), k, kind: "train", d: fixed[k] }); streak++; }
     else if (rws && k >= rws && k <= rday) { out.push({ date: new Date(d), k, kind: "race" }); streak = 0; }
     else if (off.has(k)) { out.push({ date: new Date(d), k, kind: "off" }); streak = 0; }
     else if (streak >= MAX_STREAK && !force.has(k)) { out.push({ date: new Date(d), k, kind: "rest" }); streak = 0; }
-    else if (qi < q.length) { out.push({ date: new Date(d), k, kind: "train", d: q[qi++] }); streak++; }
+    else if (qi < q.length) {
+      const pd = q[qi], po = partOf(pd, k), ent = { date: new Date(d), k, kind: "train", d: pd };
+      if (po) { ent.part = po.part; const g = given[pd.key] || (given[pd.key] = new Set()); po.part.forEach(si => g.add(si)); if (po.cont) ent.cont = true; }
+      out.push(ent); if (!po || !po.cont) qi++; streak++;
+    }
     else if (rws && k < rws) { out.push({ date: new Date(d), k, kind: "race", pre: true }); streak = 0; }   // Rennblock fertig, Rennwoche noch nicht
     else out.push({ date: new Date(d), k, kind: "empty" });
     d = addDays(d, 1);
@@ -1841,7 +1879,7 @@ function planEnd() {
   const days = projectPlan(Math.min(600, q.length * 3 + 60));
   let seen = 0, last = null;
   for (let i = 0; i < days.length; i++) {
-    if (days[i].kind === "train") { seen++; last = days[i].date; if (seen >= q.length) break; }
+    if (days[i].kind === "train" && !days[i].cont) { seen++; last = days[i].date; if (seen >= q.length) break; }
   }
   return last ? { date: last } : null;
 }
@@ -2012,7 +2050,7 @@ document.getElementById("navSet").onclick = () => { location.hash = "#settings";
    MAJOR 1 = Trainings-Tracker, 2 = mit Ernährung (ab 01.10.2026). MINOR = Umbau seit MAJOR (UMBAU-….md, 2.0 = Ernährung Phase 1).
    BUILD = laufende Push-Nummer = Anzahl Commits in workout-tracker nach dem Commit (git rev-list --count HEAD), vierstellig.
    Bei JEDEM Push hochzählen. Steht am iPhone die neue Nummer, ist der neue Stand da; sonst ist es noch der Cache. */
-const APP_VERSION = "2.16.0104";
+const APP_VERSION = "2.17.0105";
 let navScroll = false;
 window.addEventListener("hashchange", () => { navScroll = true; if (PROGRAM) render(); });
 
@@ -2034,7 +2072,7 @@ function render() {
   else if (seg[0] === "stats") renderStats();
   else if (seg[0] === "weeks") renderWeeks();
   else if (seg[0] === "t") renderTrack(seg[1]);
-  else if (seg[0] === "d") renderDay(+seg[1], +seg[2], +seg[3]);
+  else if (seg[0] === "d") renderDay(+seg[1], +seg[2], +seg[3], seg[4] != null ? +seg[4] : null);
   else if (seg[0] === "w") renderWeek(+seg[1], +seg[2]);
   else renderHome();
   // Scroll-Position nur bei echter Navigation zurücksetzen, nicht beim Abhaken
@@ -2104,10 +2142,10 @@ function renderPlan() {
      (= „alle ✓“ der Einheit). Erledigtes schrumpft auf eine Zeile wie eine gegessene Mahlzeit. Beim Tauschen gilt die alte Karte. */
   const U = first.kind === "train" && !swapFrom ? EN.units(first) : null;
   if (U) {
-    const d = first.d, go = `location.hash='#d/${d.pi}/${d.wi}/${d.di}'`, open = U.findIndex(u => !u.done);
+    const d = first.d, open = U.findIndex(u => !u.done);
     const unitRow = n => {
-      const u = U[n], chk = `<button class="st ${u.done ? "eaten" : ""}" onclick="event.stopPropagation();checkSession(${d.pi},${d.wi},${d.di},${u.si})">${u.done ? "✓" : ""}</button>`;
-      if (u.done) return `<div class="slot done" onclick="${go}"><div class="body"><span class="l"><i class='ic'>🏋️</i>${u.tag}</span>${esc(u.txt)}</div>${chk}</div>`;
+      const u = U[n], go = `location.hash='#d/${d.pi}/${d.wi}/${d.di}/${u.si}'`, chk = `<button class="st ${u.done ? "eaten" : ""}" onclick="event.stopPropagation();checkSession(${d.pi},${d.wi},${d.di},${u.si})">${u.done ? "✓" : ""}</button>`;
+      if (u.done) return `<div class="slot done" onclick="EN.openEnergy('${esc(dayTitle(d))} · ${u.tag}',${u.si})"><div class="body"><span class="l"><i class='ic'>🏋️</i>${u.tag}</span>${esc(u.txt)}${EN.unitEnergy(u.si)}</div>${chk}</div>`;
       return `<div class="slot train unit" ${n !== open ? `onclick="${go}"` : ""}><div class="body"><div class="when"><i class='ic'>🏋️</i>${u.tag} · ${EN.tzChip(first, n)} · <span>≈ ${u.min} min</span></div>
         <div class="n">${esc(u.txt)}</div>${n === open ? `<div class="d">${esc(dayTitle(d))}</div>` : ""}${EN.todayLine(first, n)}
         ${n === open ? `<button class="cta ${EN.isNext(first, n) || !EN.ready() ? "" : "ghost"}" onclick="${go}">Training starten</button>` : ""}
@@ -2118,12 +2156,12 @@ function renderPlan() {
       <div class="en tl">${EN.dayFlow(first, unitRow)}</div>${EN.dayFoot(first)}
     </div>`;
   } else if (first.kind === "train") {
-    const istQuelle = swapFrom === first.d.key, go = `location.hash='#d/${first.d.pi}/${first.d.wi}/${first.d.di}'`;
+    const istQuelle = swapFrom === first.d.key, go = entGo(first);
     html += `<div class="today ${istQuelle ? "sel" : ""}">
       <div class="k">${hk}</div>
       <div class="en tl">${EN.dayPre(first)}${trRow(`<i class='ic'>🏋️</i>Training · ${EN.tzChip(first)}${EN.minHtml(first)}`,
-        `<div class="n">${esc(dayTitle(first.d))}</div>
-        <div class="d">${esc(daySub(first.d))}</div>${EN.todayLine(first)}
+        `<div class="n">${esc(entTitle(first))}</div>
+        <div class="d">${esc(entSub(first))}</div>${EN.todayLine(first)}
         ${(swapFrom && !istQuelle)
           ? `<button class="cta" onclick="planSwapWith('${first.d.key}')">Hierher tauschen</button>`
           : `<button class="cta ${EN.isNext(first) || !EN.ready() ? "" : "ghost"}" onclick="${go}">Training starten</button>`}
@@ -2134,9 +2172,10 @@ function renderPlan() {
     html += `<div class="today">
       <div class="k">${hk}</div>
       <div class="en tl">${EN.dayPre(first)}${trRow("<i class='ic'>🏋️</i>Training · <span>erledigt ✓</span>",
-        `<div class="n">${first.d ? esc(dayTitle(first.d)) : "Erledigt"}</div>
-        <div class="d">${nx ? "Als Nächstes: " + esc(dayTitle(nx.d)) : "Weiter geht's demnächst."}</div>${EN.energyLine()}
-        ${first.d ? `<div class="lk tlk" onclick="location.hash='#d/${first.d.pi}/${first.d.wi}/${first.d.di}'">Einheit ansehen ›</div>` : ""}
+        `<div class="n">${first.d ? esc(entTitle(first)) : "Erledigt"}</div>
+        <div class="d">${nx ? "Als Nächstes: " + esc(entTitle(nx)) : "Weiter geht's demnächst."}</div>${EN.energyLine()}
+        ${first.d ? `<div class="lk tlk" onclick="${entGo(first)}">Einheit ansehen ›</div>` : ""}
+        ${planState().later.includes(first.k) ? `<div class="lk tlk" onclick="planLater('${first.k}')">PM doch heute ›</div>` : ""}
         ${xBtns}`, first.d ? `onclick="reDateSheet(${first.d.pi},${first.d.wi},${first.d.di})" title="War nicht heute"` : "")}${EN.dayPost(first)}</div>${EN.dayFoot(first)}
     </div>`;
   } else if (first.kind === "race") {
@@ -2164,10 +2203,10 @@ function renderPlan() {
     if (e.kind === "train") {
       const sel = swapFrom === e.d.key;
       // Tipp öffnet die Trainingsansicht; die Essens-Vorschau kommender Tage steht unter Ernährung → Tage (04.10.)
-      const click = swapFrom ? `planSwapWith('${e.d.key}')` : `location.hash='#d/${e.d.pi}/${e.d.wi}/${e.d.di}'`;
-      const nSess = e.d.day.sessions.filter(s => s.items.some(i => !i.rest)).length;
+      const click = swapFrom ? `planSwapWith('${e.d.key}')` : entGo(e);
+      const nSess = onePart(e) ? 1 : e.d.day.sessions.filter(s => s.items.some(i => !i.rest)).length;
       html += `<div class="pd ${sel ? "sel" : ""}" onclick="${click}">${wd}
-        <div class="inf"><div class="t">${esc(dayTitle(e.d))}</div><div class="s">${esc(daySub(e.d))}</div></div>
+        <div class="inf"><div class="t">${esc(entTitle(e))}</div><div class="s">${esc(entSub(e))}</div></div>
         ${nSess > 1 ? `<span class="tag">${nSess}×</span>` : ""}
         <span class="dots" onclick="event.stopPropagation();planSheet('${e.k}')">⋯</span>
       </div>`;
@@ -2266,7 +2305,8 @@ function goContinue() {
   if (!day) { alert("Alles erledigt! 🎉"); return; }
   const item = day.items.find(i => !S.checked[i.id]) || day.items[0];
   const next = { pi: day.pi, wi: day.wi, di: day.di, item };
-  location.hash = `#d/${next.pi}/${next.wi}/${next.di}`;
+  const si = amPm(day.day) ? day.day.sessions.findIndex(s => s.items.includes(item)) : -1;   // AM/PM: nur die offene Einheit
+  location.hash = `#d/${next.pi}/${next.wi}/${next.di}${si >= 0 ? "/" + si : ""}`;
   setTimeout(() => {
     const el = document.getElementById("it-" + next.item.id);
     if (el) { el.scrollIntoView({ behavior: "smooth", block: "center" }); el.classList.add("flash"); }
@@ -2562,15 +2602,16 @@ function dayOutline(day) {
 let dayOpen = { key: "", on: null };
 window.setDayDetails = function (on) { dayOpen.on = on; if (!on) TIP_OPEN = {}; render(); };
 
-function renderDay(pi, wi, di) {
+function renderDay(pi, wi, di, only) {
   const part = PROGRAM[pi], week = part.weeks[wi], day = week.days[di];
+  if (only != null && !(amPm(day) || []).includes(only)) only = null;   // AM/PM (11.10.): nur diese Einheit zeigen
   backBtn.style.display = "";
-  titleEl.textContent = `${part.name} · ${week.name} · ${day.label}`;
+  titleEl.textContent = `${part.name} · ${week.name} · ${day.label}${only != null ? " · " + pvSlots(day.sessions)[only] : ""}`;
   setNav("week");
 
-  const all = dayItems(day);
+  const all = only != null ? sessReal(day.sessions[only]) : dayItems(day);
   const done = countDone(all);
-  const key = pi + "/" + wi + "/" + di;
+  const key = pi + "/" + wi + "/" + di + (only != null ? "/" + only : "");
   // Beim Betreten des Tages einmal entscheiden: ein bereits abgeschlossener Tag ist
   // ein Rückblick und wird aufgeschlagen, ein laufender bleibt schlank. Danach zählt
   // nur noch der Knopf — sonst klappte das Abhaken der letzten Einheit alles auf.
@@ -2583,6 +2624,7 @@ function renderDay(pi, wi, di) {
     ? `<div class="planhint" style="margin-top:12px">Vorschau · ${esc(part.name)} zählt erst nach dem Wechsel zum Rennblock.${day.at != null ? ` Dieser Tag liegt ${day.at ? (-day.at === 1 ? "1 Tag" : -day.at + " Tage") + " vor dem Rennen" : "auf dem Renntag"}.` : ""}</div>`
     : (day.at != null && S.race && S.race.date ? `<div class="planhint" style="margin-top:12px">${day.at ? (-day.at === 1 ? "1 Tag" : -day.at + " Tage") + " vor dem Rennen" : "Renntag"} · ${esc(fmtDay(addDays(new Date(S.race.date + "T12:00:00"), day.at)))}</div>` : "");
   day.sessions.forEach((sess, si) => {
+    if (only != null && si !== only) return;
     const checkable = sess.items.filter(i => !i.rest && !i.opt);
     if (sess.label || day.sessions.length > 1) {
       html += `<div class="sesshead"><h3>${esc(sess.label || "Session")}${EN.sesMin(pi, wi, di, si) ? ` <span class="smin">${EN.sesMin(pi, wi, di, si)}</span>` : ""}</h3>
@@ -3733,6 +3775,8 @@ window.planSheet = function (dateKey) {
   wrap.innerHTML = `<div class="sheet">
     <h4>${WD[e.date.getDay()]} ${esc(fmtDay(e.date))}</h4>
     <p style="white-space:pre-line">${esc(dayTitle(e.d))}\n${esc(daySub(e.d))}</p>
+    ${e.part && e.part.length === 2 ? `<button onclick="planLater('${e.k}')">PM ${e.k === dkey(today0()) ? "heute" : "an dem Tag"} nicht<small>Nur PM rückt auf den nächsten Tag. ${e.k === dkey(today0()) ? "Heute" : "An dem Tag"} zählt nur AM, auch beim Essen.</small></button>` : ""}
+    ${e.cont ? `<button onclick="planLater('${e.k}')">PM doch ${e.k === dkey(today0()) ? "heute" : "an dem Tag"}<small>AM und PM wieder am selben Tag.</small></button>` : ""}
     <button onclick="planOffToggle('${e.k}')">Geht nicht<small>Der Tag fällt aus, alles rutscht nach hinten.</small></button>
     <button onclick="WOCHE.otherSheet('${e.k}')">Anderes Training<small>Fitness, Zirkel, Tanzen, Wettkampf … Der Plan rutscht.</small></button>
     <button onclick="planSwapStart('${e.d.key}')">Tauschen<small>Danach den zweiten Tag antippen.</small></button>
@@ -3811,6 +3855,11 @@ window.planOffToggle = function (k) {
     P.off.push(k); P.off.sort();
     const j = P.force.indexOf(k); if (j >= 0) P.force.splice(j, 1);
   }
+  closeSheet(); markDirty(); render();
+};
+window.planLater = function (k) {
+  const P = planState(), i = P.later.indexOf(k);
+  if (i >= 0) P.later.splice(i, 1); else { P.later.push(k); P.later.sort(); }
   closeSheet(); markDirty(); render();
 };
 window.planForce = function (k) {
