@@ -408,7 +408,7 @@ const segs=D=>{const r=[[]];shown(D).forEach(s=>{if(s[0]==='T')r.push([]);else r
 const flow=(D,row,fn,noUw)=>{const sg=segs(D);return sg.map((x,j)=>x.filter(s=>!(noUw&&s[0]==='uw')).map(sl=>mealRow(D,sl,fn)).join('')+(j<sg.length-1?row(j):'')).join('');};
 const unitTxt=(D,n)=>{try{const se=D.e.d.day.sessions[D.units[n].si];return pvRank(pvSession(se),2).join(' + ')||se.label||D.units[n].tag;}catch(x){return D.units[n].tag;}};
 EN.units=e=>{if(!C)return null;const D=dayOf(e.k);return D.units?D.units.map((u,n)=>Object.assign({txt:unitTxt(D,n)},u)):null;};
-EN.dayFlow=(e,row)=>{const D=dayOf(e.k);return flow(D,row,null,true)+packRow(D);};
+EN.dayFlow=(e,row)=>{const D=dayOf(e.k);return flow(D,row,null,true);};
 /* Eine Zeile im Ablauf (überall gleich: Übersicht, Ernährung → Tage, Vorschau): Zeit, Name, Inhalt · kcal (seit 09.10. auch bei Snacks);
    rechts heute der Kreis zum Abhaken (gelber Ring = als Nächstes dran), an anderen Tagen ›. Gegessenes schrumpft auf eine Zeile. */
 function mealRow(D,sl,fn){const id=sl[0],v=varOf(D,id),X=V[v],s=NS(D.k),st=s.st[id]||'',exc=s.exc.find(e=>e.slot===id),done=mealDone(D,id),i=pix(D,id),K=`'${D.k}'`,c=cue(D,id);
@@ -422,15 +422,12 @@ function mealRow(D,sl,fn){const id=sl[0],v=varOf(D,id),X=V[v],s=NS(D.k),st=s.st[
 const mealList=(D,part,fn)=>mealsOf(D,part).map(sl=>mealRow(D,sl,fn)).join('');
 EN.dayPre=e=>C?mealList(dayOf(e.k),'pre'):'';
 /* Übersicht: Intra-Workout steht nicht als eigene Zeile, sondern leise in der Trainingszeile (EN.todayLine) */
-EN.dayPost=e=>{if(!C)return '';const D=dayOf(e.k);return mealsOf(D,'post').filter(s=>s[0]!=='uw').map(sl=>mealRow(D,sl)).join('')+packRow(D);};
-/* ---------- Packen für morgen (04.10.): letzte Zeile im Tagesablauf, Liste im Sheet ----------
+EN.dayPost=e=>{if(!C)return '';const D=dayOf(e.k);return mealsOf(D,'post').filter(s=>s[0]!=='uw').map(sl=>mealRow(D,sl)).join('');};
+/* ---------- Packen für morgen (04.10.): Liste im Sheet; seit 12.10. eine schmale Textzeile im Fuß der Karte „Heute“ (Marc: als Zeile im Ablauf sah es nach Essen/Training aus) ----------
    Steht nur heute und nur, wenn morgen gearbeitet wird. Abgehakt wird pro Punkt (S.food.days[heute].pk),
    „gepackt“ ist der Tag, wenn alles abgehakt ist oder „Alles gepackt“ gedrückt wurde. */
-function packRow(D){if(D.k!==TODAY())return '';const N=nextWorkDay(D);if(!N)return '';const s=NS(D.k),gs=packModel(N),all=[].concat(...gs.map(g=>g[1])),nd=all.filter(x=>s.pk[x[0]]).length;
-  if(s.packed)return `<div class="slot done" onclick="EN.openPack()"><div class="body"><span class="l"><i class="ic">🎒</i>Für ${N.wd}</span>gepackt</div><button class="st eaten" onclick="event.stopPropagation();EN.openPack()">✓</button></div>`;
-  const nf=gs.filter(g=>g[2]==='food').reduce((a,g)=>a+g[1].length,0),th=(gs.find(g=>g[0]==='Sachen')||[0,[]])[1].map(x=>x[1]),tk=(gs.find(g=>g[0]==='Heute Abend erledigen')||[0,[]])[1].length;
-  const what=[nf?nf+' Lebensmittel':'',...th,tk?tk+(tk===1?' Aufgabe':' Aufgaben'):''].filter(Boolean).join(' · ');
-  return `<div class="slot" onclick="EN.openPack()"><div class="body"><div class="when"><i class="ic">🎒</i>Heute Abend · <span>für ${N.wd} packen</span></div><div class="n">${nd?nd+' von '+all.length+' erledigt':all.length+' zu packen'}</div><div class="d">${what}</div></div><span class="go">›</span></div>`;}
+function packLine(D){if(D.k!==TODAY())return '';const N=nextWorkDay(D);if(!N)return '';const s=NS(D.k),all=[].concat(...packModel(N).map(g=>g[1])),nd=all.filter(x=>s.pk[x[0]]).length;
+  return `<div class="packline${s.packed?' done':''}" onclick="EN.openPack()">🎒 Für ${N.wd} ${s.packed?'gepackt ✓':'packen · '+nd+'/'+all.length+' ›'}</div>`;}
 /* k = Arbeitstag, für den gepackt wird (Standard: morgen). Abgehakt wird am Abend davor (NS(k−1)),
    deshalb sieht „Packliste heute“ morgens dieselben Haken wie gestern Abend. */
 const packFor=k=>{const N=k?dayOf(k):nextWorkDay(dayOf(TODAY()));return N&&N.work?N:null;};
@@ -448,7 +445,7 @@ const tzLbl=(D,n)=>n===1?(D.b2b?'direkt nach AM':TZL[D.tz2]):TZL[D.tz];
 /* Fuß der Übersicht (07.10.): nur noch die zwei Abkürzungen. kcal stehen unter Ernährung → Tage, Wasser gibt es nicht mehr. */
 function dayFoot(D){
   return `${extrasBlock(D)}${D.fast&&D.type==='hard'?`<div class="hint amb">Harter Tag: rund 600 kcal extra einplanen.</div>`:''}
-    <div class="links" style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line)"><span onclick="EN.openOther()">+ Etwas anderes gegessen</span><span style="color:var(--amber)" onclick="EN.openSOS()">Lust auf Süßes?</span></div>`;}
+    <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line)">${packLine(D)}<div class="links" style="margin-top:0"><span onclick="EN.openOther()">+ Etwas anderes gegessen</span><span style="color:var(--amber)" onclick="EN.openSOS()">Lust auf Süßes?</span></div></div>`;}
 /* Trainingszeit ändern (heute oder im Voraus); aus der Vorschau geht es danach dorthin zurück */
 let tzBack=false;
 const hmShort=m=>hm(m).replace(/^0/,'');

@@ -307,3 +307,6 @@
 .today .en .slot.train.unit .st{align-self:center;margin-left:10px}
 .today .en .slot.train.unit[onclick]{cursor:pointer}
 .en .trainline+.trainline{margin-top:0}
+/* Packen (12.10.): schmale Aufgabenzeile über den Links, keine Zeile im Tagesablauf */
+.en .packline{font-size:13px;font-weight:600;color:var(--ink2);cursor:pointer;margin-bottom:7px}
+.en .packline.done{color:var(--muted)}
