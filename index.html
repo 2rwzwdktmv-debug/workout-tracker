@@ -889,7 +889,7 @@
     nav .go:active { transform: translateX(-50%); }
   }
 </style>
-<link rel="stylesheet" href="ernaehrung.css?v=2026-10-12a">
+<link rel="stylesheet" href="ernaehrung.css?v=2026-10-15a">
 </head>
 <script>
 /* Akzentfarbe aus dem Cache setzen, BEVOR gerendert wird — sonst blitzt
@@ -917,11 +917,13 @@
   <button id="navSet"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 13.5a7.8 7.8 0 0 0 0-3l2-1.5-2-3.4-2.4 1a7.8 7.8 0 0 0-2.6-1.5L14 2.5h-4l-.4 2.6A7.8 7.8 0 0 0 7 6.6l-2.4-1-2 3.4 2 1.5a7.8 7.8 0 0 0 0 3l-2 1.5 2 3.4 2.4-1a7.8 7.8 0 0 0 2.6 1.5l.4 2.6h4l.4-2.6a7.8 7.8 0 0 0 2.6-1.5l2.4 1 2-3.4z"/></svg>Einstellungen</button>
 </nav>
 
-<script src="ernaehrung.js?v=2026-10-12a"></script>
+<script src="ernaehrung.js?v=2026-10-15a"></script>
 <link rel="stylesheet" href="lauf.css?v=2026-10-07a">
 <link rel="stylesheet" href="apple.css?v=2026-10-07a">   <!-- Apple-naher Look, zuletzt geladen -->
-<link rel="stylesheet" href="woche.css?v=2026-10-04f">
-<script src="woche.js?v=2026-10-04g"></script>   <!-- Laufwoche · Anderes Training · Neue Woche -->
+<link rel="stylesheet" href="woche.css?v=2026-10-15a">
+<script src="woche.js?v=2026-10-15a"></script>   <!-- Laufwoche · Anderes Training · Neue Woche -->
+<link rel="stylesheet" href="wettkampf.css?v=2026-10-15a">
+<script src="wettkampf.js?v=2026-10-15a"></script>   <!-- mehrere Wettkämpfe, Lauf-Taper -->
 <script src="lauf.js?v=2026-10-10a"></script>
 <script src="rennen.js?v=2026-10-04g"></script>   <!-- Rennblock (Part 4) mit Countdown -->
 <script>
@@ -2050,7 +2052,7 @@ document.getElementById("navSet").onclick = () => { location.hash = "#settings";
    MAJOR 1 = Trainings-Tracker, 2 = mit Ernährung (ab 01.10.2026). MINOR = Umbau seit MAJOR (UMBAU-….md, 2.0 = Ernährung Phase 1).
    BUILD = laufende Push-Nummer = Anzahl Commits in workout-tracker nach dem Commit (git rev-list --count HEAD), vierstellig.
    Bei JEDEM Push hochzählen. Steht am iPhone die neue Nummer, ist der neue Stand da; sonst ist es noch der Cache. */
-const APP_VERSION = "2.17.0107";
+const APP_VERSION = "2.18.0108";
 let navScroll = false;
 window.addEventListener("hashchange", () => { navScroll = true; if (PROGRAM) render(); });
 
@@ -2132,11 +2134,11 @@ function renderPlan() {
   }).join("");
 
   html += RENNEN.card();   /* Rennblock (Part 4): ab dem Countdown-Termin */
-  html += WOCHE.nwCard();   /* Neue Woche / Woche zurücksetzen: über „Heute“ */
+  html += WOCHE.nwCard() + (window.WK ? WK.card() : "");   /* Taper-Frage vor Lauf-Wettkämpfen */   /* Neue Woche / Woche zurücksetzen: über „Heute“ */
   html += EN.hwStrip(); /* ERNÄHRUNG */ 
   /* ERNÄHRUNG 02.10.: Karte „Heute“ = Tagesablauf auf einer Zeitleiste. Mahlzeiten (EN.dayPre/EN.dayPost) und das
      Training sind gleichrangige Zeilen; Trainingszeit als Chip (EN.tzChip). Inhalt der Trainingszeile wie bisher. */
-  const hk = `Heute · ${WD[first.date.getDay()]} ${esc(fmtDay(first.date))}`;
+  const hk = `Heute · ${WD[first.date.getDay()]} ${esc(fmtDay(first.date))}${window.WK ? WK.badge(first.k) : ""}`;
   const trRow = (lbl, body, dots, cls) => `<div class="slot train ${cls || ""}"><div class="body"><div class="when">${lbl}</div>${body}</div>${dots ? `<span class="dots tdots" ${dots}>⋯</span>` : ""}</div>`;
   /* AM/PM (11.10.): Tage mit AM- und PM-Einheit bekommen zwei Trainingszeilen, jede mit eigener Zeit und eigenem Haken
      (= „alle ✓“ der Einheit). Erledigtes schrumpft auf eine Zeile wie eine gegessene Mahlzeit. Beim Tauschen gilt die alte Karte. */
@@ -3183,7 +3185,7 @@ function renderSettings() {
         }).join("")}
       </div>
     </details>` : ""}
-    ${window.RENNEN ? RENNEN.settings() : ""}
+    ${window.WK ? WK.settings() : (window.RENNEN ? RENNEN.settings() : "")}
     ${Object.keys(DEFAULTS.optional || {}).length ? `<details class="setsec">
       <summary><svg class="secic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>Optionale Einheiten</summary>
       <div class="secbody">
@@ -3267,8 +3269,10 @@ function renderSettings() {
    oder zuklappst, merkt sich SET_OPEN, bis die Seite neu lädt (Änderungen rendern neu).
    Ein Bereich, der in keiner Gruppe steht, bleibt unten stehen und geht nicht verloren. */
 const SET_GROUPS = [
-  { k: "training", name: "Training", sub: "1RM, Kniebeuge, Leitern, Wettkampf, Paces, Durchlauf", secs: ["1RM-Gewichte", "Kniebeuge", "Stufenleitern", "Wettkampf", "Optionale Einheiten", "Ziel-Paces", "Maßsystem", "Neuer Durchlauf"],
+  { k: "training", name: "Training", sub: "1RM, Kniebeuge, Leitern, Paces, Durchlauf", secs: ["1RM-Gewichte", "Kniebeuge", "Stufenleitern", "Optionale Einheiten", "Ziel-Paces", "Maßsystem", "Neuer Durchlauf"],
     icon: '<rect x="1.5" y="9.2" width="3.2" height="5.6" rx="1.2"/><rect x="19.3" y="9.2" width="3.2" height="5.6" rx="1.2"/><rect x="4.9" y="6.6" width="3.6" height="10.8" rx="1.4"/><rect x="15.5" y="6.6" width="3.6" height="10.8" rx="1.4"/><path d="M8.5 12h7"/>' },
+  { k: "race", name: "Wettkämpfe", sub: "HYROX und Läufe, Rennblock und Taper", secs: ["Wettkampf"],
+    icon: '<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>' },
   { k: "food", name: "Ernährung", secs: ["Ernährung"], sub: "Phasen, Mahlzeiten, Supplements, Daten",
     icon: '<path d="M7 3v7a2 2 0 0 0 4 0V3M9 12v9M16.5 3C15 4.2 14.5 6.3 14.5 9c0 1.8.8 3 2 3v9"/>' },
   { k: "app", name: "App", sub: "Akzentfarbe, Erklärungen", secs: ["Akzentfarbe", "Erklärungen / Basics"],

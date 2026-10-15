@@ -1,0 +1,25 @@
+/* Wettkämpfe · Taper */
+.tpb { display: inline-block; margin-left: 6px; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 700;
+  color: #1c1a04; background: var(--amber); letter-spacing: 0; text-transform: none; vertical-align: middle; }
+.wkr { border-top: 1px solid var(--line); padding: 12px 0 4px; }
+.wkr:first-of-type { border-top: none; }
+.wkart { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; }
+.wkart button { border: 1px solid var(--line); background: var(--surface2); color: var(--ink); border-radius: 99px; padding: 5px 12px; font-size: 13px; font-weight: 600; }
+.wkart button.on { background: var(--lime); color: var(--lime-ink); border-color: var(--lime); }
+.wkart .wkdel { margin-left: auto; background: none; border: none; color: var(--muted); font-weight: 400; }
+.wkr .hint a { color: var(--sky); cursor: pointer; }
+.tpb { cursor: pointer; }
+.tpsheet .tpr { display: grid; grid-template-columns: 1fr auto; gap: 0 10px; padding: 7px 0; border-top: 1px solid var(--line); font-size: 14px; }
+.tpsheet .tpr span:first-child { color: var(--muted); }
+.tpsheet .tpr span:last-child { grid-column: 1 / -1; font-size: 12.5px; color: var(--muted); }
+.tpsheet .tpr span.up { color: var(--lime); font-weight: 600; }
+.tpsheet .tpw { margin: 12px 0 8px; font-size: 13.5px; line-height: 1.5; }
+.tpsheet .tpn { margin-top: 6px; }
+.setsec details.wkr > summary { list-style: none; cursor: pointer; padding: 4px 26px 8px 0; font-size: 15px; font-weight: 600;
+  display: flex; flex-direction: column; align-items: flex-start; text-align: left; position: relative; }
+.setsec details.wkr > summary::-webkit-details-marker { display: none; }
+.setsec details.wkr > summary small { font-size: 12.5px; font-weight: 400; color: var(--muted); margin-top: 1px; }
+.setsec details.wkr > summary::after { content: "›"; position: absolute; right: 2px; top: 6px; margin: 0; color: var(--muted); font-size: 18px; transform: rotate(90deg); }
+.setsec details.wkr[open] > summary::after { transform: rotate(-90deg); }
+.wkbtn { display: block; width: 100%; margin: 6px 0 10px; padding: 10px; border-radius: 99px; border: 1px solid var(--line);
+  background: var(--surface2); color: var(--ink); font-size: 14px; font-weight: 600; }

@@ -86,7 +86,10 @@ function card(days) {
   for (let i = 0; i <= 14 && !last; i++) { const d = new Date(now); d.setDate(now.getDate() - i); const k = dkey(d); if (rd[k] && rd[k].full) last = k; }
   const gap = last ? between(last, t) - 1 : 99;        // volle laufreie Tage vor heute
   let hint = "";
-  if (last === t) hint = `<div class="lwh ok">Heute gelaufen ✓</div>`;
+  // Im Taper ersetzt der Taper-Text den Hinweis der 2-Tage-Regel (wettkampf.js)
+  const tap = window.WK && (planState().other || {})[t] && planState().other[t].tp ? WK.info(t) : null;
+  if (tap && last !== t) hint = `<div class="lwh">${esc(tap.n)}: ${tap.d.split(' · ')[0]}</div>`;
+  else if (last === t) hint = `<div class="lwh ok">Heute gelaufen ✓</div>`;
   else if (gap >= 2) hint = planRunToday(days[0])
     ? `<div class="lwh">Seit ${gap > 14 ? "über 2 Wochen" : gap + " Tagen"} kein Lauf · heute läufst du mit ${esc(dayTitle(days[0].d))}</div>`
     : `<div class="lwh due">Heute mind. 30 min locker laufen · seit ${gap > 14 ? "über 2 Wochen" : gap + " Tagen"} kein Lauf</div>`;
