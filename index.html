@@ -2052,7 +2052,7 @@ document.getElementById("navSet").onclick = () => { location.hash = "#settings";
    MAJOR 1 = Trainings-Tracker, 2 = mit Ernährung (ab 01.10.2026). MINOR = Umbau seit MAJOR (UMBAU-….md, 2.0 = Ernährung Phase 1).
    BUILD = laufende Push-Nummer = Anzahl Commits in workout-tracker nach dem Commit (git rev-list --count HEAD), vierstellig.
    Bei JEDEM Push hochzählen. Steht am iPhone die neue Nummer, ist der neue Stand da; sonst ist es noch der Cache. */
-const APP_VERSION = "2.19.0110";
+const APP_VERSION = "2.20.0111";
 let navScroll = false;
 window.addEventListener("hashchange", () => { navScroll = true; if (PROGRAM) render(); });
 
@@ -3275,6 +3275,8 @@ const SET_GROUPS = [
     icon: '<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>' },
   { k: "food", name: "Ernährung", secs: ["Ernährung"], sub: "Phasen, Mahlzeiten, Supplements, Daten",
     icon: '<path d="M7 3v7a2 2 0 0 0 4 0V3M9 12v9M16.5 3C15 4.2 14.5 6.3 14.5 9c0 1.8.8 3 2 3v9"/>' },
+  { k: "rules", name: "Ernährungsregeln", sub: "Nippard und Hunter: was gilt, warum, wer es macht", secs: ["Ernährungsregeln"],
+    icon: '<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5zM4 20.5A2.5 2.5 0 0 0 6.5 21H20M8 7.5h8M8 11h6"/>' },
   { k: "app", name: "App", sub: "Akzentfarbe, Erklärungen", secs: ["Akzentfarbe", "Erklärungen / Basics"],
     icon: '<rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M10.5 18.5h3"/>' },
   { k: "system", name: "System", sub: "Sync, Backup, Diagnose, Zurücksetzen", secs: ["Sync & Verbindung", "Backup", "Diagnose (Anzeige)", "Zurücksetzen"],

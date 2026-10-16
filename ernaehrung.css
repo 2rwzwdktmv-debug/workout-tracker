@@ -310,3 +310,15 @@
 /* Packen (12.10.): schmale Aufgabenzeile über den Links, keine Zeile im Tagesablauf */
 .en .packline{font-size:13px;font-weight:600;color:var(--ink2);cursor:pointer;margin-bottom:7px}
 .en .packline.done{color:var(--muted)}
+/* Ernährungsregeln (16.10.): eine Zeile je Regel, Warum zum Aufklappen; überschreibt die .setsec-summary-Optik */
+.en .rules .rl{border-top:1px solid var(--line)}
+.en .rules .km+.rl{border-top:0}
+.en .setsec .rules .rl summary{display:flex;align-items:center;gap:10px;padding:9px 0;font-weight:400;font-size:14px}
+.en .setsec .rules .rl summary::after{content:none}
+.en .rules .rl summary>span{flex:1;min-width:0}
+.en .rules .rl summary small{display:block;color:var(--muted);font-size:12px;margin-top:1px}
+.en .rules .rla{font-style:normal;font-size:11.5px;font-weight:600;white-space:nowrap;padding:2px 7px;border-radius:99px;background:var(--line)}
+.en .rules .rla.ok{color:var(--green)}
+.en .rules .rla.du{color:var(--sky)}
+.en .rules .rla.no{color:var(--muted)}
+.en .rules .rlw{font-size:13px;color:var(--ink2);line-height:1.45;padding:0 0 10px}

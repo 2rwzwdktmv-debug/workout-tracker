@@ -91,7 +91,7 @@ EN.load=function(json){try{C=json;TT=C.targets;SL=C.slots;AT=C.at;ALT=C.alt;BASI
   D0=JSON.parse(JSON.stringify(C.dishes));pApplied=null;buildDishes();
   G={};Object.keys(C.glossary).forEach(k=>{G[k]={n:C.glossary[k].n,t:kk=>P_(C.glossary[k].t,kk)};});
   SUP=C.supplements||SUP;PACK=C.pack||PACK;SOS=(C.sos||[]).map(x=>Array.isArray(x)?{n:x[0],c:x[1],s:x[2],items:[]}:x);
-  EXC=C.exceptions.map(e=>[e.n,e.c,e.s,mk(e.p,e.cc,e.f)]);XTRA=C.extras.map(e=>[e.n,mk(e.p,e.c,e.f)]);
+  EXC=C.exceptions.map(e=>[e.n,e.c,e.s,mk(e.p,e.cc,e.f),e.tip||'']);XTRA=C.extras.map(e=>[e.n,mk(e.p,e.c,e.f)]);
 }catch(e){C=null;console.error('nutrition.json',e);}};
 /* ---------- Portionen am Abend (07.10.) ----------
    Einstellung S.food.set.portion = −3 … +3 Stufen. Eine Stufe ändert die Beilage der Abendgerichte (alt.ab) um
@@ -180,9 +180,9 @@ function dayOf0(k){const e=plan()[k]||pastEntry(k)||{kind:'empty'},w=D_(k).getDa
      Tagessumme exakt gleich) · Frühstück = volle Rotation, dann alles eine Stufe kleiner */
   /* Umstellungstag: wurde mittags noch das alte Porridge (mit Eiern) gegessen, gibt es keinen extra Vormittag */
   D.small=D.fast&&mm==='small'&&((FS().days[k]||{}).sw||{}).mi!=='oats';
-  const VM=D.small?[['vm','morning','work']]:D.fast?[]:[['vm',vm,'work']],RC=D.fast?['rc','recovShake','gym']:['rc','recov','gym'],OA=D.small?'oatsLite':'oats';
-  if(md==='voll'){D.tpl='Werktag';D.slots=[...VM,['mi',OA,'work'],['na','pre','work'],['ab',ab,'home']];}
-  else if(md==='halb'){D.tpl='halb';D.slots=[...VM,['mi',OA,'home','zuhause'],['na','pre','home'],['ab',ab,'home']];}
+  const VM=D.small?[['vm',dAt(k,'morning'),'work']]:D.fast?[]:[['vm',dAt(k,vm),'work']],RC=['rc',dAt(k,D.fast?'recovShake':'recov'),'gym'],OA=D.small?'oatsLite':'oats',PRE=dAt(k,'pre');
+  if(md==='voll'){D.tpl='Werktag';D.slots=[...VM,['mi',OA,'work'],['na',PRE,'work'],['ab',ab,'home']];}
+  else if(md==='halb'){D.tpl='halb';D.slots=[...VM,['mi',OA,'home','zuhause'],['na',PRE,'home'],['ab',ab,'home']];}
   else{D.tpl='Wochenende';D.slots=[['br','brunch','home'],['we',(C.defaults&&C.defaults.we&&V[C.defaults.we])?C.defaults.we:'weLunch','home'],['wn','weSnack','home'],['ab',ab,'home']];}
   /* Lange Ausdauer (ein durchgehender Block ab 75 min, z. B. langer Lauf): Zeile „Unterwegs“ nach dem Training, Menge nach Dauer.
      Krafteinheiten kommen mit Pausen auch auf 80–90 min, brauchen aber nichts unterwegs. */
@@ -238,7 +238,13 @@ function placeTraining(D,RC){const md=D.md,M=D.slots,U=D.units;D.tz=tzOf(D.k,md)
   const ai=M.findIndex(s=>s[0]==='ab');D.abAfter=ai>0&&M[ai-1][0]==='T';}   /* nach dem Shake ist das Abendessen kein Post-Workout mehr */
 const ti=D=>TT[D.type].i;
 const mac=(v,i)=>mk(V[v].P[i],V[v].C[i],V[v].F[i]);
-const varOf=(D,id)=>{const s=D.slots.find(x=>x[0]===id);return NS(D.k).sw[id]||s[1];};
+/* Plan-Stände (16.10.): nutrition.json stand = [{from, sub:{alt:neu}}]. Ab „from“ ersetzt das neue Gericht das alte, auch in Tausch-Listen
+   und gespeicherten Tauschs. Vergangene Tage behalten das alte Gericht (nie rückwirkend), deshalb bleiben alte Gerichte in den Daten. */
+const STAND=()=>(C&&C.stand)||[];
+const dAt=(k,v)=>{STAND().forEach(s=>{if(k>=s.from&&s.sub[v]&&V[s.sub[v]])v=s.sub[v];});return v;};
+const notYet=(k,v)=>STAND().some(s=>k<s.from&&Object.values(s.sub).includes(v));
+const altAt=(k,id)=>[...new Set((ALT[id]||[]).map(a=>dAt(k,a)))].filter(a=>V[a]&&!notYet(k,a));
+const varOf=(D,id)=>{const s=D.slots.find(x=>x[0]===id);return dAt(D.k,NS(D.k).sw[id]||s[1]);};
 const shown=D=>D.slots.filter(s=>!(s[0]==='rc'&&ti(D)<3&&!D.fast));
 /* Portion pro Mahlzeit: im Fasten-Fenster eine Stufe größer (Vormittag fällt weg) */
 const pix=(D,id)=>id==='uw'?Math.max(D.uwI,0):D.fast&&(['mi','na','ab'].includes(id)||(id==='vm'&&D.small))?Math.min(ti(D)+1,3):ti(D);
@@ -669,7 +675,7 @@ let mealBack=false;
 EN.guest=(k,id)=>{const g=NS(k).guests;if(g[id])delete g[id];else g[id]=true;R();EN.openMeal(k,id,mealBack);};
 EN.openMealB=(k,id)=>EN.openMeal(k,id,true);
 EN.openMeal=function(k,id,back){mealBack=!!back;const D=dayOf(k),i=pix(D,id),s=NS(k),v=varOf(D,id),X=V[v],sl=D.slots.find(x=>x[0]===id),at=sl[2],K=`'${k}'`;
-  const alts=(ALT[id]||[]).filter(a=>a!==v&&(at!=='work'||V[a].at==='work')),st=s.st[id]||'',exc=s.exc.find(e=>e.slot===id);
+  const alts=altAt(k,id).filter(a=>a!==v&&(at!=='work'||V[a].at==='work')),st=s.st[id]||'',exc=s.exc.find(e=>e.slot===id);
   const gBtn=at==='home'?`<button class="gbtn ${isGuest(k,id)?'on':''}" onclick="EN.guest(${K},'${id}')">👥 zu zweit${isGuest(k,id)?' ✓':''}</button>`:'';
   sheet(`<div class="km">${k===TODAY()?'Heute':D.wd} · ${SL[id][0]} · ${slotWhen(D,sl)}${at!=='home'&&!/Sporttasche/.test(slotWhen(D,sl))?' · '+AT[at]:''}</div>
     <h3>${dname(v,i)}</h3><div class="sub">${X.d(i)}</div>${macLine(v,i)}
@@ -679,7 +685,7 @@ EN.openMeal=function(k,id,back){mealBack=!!back;const D=dayOf(k),i=pix(D,id),s=N
     ${(()=>{TCX=k<=TODAY()&&openMeal(D,id)&&Object.keys(realIng(D,id)).length>1?{D,id}:null;const h=ingBlock(v,i,k,isGuest(k,id),'',gBtn);TCX=null;return h;})()}${stepsBlock(v,k,false)}
     <button class="cancel" onclick="${mealBack?`EN.openDay('${k}')`:'closeSheet()'}">${mealBack?'Zurück':'Schließen'}</button>`);};
 EN.openSwap=(k,id)=>{const D=dayOf(k),v=varOf(D,id),at=D.slots.find(x=>x[0]===id)[2],i=pix(D,id);
-  const alts=[v,...(ALT[id]||[]).filter(a=>a!==v&&(at!=='work'||V[a].at==='work'))];
+  const alts=[v,...altAt(k,id).filter(a=>a!==v&&(at!=='work'||V[a].at==='work'))];
   sheet(`<div class="km">${D.k===TODAY()?'Heute':D.wd} · ${SL[id][0]}</div><h3>Stattdessen</h3>${at==='work'?'<div class="sub">🎒 nur Kaltes und Mitnehmbares</div>':''}
     <div class="list">${alts.map(a=>`<div class="it" onclick="EN.swap('${k}','${id}','${a}')"><div style="flex:1;min-width:0">${V[a].n}<small>${V[a].d(i)}</small></div><span class="meta">${a===v?'aktuell':mac(a,i).kcal+' kcal'}</span></div>`).join('')}</div>
     <button class="cancel" onclick="EN.openMeal('${k}','${id}',${mealBack})">Zurück</button>`);};
@@ -699,7 +705,7 @@ function drawExc(){const D=dayOf(exK),h=hwDay(exK);
    <div class="km sec">Größe</div><div class="row">${['klein','normal','groß'].map(z=>`<button class="pill ${z===exSize?'on':''}" onclick="EN.exS('size','${z}')">${z}</button>`).join('')}</div>
    <div class="km sec">Statt welcher Mahlzeit?</div><div class="egrid">${mealIds(D).map(id=>`<button class="opt ${exSlot===id?'on':''}" onclick="EN.exS('slot','${id}')">${SL[id][0]}<small>${V[varOf(D,id)].n}</small></button>`).join('')}<button class="opt ${exSlot==='extra'?'on':''}" onclick="EN.exS('slot','extra')">zusätzlich<small>keine Mahlzeit ersetzt</small></button></div>
    <button class="btn ghost" style="margin-top:8px" onclick="EN.exOwn()">Einzelne Zutaten statt der Mahlzeit wählen ›</button>${exErr&&(!exSlot||exSlot==='extra')?'<div class="hint amb">Wähle oben, welche Mahlzeit ersetzt wird.</div>':''}
-   ${exSel!==null?`<div class="hint">≈ ${Math.round(EXC[exSel][3].kcal*SIZE[exSize])} kcal (grob) · ${EXC[exSel][1]==='r'&&h?'<b style="color:var(--red)">Trigger im Heilungsfenster</b> · wird im Hautprotokoll markiert':'wird im Hautprotokoll vermerkt'}</div>`:''}
+   ${exSel!==null?`<div class="hint">≈ ${Math.round(EXC[exSel][3].kcal*SIZE[exSize])} kcal (grob) · ${EXC[exSel][1]==='r'&&h?'<b style="color:var(--red)">Trigger im Heilungsfenster</b> · wird im Hautprotokoll markiert':'wird im Hautprotokoll vermerkt'}${EXC[exSel][4]?`<div style="margin-top:4px">💡 ${esc(EXC[exSel][4])}</div>`:''}</div>`:''}
    <button class="btn" onclick="EN.saveExc()">Eintragen</button><button class="cancel" onclick="closeSheet()">Abbrechen</button>`);}
 EN.exS=(f,v)=>{if(f==='sel')exSel=v;if(f==='size')exSize=v;if(f==='slot')exSlot=v;drawExc();};
 EN.exNote=v=>{exNote=v;};
@@ -717,7 +723,7 @@ function drawOther(){sheet(`<h3>Etwas anderes gegessen</h3>
   <input class="ftxt" id="othN" placeholder="Was? z. B. Stück Kuchen, Kinderriegel" value="${esc(oth.n)}" oninput="EN.othSet('n',this.value)">
   <div class="between" style="margin-top:10px"><label class="meta">Wann <input class="ftime" type="time" value="${oth.t}" onchange="EN.othSet('t',this.value)"></label>
     <span class="vk">${Object.keys(OSZ).map(z=>`<button class="${z===oth.size?'on':''}" onclick="EN.othSet('size','${z}')">${z}</button>`).join('')}</span></div>
-  <div class="sub" style="font-size:12px;margin-top:6px">≈ ${OSZ[oth.size].kcal} kcal, grob. Genauer tragen wir es später gemeinsam ein.</div>
+  <div class="sub" style="font-size:12px;margin-top:6px">≈ ${OSZ[oth.size].kcal} kcal, grob. Genauer tragen wir es später gemeinsam ein.${C.xtip?' '+esc(C.xtip):''}</div>
   <button class="btn" onclick="EN.saveOther()">Eintragen</button>
   <div class="km sec">Schnell (ein Tipp)</div><div class="egrid">${XTRA.map(([n,m],j)=>`<button class="opt" onclick="EN.addExtra(${j})">${n}<small>${m.kcal} kcal</small></button>`).join('')}</div>
   <button class="btn ghost" onclick="EN.openExc()">Statt einer Mahlzeit oder Ausnahme (Pizza, Bestellt …) ›</button><button class="cancel" onclick="closeSheet()">Abbrechen</button>`);}
@@ -814,7 +820,7 @@ EN.openType=k=>{const D=dayOf(k),cur=D.ov||'';
     ${cur?`<button class="btn ghost" style="margin-top:10px" onclick="EN.setType('${k}','')">Wieder automatisch (${TT[D.auto].l})</button>`:''}
     <button class="cancel" onclick="closeSheet()">Schließen</button>`);};
 EN.setType=(k,t)=>{if(t)NS(k).ty=t;else delete NS(k).ty;closeSheet();RS();};
-EN.openExtra=()=>sheet(`<h3>Extra</h3><div class="sub">Grob, kein Abwiegen. Ein Tipp genügt.</div><div class="egrid">${XTRA.map(([n,m],j)=>`<button class="opt" onclick="EN.addExtra(${j})">${n}<small>${m.kcal} kcal</small></button>`).join('')}</div><button class="cancel" onclick="closeSheet()">Abbrechen</button>`);
+EN.openExtra=()=>sheet(`<h3>Extra</h3><div class="sub">Grob, kein Abwiegen. Ein Tipp genügt.${C.xtip?' '+esc(C.xtip):''}</div><div class="egrid">${XTRA.map(([n,m],j)=>`<button class="opt" onclick="EN.addExtra(${j})">${n}<small>${m.kcal} kcal</small></button>`).join('')}</div><button class="cancel" onclick="closeSheet()">Abbrechen</button>`);
 EN.addExtra=j=>{const [n,m]=XTRA[j];NS(TODAY()).extra.push({...m,n,t:nowHM()});closeSheet();R();};
 EN.openSOS=()=>{const D=dayOf(TODAY()),T=TT[D.type],open=Math.round(T.kcal-totals(D).kcal);
   sheet(`<h3>Lust auf Süßes?</h3><div class="hint">${open>400?`<b>Dir fehlen heute noch ${open} kcal.</b> Heißhunger ist oft einfach Hunger. Iss zuerst die nächste Mahlzeit, dann schau, ob die Lust noch da ist.`:`<b>Du hast heute genug gegessen.</b> Ein Glas Wasser, 10 Minuten warten, oder eine Alternative.`}</div>
@@ -1122,13 +1128,13 @@ function homewayToday(){if(!C)return [];return shopList(1).rows.filter(r=>r.fres
    „Zum Ausprobieren“ = tryout aus nutrition.json (Buchrezepte), nur zum Ansehen, nicht im Plan, nicht in Bedarf und Vorrat. */
 let recTab='meal';
 EN.recTab=k=>{recTab=k;render();};
-const isSnackDish=v=>{if(V[v].at==='gym')return true;const sl=Object.keys(ALT).filter(s=>ALT[s].includes(v));return sl.length>0&&sl.every(s=>SNACK.includes(s));};   /* Sporttasche = immer Snack */
+const isSnackDish=v=>{if(V[v].at==='gym')return true;const sl=Object.keys(ALT).filter(s=>altAt(TODAY(),s).includes(v));return sl.length>0&&sl.every(s=>SNACK.includes(s));};   /* Sporttasche = immer Snack */
 const TRY=()=>(C&&C.tryout&&C.tryout.items)||[];
 function pRezepte(){const sn=recTab==='snack';
   const it=v=>`<div class="it" onclick="EN.openRecipe('${v}')"><div>${V[v].n}<small>${[V[v].time,V[v].at==='work'?'🎒 mitnehmbar':''].filter(Boolean).join(' · ')}</small></div><span class="go">›</span></div>`;
   const tr=TRY().filter(x=>(x.kind==='snack')===sn);
   return `<div class="row" style="margin-bottom:12px">${[['meal','Gerichte'],['snack','Snacks']].map(([k,l])=>`<button class="pill ${recTab===k?'on':''}" onclick="EN.recTab('${k}')">${l}</button>`).join('')}</div>
-    <div class="ecard"><span class="k">Im Plan</span><div class="list">${Object.keys(V).filter(v=>!V[v].hidden&&isSnackDish(v)===sn).map(it).join('')}</div></div>
+    <div class="ecard"><span class="k">Im Plan</span><div class="list">${Object.keys(V).filter(v=>!V[v].hidden&&dAt(TODAY(),v)===v&&!notYet(TODAY(),v)&&isSnackDish(v)===sn).map(it).join('')}</div></div>
     ${tr.length?`<div class="ecard"><span class="k">Zum Ausprobieren</span><div class="sub" style="margin-top:4px">Aus der Anti-Entzündungs-Diät, milchfrei angepasst. Nicht im Plan.</div>
       <div class="list">${tr.map(x=>`<div class="it" onclick="EN.openTry('${x.id}')"><div>${esc(x.n)}<small>${esc(x.time)} · ≈ ${x.kcal} kcal · ${x.P} g Protein</small></div><span class="go">›</span></div>`).join('')}</div></div>`:''}
     <div class="ecard"><span class="k">Bausteine (Glossar)</span><div class="list">${Object.keys(G).map(g=>`<div class="it" onclick="EN.openGl('${g}')"><div>${G[g].n}</div><span class="go">›</span></div>`).join('')}</div></div>`;}
@@ -1244,5 +1250,15 @@ EN.settings=function(main){const set=main.querySelector('.set');if(!set||!C)retu
     <div class="km" style="margin-top:14px">Daten</div>
     <div class="srow"><div>Gewicht, Haut, Ausnahmen, Energie<small>liegt auf allen Geräten (synchronisiert) · Export als Sicherung</small></div><button class="btn sm ghost" onclick="EN.exportHealth()">Export</button></div>
   </div></details>`;
-  set.insertBefore(el,set.firstChild);};
+  set.insertBefore(el,set.firstChild);
+  const rl=rulesHtml();if(rl){const el2=document.createElement('div');el2.className='en';el2.innerHTML=rl;set.insertBefore(el2,el.nextSibling);}};
+/* Ernährungsregeln (16.10.): Nippard und Hunter zusammengefasst, Inhalt aus nutrition.json rules (privat), je Regel das Warum zum Aufklappen.
+   a = app (macht die App) · du (machst du) · nein (bewusst nicht übernommen) */
+const RLA={app:['macht die App','ok'],du:['machst du','du'],nein:['bewusst nicht','no']};
+function rulesHtml(){const RU=C&&C.rules;if(!RU||!(RU.groups||[]).length)return '';const src=RU.src||{};
+  const who=s=>s.split('').map(c=>src[c]||c).join(' · ');
+  return `<details class="setsec"><summary>Ernährungsregeln</summary><div class="secbody rules">${RU.note?`<p class="hint">${esc(RU.note)}</p>`:''}
+    ${RU.groups.map(g=>`<div class="km" style="margin-top:12px">${esc(g.n)}</div>${g.items.map(r=>{const a=RLA[r.a]||RLA.app;
+      return `<details class="rl"><summary><span>${esc(r.t)}<small>${esc(who(r.s))}</small></span><i class="rla ${a[1]}">${a[0]}</i></summary><div class="rlw">${esc(r.w)}</div></details>`;}).join('')}`).join('')}
+  </div></details>`;}
 })();
