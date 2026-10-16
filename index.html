@@ -889,7 +889,7 @@
     nav .go:active { transform: translateX(-50%); }
   }
 </style>
-<link rel="stylesheet" href="ernaehrung.css?v=2026-10-15a">
+<link rel="stylesheet" href="ernaehrung.css?v=2026-10-16a">
 </head>
 <script>
 /* Akzentfarbe aus dem Cache setzen, BEVOR gerendert wird — sonst blitzt
@@ -917,7 +917,7 @@
   <button id="navSet"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 13.5a7.8 7.8 0 0 0 0-3l2-1.5-2-3.4-2.4 1a7.8 7.8 0 0 0-2.6-1.5L14 2.5h-4l-.4 2.6A7.8 7.8 0 0 0 7 6.6l-2.4-1-2 3.4 2 1.5a7.8 7.8 0 0 0 0 3l-2 1.5 2 3.4 2.4-1a7.8 7.8 0 0 0 2.6 1.5l.4 2.6h4l.4-2.6a7.8 7.8 0 0 0 2.6-1.5l2.4 1 2-3.4z"/></svg>Einstellungen</button>
 </nav>
 
-<script src="ernaehrung.js?v=2026-10-15a"></script>
+<script src="ernaehrung.js?v=2026-10-16a"></script>
 <link rel="stylesheet" href="lauf.css?v=2026-10-07a">
 <link rel="stylesheet" href="apple.css?v=2026-10-07a">   <!-- Apple-naher Look, zuletzt geladen -->
 <link rel="stylesheet" href="woche.css?v=2026-10-15a">
@@ -2052,7 +2052,7 @@ document.getElementById("navSet").onclick = () => { location.hash = "#settings";
    MAJOR 1 = Trainings-Tracker, 2 = mit Ernährung (ab 01.10.2026). MINOR = Umbau seit MAJOR (UMBAU-….md, 2.0 = Ernährung Phase 1).
    BUILD = laufende Push-Nummer = Anzahl Commits in workout-tracker nach dem Commit (git rev-list --count HEAD), vierstellig.
    Bei JEDEM Push hochzählen. Steht am iPhone die neue Nummer, ist der neue Stand da; sonst ist es noch der Cache. */
-const APP_VERSION = "2.18.0108";
+const APP_VERSION = "2.19.0109";
 let navScroll = false;
 window.addEventListener("hashchange", () => { navScroll = true; if (PROGRAM) render(); });
 
@@ -2161,7 +2161,7 @@ function renderPlan() {
     const istQuelle = swapFrom === first.d.key, go = entGo(first);
     html += `<div class="today ${istQuelle ? "sel" : ""}">
       <div class="k">${hk}</div>
-      <div class="en tl">${EN.dayPre(first)}${trRow(`<i class='ic'>🏋️</i>Training · ${EN.tzChip(first)}${EN.minHtml(first)}`,
+      <div class="en tl">${EN.ausgleich ? EN.ausgleich(first.k) : ""}${EN.dayPre(first)}${trRow(`<i class='ic'>🏋️</i>Training · ${EN.tzChip(first)}${EN.minHtml(first)}`,
         `<div class="n">${esc(entTitle(first))}</div>
         <div class="d">${esc(entSub(first))}</div>${EN.todayLine(first)}
         ${(swapFrom && !istQuelle)
@@ -2173,7 +2173,7 @@ function renderPlan() {
     const nx = days.find(x => x.kind === "train");
     html += `<div class="today">
       <div class="k">${hk}</div>
-      <div class="en tl">${EN.dayPre(first)}${trRow("<i class='ic'>🏋️</i>Training · <span>erledigt ✓</span>",
+      <div class="en tl">${EN.ausgleich ? EN.ausgleich(first.k) : ""}${EN.dayPre(first)}${trRow("<i class='ic'>🏋️</i>Training · <span>erledigt ✓</span>",
         `<div class="n">${first.d ? esc(entTitle(first)) : "Erledigt"}</div>
         <div class="d">${nx ? "Als Nächstes: " + esc(entTitle(nx)) : "Weiter geht's demnächst."}</div>${EN.energyLine()}
         ${first.d ? `<div class="lk tlk" onclick="${entGo(first)}">Einheit ansehen ›</div>` : ""}
@@ -2190,7 +2190,7 @@ function renderPlan() {
     const off = first.kind === "off";
     html += `<div class="today">
       <div class="k">${hk}</div>
-      <div class="en tl">${EN.dayPre(first)}${trRow(`<i class='ic'>🏋️</i>Training${EN.tzChip(first) ? " · " + EN.tzChip(first) : ""}`,
+      <div class="en tl">${EN.ausgleich ? EN.ausgleich(first.k) : ""}${EN.dayPre(first)}${trRow(`<i class='ic'>🏋️</i>Training${EN.tzChip(first) ? " · " + EN.tzChip(first) : ""}`,
         (WOCHE.todayOff(first) ? `<div class="n">${esc(WOCHE.todayOff(first).n)}</div><div class="d">${WOCHE.todayOff(first).d}</div><div class="lk tlk" onclick="${WOCHE.todayOff(first).lk}">${WOCHE.todayOff(first).lt}</div>` : `<div class="n">${off ? "Geht nicht" : "Ruhetag"}</div>
         <div class="d">${off ? "Als Ausfalltag markiert — alles rutscht nach hinten." : MAX_STREAK + " Trainingstage am Stück sind genug."}</div>
         <div class="lk tlk" onclick="${off ? `planOffToggle('${first.k}')` : `planForce('${first.k}')`}">${off ? "Doch, geht ›" : "Trotzdem trainieren ›"}</div>`) + `

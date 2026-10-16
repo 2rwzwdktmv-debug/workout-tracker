@@ -324,7 +324,43 @@ function dayScore(k){const D=dayOf(k),s=NS(k),rows=[];let m=0,mn=0,pt=0,sw=0,sk=
       rows.push({w,kc,f});sw+=w;sk+=kc;});});
   if(!rows.length)return null;
   const nd=rows.reduce((a,r)=>a+(.5*(sw?r.w/sw:0)+.5*(sk?r.kc/sk:0))*r.f,0)/((sw?.5:0)+(sk?.5:0));
-  return {nd,n:1,m,mn,pt};}
+  const xs=extrasOf(k),xn=xs.reduce((a,x)=>a+x.c,0);   /* Extras: −10 % pro Standard-Extra */
+  return {nd:Math.max(0,nd-.1*xn),n:1,m,mn,pt,xn,xs};}
+/* ---------- Extras und Ausgleich (16.10.2026, mit Marc abgestimmt) ----------
+   Extras: Was nicht zum Plan gehört, kostet im Plan-Wert 10 % pro Standard-Extra (≈ 250 kcal, mindestens 1).
+     Nippards 80/20 ≈ 20 % der Tageskalorien aus „Fun Food“ ≈ 2 Extras am Tag.
+     Zählt: Ausnahmen ohne Mahlzeit (Alkohol, Süßes …), Pauschalen wie Kuchen/Croissant/Eis/Riegel, Freitext.
+     Zählt nicht: plantypische Extras (Banane, Nüsse, Shake, Obst, Brot + Honig, Kaffee) und der Ausgleich.
+     Ausnahmen, die eine Mahlzeit ersetzen, kosten wie bisher den Anteil dieser Mahlzeit.
+   Ausgleich: Ersetzt eine Ausnahme eine Mahlzeit, fehlt dem Tag gegenüber dem Plan etwas. Aufgefüllt wird nur nach
+     oben: Protein jeden Tag bis zum Minimum, Kohlenhydrate an Trainings-, harten und Taper-Tagen bis 90 % des
+     Tagesziels, jeweils höchstens so viel, wie die Ausnahme weggenommen hat. Kalorien nie nach unten.          */
+const XFREE=new Set(['Banane','Handvoll Nüsse','Shake','Obst','Brot + Honig','Kaffee + Oatly']);
+const xCount=kc=>Math.max(1,Math.round((kc||0)/250));
+function extrasOf(k){const s=NS(k),out=[];
+  s.exc.forEach(e=>{if(e.slot==='extra')out.push({n:e.note||e.kind,c:xCount((e.m.kcal||0)*(SIZE[e.size]||1))});});
+  s.extra.forEach(x=>{if(!x.aus&&(x.free||!XFREE.has(x.n)))out.push({n:x.n,c:xCount(x.kcal)});});return out;}
+/* Was dem Tag durch Ausnahmen an Mahlzeiten fehlt (Plan wie entworfen gegen Plan mit Ausnahmen) */
+function ausgleichOf(k){const D=dayOf(k),s=NS(k);if(!s.exc.some(e=>e.slot!=='extra'))return null;
+  let des={p:0,c:0},pl={p:0,c:0};const add=(o,m,f)=>{o.p+=m.p*f;o.c+=m.c*f;};
+  mealIds(D).forEach(id=>{const m=mac(varOf(D,id),pix(D,id));add(des,m,1);
+    const ex=s.exc.find(e=>e.slot===id);if(ex){add(pl,ex.m,SIZE[ex.size]||1);return;}
+    if(s.st[id]==='half'){add(pl,m,.5);return;}add(pl,m,1);});
+  s.exc.forEach(e=>{if(e.slot==='extra')add(pl,e.m,SIZE[e.size]||1);});s.extra.forEach(x=>{if(!x.aus)add(pl,x,1);});
+  const T=TT[D.type],hi=D.type==='train'||D.type==='hard';
+  const needP=Math.max(0,Math.min(PMIN()-pl.p,des.p-pl.p)),needC=hi?Math.max(0,Math.min(T.c*.9-pl.c,des.c-pl.c)):0;
+  const sh=needP>=8?Math.min(2,Math.ceil(needP/24)):0,ban=needC>=15?Math.min(3,Math.round(needC/24)):0,rw=needC-ban*24>=12?Math.min(6,Math.round((needC-ban*24)/6)):0;
+  if(!sh&&!ban&&!rw)return null;
+  const its=[];if(ban)its.push(['banane',ban,ban+(ban>1?' Bananen':' Banane')]);if(rw)its.push(['reiswaffel',rw,rw+' Reiswaffeln']);if(sh)its.push(['erbsenprotein',30*sh,sh+(sh>1?' Shakes':' Shake')+' (je 30 g Protein-Pulver)']);
+  const at=nextMeal(D);return {its,at,needP:Math.round(needP),needC:Math.round(needC),done:s.extra.some(x=>x.aus)};}
+EN.ausgleich=k=>{if(!C)return '';const a=ausgleichOf(k);if(!a)return '';const D=dayOf(k);
+  return `<div class="slot aus${a.done?' done':''}"><div class="body"><div class="when"><i class="ic">⚖️</i>Ausgleich wegen Ausnahme${a.at?' · zu '+SL[a.at][0]:''}</div>
+    <div class="n">${a.its.map(x=>esc('+ '+x[2])).join(' · ')}</div>
+    <div class="d">Ersetzt, was die Ausnahme dem Plan wegnimmt${a.needP?' · Protein +'+a.needP+' g':''}${a.needC?' · Kohlenhydrate +'+a.needC+' g':''}. Zählt als Plan, kein Extra.</div></div>
+    <button class="st ${a.done?'eaten':'nx'}" onclick="event.stopPropagation();EN.ausOk('${k}')">${a.done?'✓':''}</button></div>`;};
+EN.ausOk=k=>{const s=NS(k),a=ausgleichOf(k);if(!a)return;
+  if(a.done){s.extra=s.extra.filter(x=>!x.aus);}else a.its.forEach(([it,q])=>{const m=itemMac(it,q);s.extra.push({n:'Ausgleich: '+((IT()[it]||{}).n||it),kcal:Math.round(m.kcal),p:Math.round(m.p),c:Math.round(m.c),f:Math.round(m.f),aus:1});});R();};
+
 const startDay=()=>Object.keys(FS().days).filter(logged).sort()[0]||null;
 function periodScore(from){const st=startDay(),y=addD(TODAY(),-1);let a=0,b=0,n=0;if(!st)return null;
   for(let k=from<st?st:from;k<=y;k=addD(k,1)){if(!logged(k))continue;const s=dayScore(k);if(!s)continue;a+=s.nd;b+=s.n;n++;}
@@ -354,10 +390,10 @@ EN.topFood=function(){if(!C)return '';const k=TODAY(),t=dayScore(k),st=startDay(
     ${due.length?`<div class="tc-due" onclick="${due[0]==='month'?'EN.openMonth()':`EN.openMeasure('${due[0]}')`}"><span>Heute messen: ${due.map(f=>f==='month'?'Monatsmessung':MLAB[f]).join(', ').replace(/, ([^,]*)$/,' und $1')}</span><span>›</span></div>`:''}`;};
 EN.openScore=()=>{const st=startDay(),ws=addD(TODAY(),-7);
   const rows=Array.from({length:8},(_,n)=>addD(ws,n)).filter(k=>!st||k>=st).reverse().map(k=>{const s=k>=(st||k)&&(logged(k)||k===TODAY())?dayScore(k):null,p=s?Math.round(100*s.nd/s.n):null;
-    return `<div class="it"><div style="flex:1">${dayOf(k).wd} ${OKT(k)}${k===TODAY()?' · heute':''}<small>${s?s.m+' von '+s.mn+' Mahlzeiten'+(s.pt?' · '+s.pt+' teilweise':''):st&&k<st?'vor dem Start':'nichts eingetragen, zählt nicht'}</small></div><span class="meta"><b class="${pcls(p)}">${p===null?'–':p+' %'}</b>${s?` · <b class="${prcls(totals(dayOf(k)).p,TT[dayOf(k).type].p)}">${Math.round(totals(dayOf(k)).p)} g</b>`:''}</span></div>`;}).join('');
+    return `<div class="it"><div style="flex:1">${dayOf(k).wd} ${OKT(k)}${k===TODAY()?' · heute':''}<small>${s?s.m+' von '+s.mn+' Mahlzeiten'+(s.pt?' · '+s.pt+' teilweise':'')+(s.xn?' · '+s.xn+' Extra'+(s.xn>1?'s':'')+' −'+s.xn*10+' %':''):st&&k<st?'vor dem Start':'nichts eingetragen, zählt nicht'}</small></div><span class="meta"><b class="${pcls(p)}">${p===null?'–':p+' %'}</b>${s?` · <b class="${prcls(totals(dayOf(k)).p,TT[dayOf(k).type].p)}">${Math.round(totals(dayOf(k)).p)} g</b>`:''}</span></div>`;}).join('');
   sheet(`<h3>Nach Plan</h3><div class="sub">Wie viel von deinem Plan du gegessen hast.</div>
     <div class="list" style="margin-top:10px">${rows}</div>
-    <details class="infod"><summary><span class="ii">i</span>So wird gezählt</summary><div class="hint"><b>Farben:</b> ab 80 % grün, ab 50 % gelb, darunter grau. Protein ist grün ab deinem Minimum (${PMIN()} g, Einstellungen → Ernährung), gelb ab der Hälfte des Tagesziels.<br><br>Jede Zutat zählt <b>halb nach Wichtigkeit</b> (Must-have wie Fisch, Beeren, Brokkoli, Fischöl und Protein 3 · Gemüse & Obst und Beilagen 2 · Rest 1 · Würze 0) und <b>halb nach Kalorien</b>. Eine ausgelassene Mahlzeit oder Ausnahme zählt 0, einzeln abgehakte Zutaten zählen anteilig. 7 und 30 Tage zählen nur abgeschlossene Tage (ohne heute)${st?' seit deinem Start ('+OKT(st)+')':''}. Tage ganz ohne Eintrag zählen nicht mit.</div></details>
+    <details class="infod"><summary><span class="ii">i</span>So wird gezählt</summary><div class="hint"><b>Farben:</b> ab 80 % grün, ab 50 % gelb, darunter grau. Protein ist grün ab deinem Minimum (${PMIN()} g, Einstellungen → Ernährung), gelb ab der Hälfte des Tagesziels.<br><br>Jede Zutat zählt <b>halb nach Wichtigkeit</b> (Must-have wie Fisch, Beeren, Brokkoli, Fischöl und Protein 3 · Gemüse & Obst und Beilagen 2 · Rest 1 · Würze 0) und <b>halb nach Kalorien</b>. Eine ausgelassene Mahlzeit oder Ausnahme zählt 0, einzeln abgehakte Zutaten zählen anteilig.<br><br><b>Extras</b> (Bier, Sekt, Kuchen, Riegel, Eis, Croissant, Freitext …) kosten <b>10 % pro Standard-Extra</b> (≈ 250 kcal). Das ist Nippards 80/20: etwa 2 Extras am Tag, dann bist du an der Grenze. Banane, Nüsse, Shake, Obst und der Ausgleich zählen nicht als Extra. 7 und 30 Tage zählen nur abgeschlossene Tage (ohne heute)${st?' seit deinem Start ('+OKT(st)+')':''}. Tage ganz ohne Eintrag zählen nicht mit.</div></details>
     <button class="btn" onclick="closeSheet();selK=null;location.hash='#food/tage'">Zutaten für heute ›</button><button class="cancel" onclick="closeSheet()">Fertig</button>`);};
 /* In der Original-Karte „Heute“ nur, was sonst nirgends steht: Hinweis bei harter Einheit im Heilungsfenster */
 EN.todayLine=function(first,n){if(!C)return '';const D=dayOf(first.k);
