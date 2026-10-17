@@ -121,7 +121,17 @@ function explain(k) {
   const row = (l, a, b, u) => { const d = b - a, pc = a ? Math.round(d / a * 100) : 0;
     return `<div class="tpr"><span>${l}</span><span>${de(a)} → <b>${de(b)}</b> ${u}</span><span class="${d > 0 ? "up" : ""}">${d ? (d > 0 ? "+" : "−") + de(Math.abs(d)) + " " + u + " · " + (d > 0 ? "+" : "−") + Math.abs(pc) + " %" : "gleich"}</span></div>`; };
   const r = o.tp ? raceOf(o.tp.id) : raceOf(o.race), s = o.tp ? o.tp.s : 0;
-  const what = o.race ? (r && r.time ? [`Hauptmahlzeit bis ${hhmm(r.time, 180)}: viel Kohlenhydrate, wenig Fett und Ballaststoffe`, `Snack ${hhmm(r.time, 60)}–${hhmm(r.time, 45)}: Banane oder Reiswaffeln mit Honig`, "Bis 2 h vorher 0,5 l trinken, danach schluckweise", "Kein Gel nötig, das Rennen ist kürzer als 60 min"] : ["Hauptmahlzeit 3 h vor dem Start, Snack 45–60 min vorher"])
+  /* Renntag (17.10.): Ablauf nach der Startzeit, oben im Sheet. Gilt für jeden Lauf, Zeiten rechnet die App aus „Start“. */
+  const t = r && r.time, short = r && r.km && r.km <= 10;
+  const plan = o.race ? [
+    ["morgens", "Frühstück wie gewohnt, nichts Neues ausprobieren"],
+    [t ? "bis " + hhmm(t, 180) : "3 h vorher", "Hauptmahlzeit, am besten Porridge (Mittag → Tauschen): 100 g Hafer mit Wasser, Shake, 1 Banane, 1 EL Honig, Zimt, ohne Beeren. Viel Kohlenhydrate, wenig Fett und Ballaststoffe. Die App zeigt mehr Hafer, einfach trotzdem abhaken."],
+    [t ? "bis " + hhmm(t, 120) : "2 h vorher", "0,5 l Wasser trinken, danach nur noch schluckweise, letzte Schlucke 20 min vor dem Start"],
+    [t ? hhmm(t, 60) + "–" + hhmm(t, 45) : "45–60 min vorher", "Nur bei Hunger: ½ Banane oder 1 Reiswaffel mit Honig"],
+    [t ? "ab " + hhmm(t, 30) : "30 min vorher", "Einlaufen: 10–15 min locker, dazu 3–4 Steigerungen"],
+    ...(short ? [["im Rennen", "Nichts nötig, kein Gel: Das Rennen ist kürzer als 60 min"]] : []),
+    ["danach", "Shake und Banane (Nachmittag), abends normal essen, gut trinken"]] : null;
+  const what = o.race ? []
     : s === 1 ? ["Abends helle Nudeln oder Reis statt Vollkorn", "Gemüse halbe Menge, wenig Rohkost", "Spätestens um 20 Uhr essen, nichts Neues ausprobieren", "Kein Alkohol, über den Tag gut trinken"]
     : ["Normal essen, nur etwas mehr Kohlenhydrate, damit die Speicher bis zum Rennen voll sind"];
   closeSheet();
@@ -130,10 +140,12 @@ function explain(k) {
   wrap.onclick = ev => { if (ev.target === wrap) closeSheet(); };
   wrap.innerHTML = `<div class="sheet tpsheet">
     <h4>Taper-Ernährung · ${WD[D(k).getDay()]} ${esc(fmtDay(D(k)))}</h4>
+    ${plan ? `<p><b>Ablauf heute</b>${r ? " · " + esc(r.name || "Rennen") + (t ? ", Start " + esc(t) + " Uhr" : "") : ""}</p><div class="tpplan">${plan.map(([a, b]) => `<div class="tpt"><span>${esc(a)}</span><span>${esc(b)}</span></div>`).join("")}</div>` : ""}
     <p>${o.race ? "Renntag" : s === 1 ? "Tag vor dem Rennen" : "Taper-Tag"}${r ? " · " + esc(r.name || "Rennen") : ""}: <b>${esc(now.l)}</b> statt Ruhetag, obwohl kein Plan-Training ansteht.</p>
     ${row("Kalorien", base.kcal, now.kcal, "kcal")}${row("Kohlenhydrate", base.c, now.c, "g")}${row("Protein", base.p, now.p, "g")}${row("Fett", base.f, now.f, "g")}
-    <div class="tpw">${what.map(x => `<div>· ${esc(x)}</div>`).join("")}</div>
+    ${what.length ? `<div class="tpw">${what.map(x => `<div>· ${esc(x)}</div>`).join("")}</div>` : ""}
     <p class="tpn">Warum: Weniger Training und etwas mehr Kohlenhydrate füllen die Speicher bis zum Start. Für Läufe bis 10 km reicht das, richtiges Carb-Loading lohnt sich erst ab dem Halbmarathon. Die Portionen (Reis, Nudeln, Kartoffeln) passt die App über den Tagtyp selbst an.</p>
+    <button class="cta ghost" onclick="closeSheet();location.hash='#settings'">Wettkampf bearbeiten ›</button>
     <button class="cancel" onclick="closeSheet()">Schließen</button>
   </div>`;
   document.body.appendChild(wrap);
@@ -199,10 +211,10 @@ window.WK = { races, card, start, stop, no, info, badge, type, settings, set, ad
 const W = window.WOCHE;
 if (W) {
   const t0 = W.todayOff, o0 = W.offInf, ty0 = W.type;
-  W.todayOff = first => { const i = info(first.k); return i ? { n: i.n, d: i.d, lk: "location.hash='#settings'", lt: "Wettkampf ›" } : t0(first); };
+  W.todayOff = first => { const i = info(first.k); return i ? { n: i.n, d: i.d, lk: `WK.explain('${first.k}')`, lt: "Ablauf und Essen ›" } : t0(first); };
   W.offInf = e => { const i = info(e.k); return i ? `<div class="inf"><div class="t ot">${esc(i.n)}</div><div class="s">${i.d}</div></div>` : o0(e); };
   W.type = k => type(k) || ty0(k);
   const c0 = W.offClick;
-  W.offClick = e => info(e.k) ? "location.hash='#settings'" : c0(e);
+  W.offClick = e => info(e.k) ? `WK.explain('${e.k}')` : c0(e);
 }
 })();

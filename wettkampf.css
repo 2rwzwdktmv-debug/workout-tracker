@@ -23,3 +23,7 @@
 .setsec details.wkr[open] > summary::after { transform: rotate(-90deg); }
 .wkbtn { display: block; width: 100%; margin: 6px 0 10px; padding: 10px; border-radius: 99px; border: 1px solid var(--line);
   background: var(--surface2); color: var(--ink); font-size: 14px; font-weight: 600; }
+/* Renntag: Ablauf nach Startzeit (17.10.) */
+.tpsheet .tpplan { margin: 6px 0 14px; }
+.tpsheet .tpt { display: grid; grid-template-columns: 92px 1fr; gap: 10px; padding: 7px 0; border-top: 1px solid var(--line); font-size: 14px; line-height: 1.4; }
+.tpsheet .tpt span:first-child { color: var(--lime); font-weight: 600; font-variant-numeric: tabular-nums; }
