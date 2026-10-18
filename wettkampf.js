@@ -8,10 +8,15 @@
        Renntag     { n: "Wettkampf", lv: "hart", race: id }        zählt als harte Laufeinheit
    Regeln (mit Marc am 15.10.2026 abgestimmt):
      Taper-Frage: bis 10 km 3 Tage, Halbmarathon 6, Marathon 10 Tage vorher.
-     Inhalt bisher nur bis 10 km: T−3 30 min locker + 4 Steigerungen · T−2 Ruhe oder 20 min locker ·
-     T−1 Ruhe oder 15 min + 3 Steigerungen. Halbmarathon und länger: Regeln legen wir noch fest.
-     Ernährung: T−1 Tagtyp „Trainingstag“ (Kohlenhydrate), Renntag „Trainingstag“; Badge „Taper-Ernährung“;
-     Vorabend helle Nudeln/Reis, wenig Rohkost; Renntag Essenszeiten nach der Startzeit.          */
+     Bis 10 km (3 Taper-Tage): T−3 30 min locker + 4 Steigerungen · T−2 Ruhe oder 20 min locker ·
+     T−1 Ruhe oder 15 min + 3 Steigerungen.
+     Halbmarathon (18.10.2026, Bakken-Abgleich, 4 Taper-Tage): T−4 3 × 2 km Renntempo · T−3 Ruhe oder
+     20–30 min locker · T−2 20 min locker + 4–5 Steigerungen · T−1 Ruhe oder 10 min traben.
+     Marathon: Regeln legen wir noch fest.
+     Ernährung: T−1 Tagtyp „Trainingstag“ (Kohlenhydrate), beim Halbmarathon auch T−2; Renntag „Trainingstag“;
+     Badge „Taper-Ernährung“; Vorabend helle Nudeln/Reis, wenig Rohkost; Renntag Essenszeiten nach der Startzeit.
+   Distanz (18.10.): Auswahl 10 km · Halbmarathon (21,1) · Marathon (42,2) · Andere (freie km).
+   Liste: nach Datum, Datum zuerst, Countdown; vergangene unter „Abgeschlossen“.                 */
 (function () {
 const T = () => dkey(today0());
 const D = k => new Date(k + "T12:00:00");
@@ -36,7 +41,16 @@ function syncRace() {
   S.race = r ? { name: r.name || "HYROX", date: r.date } : null;
 }
 const lead = r => !r.km ? 3 : r.km <= 10 ? 3 : r.km <= 21.2 ? 6 : 10;
-const canTaper = r => r.art === "lauf" && r.km && r.km <= 10;          // längere: Regeln folgen
+/* Distanzen: feste Auswahl, sonst frei (km) */
+const DIST = [["10", 10, "10 km"], ["hm", 21.1, "Halbmarathon"], ["m", 42.2, "Marathon"]];
+const cat = r => !r.km ? "" : r.km === 10 ? "10" : Math.abs(r.km - 21.1) < 0.15 ? "hm" : Math.abs(r.km - 42.2) < 0.3 ? "m" : "frei";
+const isHM = r => r.art === "lauf" && cat(r) === "hm";
+const len = r => isHM(r) ? 4 : 3;                                       // Taper-Tage vor dem Rennen
+const canTaper = r => r.art === "lauf" && r.km && (r.km <= 10 || isHM(r));   // Marathon: Regeln folgen
+const kind = r => r.art === "hyrox" ? "HYROX" : cat(r) === "hm" ? "Halbmarathon" : cat(r) === "m" ? "Marathon" : "Lauf" + (r.km ? " · " + dec(r.km) + " km" : "");
+const title = r => r.name || (r.art === "hyrox" ? "HYROX" : cat(r) === "hm" ? "Halbmarathon" : cat(r) === "m" ? "Marathon" : "Lauf");
+const until = k => { const n = between(T(), k); return n === 0 ? "heute" : n === 1 ? "morgen" : n === -1 ? "gestern" : n > 1 ? `in ${n} Tagen` : `vor ${-n} Tagen`; };
+const dShort = k => { const d = D(k), y = d.getFullYear() !== today0().getFullYear() ? String(d.getFullYear()).slice(2) : ""; return `${d.getDate()}.${d.getMonth() + 1}.${y}`; };
 const raceOf = id => races().find(r => r.id === id);
 const hhmm = (t, min) => { const m = /^(\d{1,2}):?(\d{2})$/.exec(t || ""); if (!m) return null; let v = +m[1] * 60 + +m[2] - min; return String(Math.floor(v / 60)).padStart(2, "0") + ":" + String(v % 60).padStart(2, "0"); };
 
@@ -49,11 +63,12 @@ function due() {
 function card() {
   const r = due();
   if (!r) return "";
-  const n = between(T(), r.date);
+  const n = between(T(), r.date), from = add(r.date, -Math.min(len(r), n));
+  const ab = from <= T() ? "Ab heute" : `Ab ${WD[D(from).getDay()]} ${fmtDay(D(from))}`;
   return `<div class="today nw">
-    <div class="k">In ${n === 1 ? "1 Tag" : n + " Tagen"}: ${esc(r.name || "Lauf")}</div>
-    <div class="v">${dec(r.km)} km · ${WD[D(r.date).getDay()]} ${esc(fmtDay(D(r.date)))}${r.time ? " · " + esc(r.time) + " Uhr" : ""}</div>
-    <div class="s">Taper starten? Die Plan-Einheiten bis zum Rennen rutschen dahinter, dafür kommen lockere Läufe und Taper-Ernährung.${r.ort ? "\n" + esc(r.ort) : ""}</div>
+    <div class="k">In ${n === 1 ? "1 Tag" : n + " Tagen"}: ${esc(title(r))}</div>
+    <div class="v">${esc(kind(r))} · ${WD[D(r.date).getDay()]} ${esc(fmtDay(D(r.date)))}${r.time ? " · " + esc(r.time) + " Uhr" : ""}</div>
+    <div class="s">Taper starten? ${ab} rutschen die Plan-Einheiten hinter das Rennen, dafür kommen ${isHM(r) ? "ein Lauf im Renntempo, lockere Tage" : "lockere Läufe"} und Taper-Ernährung.${r.ort ? "\n" + esc(r.ort) : ""}</div>
     <button class="cta" onclick="WK.start('${r.id}')">Taper starten</button>
     <button class="cta ghost" onclick="WK.no('${r.id}')">Normal weiter</button>
   </div>`;
@@ -61,7 +76,7 @@ function card() {
 function start(id) {
   const r = raceOf(id), p = P();
   if (!r) return;
-  const from = Math.min(lead(r), Math.max(1, between(T(), r.date)));
+  const from = Math.min(len(r), Math.max(1, between(T(), r.date)));
   for (let s = from; s >= 1; s--) {
     const k = add(r.date, -s);
     if (k < T()) continue;
@@ -92,20 +107,29 @@ const TXT = {
   2: ["Taper · Ruhe", "Ruhetag oder 20 min ganz locker"],
   1: ["Taper · Ruhe", "Ruhetag oder 15 min locker + 3 Steigerungen"],
 };
+/* Halbmarathon (18.10.): Renntempo üben statt schneller laufen, danach fast nichts, nur die Beine wach halten */
+const TXT_HM = {
+  4: ["Taper · 3 × 2 km Renntempo", "10 min ein · 3 × 2 km im geplanten Renntempo, 2 min traben · 10 min aus · Fühlt es sich schwer an: abbrechen"],
+  3: ["Taper · Ruhe", "Ruhetag oder 20–30 min ganz locker (HF < 142)"],
+  2: ["Taper · 20 min locker", "20 min locker (HF < 142) + 4–5 Steigerungen über 80–100 m · Fühlt es sich schwer an: abbrechen"],
+  1: ["Taper · Ruhe", "Ruhetag oder 10 min traben"],
+};
+const txtOf = (r, s) => (r && isHM(r) ? TXT_HM : TXT)[s] || TXT[1];
 function info(k) {
   const o = (P().other || {})[k];
   if (!o) return null;
   if (o.tp) {
-    const r = raceOf(o.tp.id), [n, d] = TXT[o.tp.s] || TXT[1];
+    const r = raceOf(o.tp.id), [n, d] = txtOf(r, o.tp.s);
     const food = o.tp.s === 1 ? " · Abends helle Nudeln oder Reis statt Vollkorn, wenig Rohkost, bis 20 Uhr essen." : "";
-    return { n, d: `${d}${r ? ` · noch ${o.tp.s === 1 ? "1 Tag" : o.tp.s + " Tage"} bis ${esc(r.name || "Rennen")}` : ""}${food}` };
+    return { n, d: `${d}${r ? ` · noch ${o.tp.s === 1 ? "1 Tag" : o.tp.s + " Tage"} bis ${esc(title(r))}` : ""}${food}` };
   }
   if (o.race) {
     const r = raceOf(o.race);
     if (!r) return null;
     const t = r.time;
     const plan = t ? ` · Hauptmahlzeit bis ${hhmm(t, 180)} · Snack ${hhmm(t, 60)}–${hhmm(t, 45)} · Einlaufen ab ${hhmm(t, 30)}` : "";
-    return { n: `${r.name || "Wettkampf"}${r.km ? " · " + dec(r.km) + " km" : ""}`, d: `${t ? "Start " + esc(t) + " Uhr" : "Renntag"}${r.ort ? " · " + esc(r.ort) : ""}${plan}` };
+    const dl = !r.km ? "" : cat(r) === "hm" ? "Halbmarathon" : cat(r) === "m" ? "Marathon" : dec(r.km) + " km";
+    return { n: `${title(r)}${dl && dl !== title(r) ? " · " + dl : ""}`, d: `${t ? "Start " + esc(t) + " Uhr" : "Renntag"}${r.ort ? " · " + esc(r.ort) : ""}${plan}` };
   }
   return null;
 }
@@ -123,15 +147,20 @@ function explain(k) {
   const r = o.tp ? raceOf(o.tp.id) : raceOf(o.race), s = o.tp ? o.tp.s : 0;
   /* Renntag (17.10.): Ablauf nach der Startzeit, oben im Sheet. Gilt für jeden Lauf, Zeiten rechnet die App aus „Start“. */
   const t = r && r.time, short = r && r.km && r.km <= 10;
+  /* Start vor etwa 13 Uhr (18.10.): Das Frühstück ist die Hauptmahlzeit, keine zwei Mahlzeiten am Morgen */
+  const early = t && hhmm(t, 180) < "10:00";
   const plan = o.race ? [
-    ["morgens", "Frühstück wie gewohnt, nichts Neues ausprobieren"],
-    [t ? "bis " + hhmm(t, 180) : "3 h vorher", "Hauptmahlzeit, am besten Porridge (Mittag → Tauschen): 100 g Hafer mit Wasser, Shake, 1 Banane, 1 EL Honig, Zimt, ohne Beeren. Viel Kohlenhydrate, wenig Fett und Ballaststoffe. Die App zeigt mehr Hafer, einfach trotzdem abhaken."],
+    ...(early ? [] : [["morgens", "Frühstück wie gewohnt, nichts Neues ausprobieren"]]),
+    early ? [t ? "bis " + hhmm(t, 180) : "3 h vorher", "Frühstück als Hauptmahlzeit, am besten Porridge statt des geplanten Frühstücks: 100 g Hafer mit Wasser, Shake, 1 Banane, 1 EL Honig, Zimt, ohne Beeren. Viel Kohlenhydrate, wenig Fett und Ballaststoffe. Nichts Neues ausprobieren."]
+      : [t ? "bis " + hhmm(t, 180) : "3 h vorher", "Hauptmahlzeit, am besten Porridge (Mittag → Tauschen): 100 g Hafer mit Wasser, Shake, 1 Banane, 1 EL Honig, Zimt, ohne Beeren. Viel Kohlenhydrate, wenig Fett und Ballaststoffe. Die App zeigt mehr Hafer, einfach trotzdem abhaken."],
     [t ? "bis " + hhmm(t, 120) : "2 h vorher", "0,5 l Wasser trinken, danach nur noch schluckweise, letzte Schlucke 20 min vor dem Start"],
     [t ? hhmm(t, 60) + "–" + hhmm(t, 45) : "45–60 min vorher", "Nur bei Hunger: ½ Banane oder 1 Reiswaffel mit Honig"],
     [t ? "ab " + hhmm(t, 30) : "30 min vorher", "Einlaufen: 10–15 min locker, dazu 3–4 Steigerungen"],
-    ...(short ? [["im Rennen", "Nichts nötig, kein Gel: Das Rennen ist kürzer als 60 min"]] : []),
+    ["im Rennen", short ? "Nichts nötig, kein Gel: Das Rennen ist kürzer als 60 min"
+      : "Wasser an den Verpflegungsstellen. Ein Gel um km 10–12 nur, wenn du es im Training schon vertragen hast"],
     ["danach", "Shake und Banane (Nachmittag), abends normal essen, gut trinken"]] : null;
   const what = o.race ? []
+    : s === 2 && isHM(r || {}) ? ["Kohlenhydrate wie an einem Trainingstag, die Portionen stellt die App selbst um", "Normale Gerichte, nichts Neues ausprobieren", "Über den Tag gut trinken"]
     : s === 1 ? ["Abends helle Nudeln oder Reis statt Vollkorn", "Gemüse halbe Menge, wenig Rohkost", "Spätestens um 20 Uhr essen, nichts Neues ausprobieren", "Kein Alkohol, über den Tag gut trinken"]
     : ["Normal essen, nur etwas mehr Kohlenhydrate, damit die Speicher bis zum Rennen voll sind"];
   closeSheet();
@@ -140,11 +169,11 @@ function explain(k) {
   wrap.onclick = ev => { if (ev.target === wrap) closeSheet(); };
   wrap.innerHTML = `<div class="sheet tpsheet">
     <h4>Taper-Ernährung · ${WD[D(k).getDay()]} ${esc(fmtDay(D(k)))}</h4>
-    ${plan ? `<p><b>Ablauf heute</b>${r ? " · " + esc(r.name || "Rennen") + (t ? ", Start " + esc(t) + " Uhr" : "") : ""}</p><div class="tpplan">${plan.map(([a, b]) => `<div class="tpt"><span>${esc(a)}</span><span>${esc(b)}</span></div>`).join("")}</div>` : ""}
-    <p>${o.race ? "Renntag" : s === 1 ? "Tag vor dem Rennen" : "Taper-Tag"}${r ? " · " + esc(r.name || "Rennen") : ""}: <b>${esc(now.l)}</b> statt Ruhetag, obwohl kein Plan-Training ansteht.</p>
+    ${plan ? `<p><b>Ablauf heute</b>${r ? " · " + esc(title(r)) + (t ? ", Start " + esc(t) + " Uhr" : "") : ""}</p><div class="tpplan">${plan.map(([a, b]) => `<div class="tpt"><span>${esc(a)}</span><span>${esc(b)}</span></div>`).join("")}</div>` : ""}
+    <p>${o.race ? "Renntag" : s === 1 ? "Tag vor dem Rennen" : "Taper-Tag"}${r ? " · " + esc(title(r)) : ""}: <b>${esc(now.l)}</b> statt Ruhetag.</p>
     ${row("Kalorien", base.kcal, now.kcal, "kcal")}${row("Kohlenhydrate", base.c, now.c, "g")}${row("Protein", base.p, now.p, "g")}${row("Fett", base.f, now.f, "g")}
     ${what.length ? `<div class="tpw">${what.map(x => `<div>· ${esc(x)}</div>`).join("")}</div>` : ""}
-    <p class="tpn">Warum: Weniger Training und etwas mehr Kohlenhydrate füllen die Speicher bis zum Start. Für Läufe bis 10 km reicht das, richtiges Carb-Loading lohnt sich erst ab dem Halbmarathon. Die Portionen (Reis, Nudeln, Kartoffeln) passt die App über den Tagtyp selbst an.</p>
+    <p class="tpn">Warum: Weniger Training und etwas mehr Kohlenhydrate füllen die Speicher bis zum Start. ${r && isHM(r) ? "Ab dem Halbmarathon lohnt sich ein kleines Carb-Loading: die letzten zwei Tage Kohlenhydrate wie an einem Trainingstag, am Vorabend helle Nudeln oder Reis." : "Für Läufe bis 10 km reicht das, richtiges Carb-Loading lohnt sich erst ab dem Halbmarathon."} Die Portionen (Reis, Nudeln, Kartoffeln) passt die App über den Tagtyp selbst an.</p>
     <button class="cta ghost" onclick="closeSheet();location.hash='#settings'">Wettkampf bearbeiten ›</button>
     <button class="cancel" onclick="closeSheet()">Schließen</button>
   </div>`;
@@ -154,45 +183,71 @@ function explain(k) {
 function type(k) {
   const o = (P().other || {})[k];
   if (!o) return null;
-  if (o.tp) return o.tp.s === 1 ? "train" : "active";
+  if (o.tp) return o.tp.s === 1 || (o.tp.s === 2 && isHM(raceOf(o.tp.id) || {})) ? "train" : "active";
   if (o.race) return "train";
   return null;
 }
 
-/* ---------- Einstellungen → Wettkampf: mehrere, mit Art, Distanz, Ort, Datum, Start ---------- */
-function settings() {
-  const list = races().slice().sort((a, b) => (a.date || "9") < (b.date || "9") ? -1 : 1);
-  const rows = list.map(r => {
-    const id = r.id, on = (f, v) => `onchange="WK.set('${id}','${f}',${v})"`;
-    const hint = r.art === "hyrox"
+/* ---------- Einstellungen → Wettkampf: Liste nach Datum (Datum zuerst, Countdown), Vergangenes eingeklappt ---------- */
+function row(r) {
+  const id = r.id, on = (f, v) => `onchange="WK.set('${id}','${f}',${v})"`, t = T();
+  const past = r.date && r.date < t, free = r.art === "lauf" && (cat(r) === "frei" || FREE.has(id));
+  const hint = past ? ""
+    : r.art === "hyrox"
       ? (window.RENNEN && RENNEN.active() && S.race && S.race.date === r.date ? "Rennblock läuft." : `Rennblock-Frage etwa ${window.RENNEN ? RENNEN.leadDays() : "–"} Tage vorher.`)
-      : canTaper(r) ? (r.taper ? `Taper läuft · <a onclick="WK.stop('${id}')">beenden</a>` : "Taper-Frage 3 Tage vorher.")
-      : r.km ? "Taper-Regeln für längere Läufe legen wir noch fest." : "Distanz eintragen, dann fragt die App rechtzeitig nach dem Taper.";
-    const sum = `${esc(r.name || (r.art === "hyrox" ? "HYROX" : "Lauf"))}<small>${r.art === "hyrox" ? "HYROX" : "Lauf" + (r.km ? " · " + dec(r.km) + " km" : "")}${r.date ? " · " + WD[D(r.date).getDay()] + " " + esc(fmtDay(D(r.date))) : ""}${r.time ? " · " + esc(r.time) : ""}${r.ort ? " · " + esc(r.ort) : ""}</small>`;
-    return `<details class="wkr" ${OPEN.has(id) || !r.date ? "open" : ""} ontoggle="WK.tog('${id}', this.open)">
-      <summary>${sum}</summary>
+    : canTaper(r) ? (r.taper ? `Taper läuft · <a onclick="WK.stop('${id}')">beenden</a>`
+        : lead(r) === len(r) ? `Taper-Frage ${lead(r)} Tage vorher.` : `Taper-Frage ${lead(r)} Tage vorher, Taper die letzten ${len(r)} Tage.`)
+    : cat(r) === "m" ? "Taper-Regeln für den Marathon legen wir noch fest."
+    : r.km ? "Für diese Distanz gibt es noch keine Taper-Regeln."
+    : "Distanz wählen, dann fragt die App rechtzeitig nach dem Taper.";
+  const k = r.art === "lauf" && !r.km ? "Distanz fehlt" : kind(r) === title(r) ? "" : kind(r);
+  const sub = [k, r.ort && esc(r.ort), r.time && esc(r.time) + " Uhr"].filter(Boolean).join(" · ");
+  const n = r.date ? between(t, r.date) : null;
+  const cd = r.date ? (past ? "✓ " : "") + until(r.date) : "Datum fehlt";
+  return `<details class="wkr${past ? " done" : ""}" ${OPEN.has(id) || !r.date ? "open" : ""} ontoggle="WK.tog('${id}', this.open)">
+      <summary><span class="wkdt">${r.date ? `<small>${WD[D(r.date).getDay()]}</small><b>${dShort(r.date)}</b>` : "<b>–</b>"}</span>
+        <span class="wkmid"><b>${esc(title(r))}</b><small>${sub}</small></span>
+        <span class="wkcd${n !== null && n >= 0 && n <= 7 ? " soon" : ""}">${cd}</span></summary>
       <div class="wkart">${["hyrox", "lauf"].map(a => `<button class="${r.art === a ? "on" : ""}" onclick="WK.set('${id}','art','${a}');render()">${a === "hyrox" ? "HYROX" : "Lauf"}</button>`).join("")}
         <button class="wkdel" onclick="if(confirm('Wettkampf löschen?'))WK.del('${id}')">Löschen</button></div>
+      ${r.art === "lauf" ? `<div class="wkart wkdist">${DIST.map(([c, km, l]) => `<button class="${!free && cat(r) === c ? "on" : ""}" onclick="WK.dist('${id}',${km})">${l}</button>`).join("")}
+        <button class="${free ? "on" : ""}" onclick="WK.dist('${id}',0)">Andere</button></div>` : ""}
       <div class="rmgrid">
-        <div class="rmcell"><span>Name</span><input type="text" value="${esc(r.name || "")}" placeholder="${r.art === "hyrox" ? "HYROX Frankfurt" : "Crosslauf"}" ${on("name", "this.value")}></div>
+        <div class="rmcell"><span>Name</span><input type="text" value="${esc(r.name || "")}" placeholder="${r.art === "hyrox" ? "HYROX Frankfurt" : esc(title(r))}" ${on("name", "this.value")}></div>
         <div class="rmcell"><span>Ort</span><input type="text" value="${esc(r.ort || "")}" placeholder="Frankfurt" ${on("ort", "this.value")}></div>
         <div class="rmcell"><span>Datum</span><input type="date" value="${esc(r.date || "")}" ${on("date", "this.value")}></div>
         <div class="rmcell"><span>Start</span><input type="time" value="${esc(r.time || "")}" ${on("time", "this.value")}></div>
-        ${r.art === "lauf" ? `<div class="rmcell"><span>Distanz (km)</span><input inputmode="decimal" value="${r.km ? dec(r.km) : ""}" placeholder="21,1" ${on("km", "this.value")}></div>` : ""}
+        ${free ? `<div class="rmcell"><span>Distanz (km)</span><input inputmode="decimal" value="${r.km ? dec(r.km) : ""}" placeholder="15" ${on("km", "this.value")}></div>` : ""}
       </div>
-      <p class="hint">${hint}</p>
+      ${hint ? `<p class="hint">${hint}</p>` : ""}
       <button class="wkbtn" onclick="WK.done('${id}')">Fertig</button>
     </details>`;
-  }).join("");
+}
+function settings() {
+  const t = T(), all = races();
+  const next = all.filter(r => !r.date || r.date >= t).sort((a, b) => (a.date || "") < (b.date || "") ? -1 : 1);
+  const past = all.filter(r => r.date && r.date < t).sort((a, b) => a.date < b.date ? 1 : -1);
   return `<details class="setsec">
     <summary><svg class="secic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg>Wettkampf</summary>
     <div class="secbody">
-      <p class="hint">HYROX startet rechtzeitig den Rennblock (Part 4). Läufe bis 10 km bekommen 3 Tage vorher einen Taper mit Taper-Ernährung.</p>
-      ${rows || ""}
+      <p class="hint">HYROX startet rechtzeitig den Rennblock (Part 4). Läufe bis 10 km bekommen die letzten 3 Tage einen Taper, der Halbmarathon die letzten 4, jeweils mit Taper-Ernährung.</p>
+      ${next.map(row).join("")}
       <button class="wkbtn" onclick="WK.add()">＋ Wettkampf</button>
+      ${past.length ? `<details class="wkpast"><summary>Abgeschlossen · ${past.length}</summary>${past.map(row).join("")}</details>` : ""}
     </div>
   </details>`;
 }
+/* Für die Gruppe „Wettkämpfe“: der nächste Wettkampf als Untertitel */
+function nextLine() {
+  const r = races().filter(x => x.date && x.date >= T()).sort((a, b) => a.date < b.date ? -1 : 1)[0];
+  return r ? `${title(r)} · ${WD[D(r.date).getDay()]} ${dShort(r.date)} · ${until(r.date)}` : "";
+}
+function dist(id, km) {
+  const r = raceOf(id); if (!r) return;
+  if (km) { r.km = km; FREE.delete(id); } else FREE.add(id);
+  syncRace(); markDirty(); render();
+}
+const FREE = new Set();   // „Andere“ gewählt, km noch offen (bis zum Neuladen)
 function set(id, f, v) {
   const r = raceOf(id); if (!r) return;
   if (f === "km") { const k = num(v); if (k) r.km = k; else delete r.km; }
@@ -204,7 +259,7 @@ const OPEN = new Set();   // aufgeklappte Wettkämpfe (bis zum Neuladen)
 function addRace() { const id = "r" + Date.now().toString(36); races().push({ id, art: "lauf" }); OPEN.add(id); markDirty(); render(); }
 function del(id) { stop(id); S.races = races().filter(r => r.id !== id); syncRace(); markDirty(); render(); }
 
-window.WK = { races, card, start, stop, no, info, badge, type, settings, set, add: addRace, del, explain,
+window.WK = { races, card, start, stop, no, info, badge, type, settings, set, add: addRace, del, explain, dist, nextLine,
   tog: (id, on) => { if (on) OPEN.add(id); else OPEN.delete(id); }, done: id => { OPEN.delete(id); render(); } };
 
 /* In woche.js einhängen: Taper-Tage und Renntag zeigen ihre eigenen Texte, Ernährung den eigenen Tagtyp */

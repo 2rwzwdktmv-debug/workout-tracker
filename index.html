@@ -922,8 +922,8 @@
 <link rel="stylesheet" href="apple.css?v=2026-10-07a">   <!-- Apple-naher Look, zuletzt geladen -->
 <link rel="stylesheet" href="woche.css?v=2026-10-15a">
 <script src="woche.js?v=2026-10-15a"></script>   <!-- Laufwoche · Anderes Training · Neue Woche -->
-<link rel="stylesheet" href="wettkampf.css?v=2026-10-17b">
-<script src="wettkampf.js?v=2026-10-17a"></script>   <!-- mehrere Wettkämpfe, Lauf-Taper -->
+<link rel="stylesheet" href="wettkampf.css?v=2026-10-18b">
+<script src="wettkampf.js?v=2026-10-18d"></script>   <!-- mehrere Wettkämpfe, Lauf-Taper -->
 <script src="lauf.js?v=2026-10-10a"></script>
 <script src="rennen.js?v=2026-10-04g"></script>   <!-- Rennblock (Part 4) mit Countdown -->
 <script>
@@ -2052,7 +2052,7 @@ document.getElementById("navSet").onclick = () => { location.hash = "#settings";
    MAJOR 1 = Trainings-Tracker, 2 = mit Ernährung (ab 01.10.2026). MINOR = Umbau seit MAJOR (UMBAU-….md, 2.0 = Ernährung Phase 1).
    BUILD = laufende Push-Nummer = Anzahl Commits in workout-tracker nach dem Commit (git rev-list --count HEAD), vierstellig.
    Bei JEDEM Push hochzählen. Steht am iPhone die neue Nummer, ist der neue Stand da; sonst ist es noch der Cache. */
-const APP_VERSION = "2.20.0113";
+const APP_VERSION = "2.21.0114";
 let navScroll = false;
 window.addEventListener("hashchange", () => { navScroll = true; if (PROGRAM) render(); });
 
@@ -3271,7 +3271,7 @@ function renderSettings() {
 const SET_GROUPS = [
   { k: "training", name: "Training", sub: "1RM, Kniebeuge, Leitern, Paces, Durchlauf", secs: ["1RM-Gewichte", "Kniebeuge", "Stufenleitern", "Optionale Einheiten", "Ziel-Paces", "Maßsystem", "Neuer Durchlauf"],
     icon: '<rect x="1.5" y="9.2" width="3.2" height="5.6" rx="1.2"/><rect x="19.3" y="9.2" width="3.2" height="5.6" rx="1.2"/><rect x="4.9" y="6.6" width="3.6" height="10.8" rx="1.4"/><rect x="15.5" y="6.6" width="3.6" height="10.8" rx="1.4"/><path d="M8.5 12h7"/>' },
-  { k: "race", name: "Wettkämpfe", sub: "HYROX und Läufe, Rennblock und Taper", secs: ["Wettkampf"],
+  { k: "race", name: "Wettkämpfe", sub: () => (window.WK && WK.nextLine()) || "HYROX und Läufe, Rennblock und Taper", secs: ["Wettkampf"],
     icon: '<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>' },
   { k: "food", name: "Ernährung", secs: ["Ernährung"], sub: "Phasen, Mahlzeiten, Supplements, Daten",
     icon: '<path d="M7 3v7a2 2 0 0 0 4 0V3M9 12v9M16.5 3C15 4.2 14.5 6.3 14.5 9c0 1.8.8 3 2 3v9"/>' },
@@ -3300,7 +3300,7 @@ function groupSettings(main) {
     const grp = document.createElement("details");
     grp.className = "setgrp";
     grp.innerHTML = `<summary><svg class="secic" viewBox="0 0 24 24" aria-hidden="true">${g.icon}</svg>
-      <span><b>${g.name}</b><small>${esc(g.sub || mine.map(nameOf).join(", "))}</small></span></summary>`;
+      <span><b>${g.name}</b><small>${esc((typeof g.sub === "function" ? g.sub() : g.sub) || mine.map(nameOf).join(", "))}</small></span></summary>`;
     mine.forEach(d => {
       const host = d.parentElement.classList.contains("en") ? d.parentElement : d;   // Ernährung braucht ihre .en-Hülle
       if (mine.length === 1) { d.classList.add("solo"); d.open = true; }
