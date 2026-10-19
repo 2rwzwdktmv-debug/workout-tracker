@@ -177,7 +177,7 @@ function detail(mon, infos, starts) {
     let body = lines.sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : a.si - b.si)).map(x => x.h).join("");
     if (info.races.length) body += info.races.map(r => `<div class="kl race">🏁 ${esc(r.name || "Wettkampf")}${r.ort ? " · " + esc(r.ort) : ""}${r.time ? " · " + esc(r.time) : ""}</div>`).join("");
     if (info.tw && info.o.tp) body += `<div class="kl${info.tw.o.done ? " done" : ""}"><b class="ksl"></b><span class="fkc fk${info.tw.s} sm">${FOKUS.NAME[info.tw.s]}</span><span class="kt">${esc(WK.info(info.k).n.replace(/^Taper · /, "Taper · "))}${info.tw.opt ? " (optional)" : ""}</span>${info.tw.o.done ? `<span class="ok">✓</span>` : ""}</div>`;
-    else if (info.o && !info.o.race) body += `<div class="kl ot">${info.o.tp ? esc(window.WK && WK.info(info.k) ? WK.info(info.k).n : "Taper") : `${esc(info.o.n)} · ${esc(info.o.lv)}`}</div>`;
+    else if (info.o && !info.o.race) body += `<div class="kl ot">${info.o.tp ? esc(window.WK && WK.info(info.k) ? WK.info(info.k).n : "Taper") : esc(info.o.n)}</div>`;
     if (info.tw && info.tw.race && info.tw.o.done) body += `<div class="kl done"><b class="ksl"></b><span class="kt">Rennen gelaufen</span><span class="ok">✓</span></div>`;
     if (info.sug) body += `<div class="kl"><b class="ksl"></b><span class="kt">＋ ${info.sug} min locker laufen · für 3 h diese Woche</span></div>`;
     body += info.xr.map(x => `<div class="kl">＋ Lauf${x.km ? " " + String(x.km).replace(".", ",") + " km" : ""}${x.t ? " · " + Math.round(x.t) + " min" : ""}</div>`).join("");

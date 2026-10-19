@@ -81,19 +81,19 @@
   .hero .txt .v { font-size: 21px; font-weight: 600; margin: 2px 0 6px; letter-spacing: -.3px; }
   .hero .txt .s { font-size: 13px; color: var(--muted); }
   /* Training | Ernährung (19.10.) */
-  .duo.topc { display: grid; grid-template-columns: 1fr 1fr; padding: 12px 0; margin: 0 0 12px; }
+  .duo.topc { display: grid; grid-template-columns: 2fr 3fr; padding: 12px 0; margin: 0 0 12px; }   /* 40/60: Ernährung braucht Platz für 30 Tage */
   .duo > div { cursor: pointer; min-width: 0; }
-  .duo-l { padding: 0 12px 0 14px; border-right: 1px solid var(--line); }
+  .duo-l { padding: 0 10px 0 14px; border-right: 1px solid var(--line); }
   .duo-r { padding: 0 14px 0 12px; }
   .duo .tc-due { grid-column: 1 / -1; margin: 10px 16px -12px; }
   .duo-h { display: flex; justify-content: space-between; font-size: 15px; font-weight: 600; color: var(--ink); margin-bottom: 8px; }
   .duo-h span { color: var(--sky); font-weight: 400; }
-  .duo-tr { display: flex; align-items: center; gap: 8px; }
-  .duo-tr .ringwrap { position: relative; width: 52px; height: 52px; flex-shrink: 0; }
+  .duo-tr { display: flex; align-items: center; gap: 7px; }
+  .duo-tr .ringwrap { position: relative; width: 46px; height: 46px; flex-shrink: 0; }
   .duo-tr .ringwrap .mid { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
-  .duo-tr .mid b { font-size: 13px; font-weight: 700; }
+  .duo-tr .mid b { font-size: 12px; font-weight: 700; }
   .duo-tx { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
-  .duo-tx b { font-size: 15px; font-weight: 700; white-space: nowrap; }
+  .duo-tx b { font-size: 14px; font-weight: 700; white-space: nowrap; }
   .duo-tx span { font-size: 13px; color: var(--muted); margin-top: 2px; }
   .duo .tc-t.mini { grid-template-columns: auto auto auto auto; justify-content: space-between; gap: 4px 5px; margin-top: 0; }
   .duo .tc-t.mini > span { font-size: 11px; }
@@ -918,7 +918,7 @@
     nav .go:active { transform: translateX(-50%); }
   }
 </style>
-<link rel="stylesheet" href="ernaehrung.css?v=2026-10-17a">
+<link rel="stylesheet" href="ernaehrung.css?v=2026-10-19d">
 </head>
 <script>
 /* Akzentfarbe aus dem Cache setzen, BEVOR gerendert wird — sonst blitzt
@@ -946,13 +946,13 @@
   <button id="navSet"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 13.5a7.8 7.8 0 0 0 0-3l2-1.5-2-3.4-2.4 1a7.8 7.8 0 0 0-2.6-1.5L14 2.5h-4l-.4 2.6A7.8 7.8 0 0 0 7 6.6l-2.4-1-2 3.4 2 1.5a7.8 7.8 0 0 0 0 3l-2 1.5 2 3.4 2.4-1a7.8 7.8 0 0 0 2.6 1.5l.4 2.6h4l.4-2.6a7.8 7.8 0 0 0 2.6-1.5l2.4 1 2-3.4z"/></svg>Einstellungen</button>
 </nav>
 
-<script src="ernaehrung.js?v=2026-10-19a"></script>
+<script src="ernaehrung.js?v=2026-10-19d"></script>
 <link rel="stylesheet" href="lauf.css?v=2026-10-07a">
 <link rel="stylesheet" href="apple.css?v=2026-10-07a">   <!-- Apple-naher Look, zuletzt geladen -->
-<link rel="stylesheet" href="woche.css?v=2026-10-18a">
-<script src="woche.js?v=2026-10-19h"></script>   <!-- Laufwoche · Anderes Training · Neue Woche -->
+<link rel="stylesheet" href="woche.css?v=2026-10-19a">
+<script src="woche.js?v=2026-10-19j"></script>   <!-- Laufwoche · Anderes Training · Neue Woche -->
 <link rel="stylesheet" href="wettkampf.css?v=2026-10-19a">
-<script src="wettkampf.js?v=2026-10-19b"></script>   <!-- mehrere Wettkämpfe, Lauf-Taper -->
+<script src="wettkampf.js?v=2026-10-19c"></script>   <!-- mehrere Wettkämpfe, Lauf-Taper -->
 <script src="lauf.js?v=2026-10-10a"></script>
 <script src="rennen.js?v=2026-10-19a"></script>   <!-- Rennblock (Part 4) mit Countdown -->
 <script>
@@ -2084,7 +2084,7 @@ document.getElementById("navSet").onclick = () => { location.hash = "#settings";
    MAJOR 1 = Trainings-Tracker, 2 = mit Ernährung (ab 01.10.2026). MINOR = Umbau seit MAJOR (UMBAU-….md, 2.0 = Ernährung Phase 1).
    BUILD = laufende Push-Nummer = Anzahl Commits in workout-tracker nach dem Commit (git rev-list --count HEAD), vierstellig.
    Bei JEDEM Push hochzählen. Steht am iPhone die neue Nummer, ist der neue Stand da; sonst ist es noch der Cache. */
-const APP_VERSION = "2.22.0116";
+const APP_VERSION = "2.22.0117";
 let navScroll = false;
 window.addEventListener("hashchange", () => { navScroll = true; if (PROGRAM) render(); });
 
@@ -2295,7 +2295,7 @@ function renderHome() {
   const nx = next ? [PROGRAM[next.pi].name, PROGRAM[next.pi].weeks[next.wi].name] : ["Alles", "erledigt"];
   const duo = `<div class="duo topc">
       <div class="duo-l" onclick="location.hash='#stats'"><div class="duo-h">Training<span>›</span></div>
-        <div class="duo-tr"><div class="ringwrap">${ring(p, 52, 6)}<div class="mid"><b>${p}%</b></div></div>
+        <div class="duo-tr"><div class="ringwrap">${ring(p, 46, 5)}<div class="mid"><b>${p}%</b></div></div>
           <div class="duo-tx"><b>${esc(nx[0])}</b><b>${esc(nx[1])}</b><span>${done}/${total}</span></div></div></div>
       <div class="duo-r" onclick="EN.openScore()">${EN.topFood(true)}</div>
       ${EN.topDue()}
@@ -4014,9 +4014,9 @@ window.doReset = function () {
 })();
 boot();
 </script>
-<link rel="stylesheet" href="fokus.css?v=2026-10-19f">
-<script src="fokus.js?v=2026-10-19k"></script>   <!-- Key · Base · Support, 7-Tage-Planwoche (18.10.) -->
+<link rel="stylesheet" href="fokus.css?v=2026-10-19g">
+<script src="fokus.js?v=2026-10-19l"></script>   <!-- Key · Base · Support, 7-Tage-Planwoche (18.10.) -->
 <link rel="stylesheet" href="kalender.css?v=2026-10-19j">
-<script src="kalender.js?v=2026-10-19q"></script>   <!-- Kalender: 6 Wochen Mo–So, Planwochen-Beginn (19.10.) -->
+<script src="kalender.js?v=2026-10-19r"></script>   <!-- Kalender: 6 Wochen Mo–So, Planwochen-Beginn (19.10.) -->
 </body>
 </html>

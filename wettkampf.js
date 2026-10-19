@@ -339,9 +339,11 @@ const W = window.WOCHE;
 if (W) {
   const t0 = W.todayOff, o0 = W.offInf, ty0 = W.type;
   // Taper-/Renntag als Einheit (19.10.): „Training starten“ unter Heute, Danach-Zeile öffnet die Einheit
-  W.todayOff = first => { const i = info(first.k), w = tw(first.k); return i ? { n: i.n, d: i.d, lk: `WK.explain('${first.k}')`, lt: "Ablauf und Essen ›",
+  const shortD = (k, i) => { const o = (P().other || {})[k], r = o && o.tp ? raceOf(o.tp.id) : null;   // kurz (19.10.): Details stehen in der Einheit
+    return o && o.tp ? `noch ${o.tp.s === 1 ? "1 Tag" : o.tp.s + " Tage"}${r ? " bis " + esc(title(r)) : ""}` : i.d; };
+  W.todayOff = first => { const i = info(first.k), w = tw(first.k); return i ? { n: i.n, d: w ? shortD(first.k, i) : i.d, lk: `WK.explain('${first.k}')`, lt: "Ablauf und Essen ›",
     btn: w ? `<button class="cta${w.o.done ? " ghost" : ""}" onclick="location.hash='#tp/${first.k}'">${w.o.done ? "Erledigt ✓ · ansehen" : w.race ? "Zum Rennen" : "Training starten"}</button>` : "" } : t0(first); };
-  W.offInf = e => { const i = info(e.k), w = tw(e.k); return i ? `<div class="inf"><div class="t ot">${w ? `<span class="fkc fk${w.s} sm">${w.s === "S" ? "Key" : "Base"}</span>` : ""}${esc(i.n)}${w && w.o.done ? " ✓" : ""}</div><div class="s">${i.d}</div></div>` : o0(e); };
+  W.offInf = e => { const i = info(e.k), w = tw(e.k); return i ? `<div class="inf"><div class="t ot">${w ? `<span class="fkc fk${w.s} sm">${w.s === "S" ? "Key" : "Base"}</span>` : ""}${esc(i.n)}${w && w.o.done ? " ✓" : ""}</div><div class="s">${w ? shortD(e.k, i) : i.d}</div></div>` : o0(e); };
   W.type = k => type(k) || ty0(k);
   const c0 = W.offClick;
   W.offClick = e => tw(e.k) ? `location.hash='#tp/${e.k}'` : info(e.k) ? `WK.explain('${e.k}')` : c0(e);

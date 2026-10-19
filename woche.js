@@ -137,7 +137,8 @@ function card(days) {
   const nFull = week.filter(k => rd[k] && rd[k].full).length;
   const km = week.reduce((a, k) => a + (rd[k] ? rd[k].km : 0), 0);
   const planned = {};
-  days.forEach(e => { if (planRunToday(e)) planned[e.k] = 1; });
+  const twRun = k => { const w = window.WK && WK.tw ? WK.tw(k) : null; return !!(w && !w.opt); };   // Taper-Lauf / Renntag (19.10.)
+  days.forEach(e => { if (planRunToday(e) || twRun(e.k)) planned[e.k] = 1; });
   const dots = week.map((k, i) => {
     const r = rd[k], cls = r && r.full ? "on" : r && r.any ? "half" : k > t && planned[k] ? "plan" : "";
     return `<span class="${cls}${k === t ? " now" : ""}"><i></i>${WDS[i]}</span>`;
@@ -195,28 +196,35 @@ function saveRun() {
 
 /* ---------- Anderes Training ---------- */
 let ON = KINDS[0], OL = "mittel";
-function otherSheet(k) {
+function otherSheet(k, re) {                                    // re = neu zeichnen (Auswahl bleibt)
   closeSheet();
   const e = k >= T() ? projectPlan(Math.max(14, between(T(), k) + 1)).find(x => x.k === k) : null;   // auch aus dem Kalender
   const cur = P().other[k];
-  if (cur) { ON = cur.n; OL = cur.lv; }
-  const names = KINDS.concat(Object.values(P().other).map(o => o.n)).filter((n, i, a) => a.indexOf(n) === i);
+  if (!re) { if (cur) { ON = cur.n; OL = cur.lv; } else OL = lastLv(ON); LVOPEN = false; }
+  const names = KINDS.concat(Object.values(P().other).filter(o => !o.tp && !o.race).map(o => o.n)).filter((n, i, a) => a.indexOf(n) === i);   // Taper/Renntag sind keine Auswahl
   const wrap = document.createElement("div");
   wrap.className = "sheetwrap";
   wrap.onclick = ev => { if (ev.target === wrap) closeSheet(); };
   wrap.innerHTML = `<div class="sheet wsheet">
     <h4>Anderes Training · ${WD[D(k).getDay()]} ${esc(fmtDay(D(k)))}</h4>
-    <p>${e && e.d ? "Statt " + esc(dayTitle(e.d)) + ". " : ""}Der Plan rutscht wie bei „Geht nicht“. Die Stärke gilt nur fürs Essen: „hart“ zählt dort wie ein Trainingstag.</p>
+    ${e && e.d ? `<p>Statt ${esc(dayTitle(e.d))}, der Plan rutscht.</p>` : ""}
     <div class="wch">${names.map(n => `<button class="${ON === n ? "on" : ""}" onclick="WOCHE.on(this.textContent)">${esc(n)}</button>`).join("")}<button onclick="WOCHE.onNew()">＋ neu</button></div>
-    <div class="wch lv">${LVS.map(l => `<button class="${OL === l ? "on" : ""}" onclick="WOCHE.ol('${l}')">${l}</button>`).join("")}</div>
-    <button class="wsave" onclick="WOCHE.saveOther('${k}')">${esc(ON)} · ${OL} eintragen</button>
+    ${LVOPEN || !known(ON) ? `<div class="wch lv">${LVS.map(l => `<button class="${OL === l ? "on" : ""}" onclick="WOCHE.ol('${l}')">${l}</button>`).join("")}</div><p class="wlvh">Stärke nur fürs Essen: „hart“ zählt wie ein Trainingstag.</p>`
+      : `<p class="wlvh">Stärke wie zuletzt: ${OL} · <a onclick="WOCHE.lvOpen()">ändern</a></p>`}
+    <button class="wsave" onclick="WOCHE.saveOther('${k}')">${esc(ON)} eintragen</button>
     ${cur ? `<button onclick="WOCHE.delOther('${k}')">Wieder Plan-Training<small>Der Plan kehrt an diesen Tag zurück.</small></button>` : ""}
     <button class="cancel" onclick="closeSheet()">Abbrechen</button>
   </div>`;
   document.body.appendChild(wrap);
   OK = k;
 }
-let OK = null;
+let OK = null, LVOPEN = false;
+/* Stärke merkt sich die App je Name (19.10.): die zuletzt eingetragene; erst bei einem neuen Namen wird gefragt */
+const known = n => Object.values(P().other).some(o => o.n === n && o.lv);
+function lastLv(n) {
+  const ks = Object.keys(P().other).filter(k => P().other[k].n === n && P().other[k].lv).sort();
+  return ks.length ? P().other[ks[ks.length - 1]].lv : (n === "Wettkampf" ? "hart" : "mittel");
+}
 function saveOther(k) {
   const p = P();
   p.other[k] = { n: ON, lv: OL };
@@ -235,7 +243,7 @@ function offInf(e) {
   const a = awayOf(e.k);
   if (a) return `<div class="inf"><div class="t ot">${esc(a.n)}</div><div class="s">${a.pause ? "Pause, der Plan wartet" : "gekürzt, Woche bleibt 7 Tage"} · bis ${esc(fmtDay(D(a.e)))}</div></div>`;
   const o = P().other[e.k];
-  return o ? `<div class="inf"><div class="t ot">${esc(o.n)}</div><div class="s">${o.lv} · anderes Training, der Plan rutscht</div></div>`
+  return o ? `<div class="inf"><div class="t ot">${esc(o.n)}</div><div class="s">Anderes Training</div></div>`
            : `<div class="inf"><div class="t">Geht nicht</div><div class="s">antippen zum Zurücknehmen</div></div>`;
 }
 function offClick(e) { if (awayOf(e.k)) return `KAL.day('${e.k}')`; return P().other[e.k] ? `WOCHE.otherSheet('${e.k}')` : `planOffToggle('${e.k}')`; }
@@ -243,7 +251,7 @@ function todayOff(first) {
   const a = awayOf(first.k);
   if (a) return { n: a.n, d: `${a.pause ? "Pause, der Plan wartet" : "gekürzt, Woche bleibt 7 Tage"} · bis ${fmtDay(D(a.e))}`, lk: `KAL.day('${first.k}')`, lt: "ändern ›" };
   const o = P().other[first.k];
-  return o ? { n: o.n, d: `${o.lv} · anderes Training statt Plan, der Plan rutscht`, lk: `WOCHE.otherSheet('${first.k}')`, lt: "ändern ›" } : null;
+  return o ? { n: o.n, d: "", lk: `WOCHE.otherSheet('${first.k}')`, lt: "ändern ›" } : null;
 }
 
 /* ---------- Neue Woche starten ---------- */
@@ -371,8 +379,9 @@ window.WOCHE = {
   runField, saveField, runDays, minOf, RUNK, sugRuns, sugRow, planMin,   /* minOf/RUNK auch für den Kalender (19.10.) */
   card, nwCard, runSheet, saveRun, otherSheet, saveOther, delOther, offInf, offClick, todayOff,
   rk: k => { RK = k; runSheet(); }, rd: i => { RD = i; runSheet(); },
-  on: n => { ON = n; if (n === "Wettkampf") OL = "hart"; otherSheet(OK); }, ol: l => { OL = l; otherSheet(OK); },
-  onNew: () => { const n = (prompt("Name des Trainings") || "").trim(); if (n) { ON = n; otherSheet(OK); } },
+  on: n => { ON = n; OL = lastLv(n); otherSheet(OK, true); }, ol: l => { OL = l; LVOPEN = true; otherSheet(OK, true); },
+  lvOpen: () => { LVOPEN = true; otherSheet(OK, true); },
+  onNew: () => { const n = (prompt("Name des Trainings") || "").trim(); if (n) { ON = n; otherSheet(OK, true); } },
   nwStart, nwReset, nwLater,
   /* Ernährung: Tagestyp für ein Anderes Training */
   type: k => { const o = (planState().other || {})[k]; return o ? (o.lv === "hart" ? "train" : "active") : null; },

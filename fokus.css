@@ -81,3 +81,11 @@
 .fku.moved .t { color: var(--muted); }
 .sheet .fksave { background: var(--lime); color: var(--lime-ink); border: none; text-align: center; font-weight: 700; }
 .sheet .fksave.off { background: var(--surface2); color: var(--muted); border: 1px solid var(--line); font-weight: 600; }
+/* Wochenblock kompakt (19.10.) */
+.fkweek { cursor: pointer; }
+.fkmin { flex-wrap: wrap; gap: 6px 10px; }
+.fkmin b { font-size: 16px; }
+.fkmin .fklist { margin-top: 0; flex: 1 1 auto; justify-content: flex-end; gap: 4px 9px; font-size: 12.5px; }
+.fkwr { display: flex; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+.fkwr b { width: 52px; flex: none; color: var(--muted); }
+.fkwr b.ok { color: var(--lime); }

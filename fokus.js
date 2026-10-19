@@ -490,17 +490,32 @@ function weekBlock() {
     <circle cx="22" cy="22" r="18" class="fg${min >= minGoal ? " ok" : ""}" stroke-dasharray="${Math.round(113 * pct)} 113" transform="rotate(-90 22 22)"/></svg>`;
   const hm = m => Math.floor(m / 60) + ":" + String(Math.round(m % 60)).padStart(2, "0");
   const c = compute(), nDrop = c.drops.filter(x => x.start <= t && t <= x.end).length;   // nur die laufende Planwoche
-  const item = (lbl, ok, txt) => `<span class="${ok ? "ok" : ""}">${ok ? "✓" : "○"} ${lbl}${txt ? " " + txt : ""}</span>`;
-  return `<div class="fkweek">
-    <div class="fkmin">${ring}<div><b>${hm(min)} h</b> gelaufen<br><span>Minimum 3 h · Ziel 4 h</span></div></div>
-    <div class="fklist">
-      ${item("Schwellen", qual >= 2, Math.min(qual, 2) + "/2")}${item("Long Run", longrun)}
-      ${item("Kniebeuge", lifts.squat)}${item("Bank", lifts.bench)}${item("Kreuzheben", lifts.deadlift)}
-      ${nDrop ? `<span class="drop">${nDrop} fällt weg</span>` : ""}
-    </div>
+  /* Kompakt (19.10.): Ring mit „0:50 / 3 h“, Kürzel in einer Zeile, ausgeschrieben im Sheet (Tipp) */
+  const ck = (k, ok, txt) => `<span class="${ok ? "ok" : ""}">${ok ? "✓" : "○"}&nbsp;${k}${txt ? "&nbsp;" + txt : ""}</span>`;
+  WB = { min, qual, longrun, lifts, nDrop };
+  return `<div class="fkweek" onclick="FOKUS.weekInfo()">
+    <div class="fkmin">${ring}<div><b>${hm(min)}</b> <span>/ 3 h</span></div>
+      <div class="fklist">${ck("SW", qual >= 2, Math.min(qual, 2) + "/2")}${ck("LR", longrun)}${ck("KB", lifts.squat)}${ck("BD", lifts.bench)}${ck("KH", lifts.deadlift)}${nDrop ? `<span class="drop">−${nDrop}</span>` : ""}</div></div>
   </div>`;
+}
+let WB = null;
+function weekInfo() {
+  if (!WB) return;
+  const hm = m => Math.floor(m / 60) + ":" + String(Math.round(m % 60)).padStart(2, "0");
+  const r = (k, l, ok, t) => `<div class="fkwr"><b class="${ok ? "ok" : ""}">${ok ? "✓" : "○"} ${k}</b><span>${l}${t ? " · " + t : ""}</span></div>`;
+  const wrap = document.createElement("div");
+  wrap.className = "sheetwrap";
+  wrap.onclick = ev => { if (ev.target === wrap) closeSheet(); };
+  wrap.innerHTML = `<div class="sheet"><h4>Diese Woche (Mo–So)</h4>
+    ${r("⏱", "Gelaufen", WB.min >= 180, hm(WB.min) + " h · Minimum 3 h, Ziel 4 h (Bakken)")}
+    ${r("SW", "Schwellen", WB.qual >= 2, Math.min(WB.qual, 2) + " von 2 (Bakken: 2 pro Woche, nie mehr als 7 Tage ohne)")}
+    ${r("LR", "Long Run", WB.longrun, "locker, HF unter 142")}
+    ${r("KB", "Kniebeuge", WB.lifts.squat)}${r("BD", "Bankdrücken", WB.lifts.bench)}${r("KH", "Kreuzheben", WB.lifts.deadlift)}
+    ${WB.nDrop ? `<p>${WB.nDrop} ${WB.nDrop === 1 ? "Einheit fällt" : "Einheiten fallen"} in der laufenden Planwoche weg (siehe Danach bzw. Kalender).</p>` : ""}
+    <button class="cancel" onclick="closeSheet()">Schließen</button></div>`;
+  document.body.appendChild(wrap);
 }
 
 window.FOKUS = { chips, chipSess, subHtml, dropped, back, unskip, draftBlock, dd, du, saveDraft, why, sessHead, shortHere,
-  settings, tpw, weekBlock, compute, NAME, keepTxt, awayAt, saveAway, delAway, skippedOf, origOf, slotOf, awayRule };
+  settings, tpw, weekBlock, weekInfo, compute, NAME, keepTxt, awayAt, saveAway, delAway, skippedOf, origOf, slotOf, awayRule };
 })();

@@ -457,7 +457,9 @@ const segs=D=>{const r=[[]];shown(D).forEach(s=>{if(s[0]==='T')r.push([]);else r
 const flow=(D,row,fn,noUw)=>{const sg=segs(D);return sg.map((x,j)=>x.filter(s=>!(noUw&&s[0]==='uw')).map(sl=>mealRow(D,sl,fn)).join('')+(j<sg.length-1?row(j):'')).join('');};
 const unitTxt=(D,n)=>{try{const se=D.e.d.day.sessions[D.units[n].si];return pvRank(pvSession(se),2).join(' + ')||se.label||D.units[n].tag;}catch(x){return D.units[n].tag;}};
 EN.units=e=>{if(!C)return null;const D=dayOf(e.k);return D.units?D.units.map((u,n)=>Object.assign({txt:unitTxt(D,n)},u)):null;};
-EN.dayFlow=(e,row)=>{const D=dayOf(e.k);return flow(D,row,null,true);};
+/* Übersicht kompakt (19.10.): Mahlzeiten nur mit Titel und kcal, die Zutaten stehen beim Antippen */
+let COMPACT=false;const compact=f=>{COMPACT=true;try{return f();}finally{COMPACT=false;}};
+EN.dayFlow=(e,row)=>{const D=dayOf(e.k);return compact(()=>flow(D,row,null,true));};
 /* Eine Zeile im Ablauf (überall gleich: Übersicht, Ernährung → Tage, Vorschau): Zeit, Name, Inhalt · kcal (seit 09.10. auch bei Snacks);
    rechts heute der Kreis zum Abhaken (gelber Ring = als Nächstes dran), an anderen Tagen ›. Gegessenes schrumpft auf eine Zeile. */
 function mealRow(D,sl,fn){const id=sl[0],v=varOf(D,id),X=V[v],s=NS(D.k),st=s.st[id]||'',exc=s.exc.find(e=>e.slot===id),done=mealDone(D,id),i=pix(D,id),K=`'${D.k}'`,c=cue(D,id);
@@ -465,18 +467,24 @@ function mealRow(D,sl,fn){const id=sl[0],v=varOf(D,id),X=V[v],s=NS(D.k),st=s.st[
   const open=`${fn||'EN.openMeal'}(${K},'${id}')`;
   const own=ownOf(D.k,id),stv=st||(done&&!exc&&(own||fullPart(D,id))?'eaten':'');
   const right=D.k<=TODAY()?`<button class="st ${done?(exc?'exc':stv):nextStep(D)===id?'nx':''}${!done&&pf>0?' pt':''}${POPM===D.k+id?' pop':''}" onclick="event.stopPropagation();EN.toggleMeal(${K},'${id}')">${({eaten:'✓',half:'½',skip:'✕'})[stv]||(exc?'!':'')}</button>`:'<span class="go">›</span>';
+  /* Übersicht kompakt (19.10.): Tabellenraster Tageszeit · Titel · kcal · Haken, ohne Emojis, Zutaten erst beim Antippen */
+  if(COMPACT){const kc=done?(exc?'':own?Math.round(ownMac(own).kcal):mac(v,i).kcal):mac(v,i).kcal,
+    tt=done?(exc?'Ausnahme: '+exc.kind:own?'Eigene Zutaten':titleOf(D,id)):dname(v,i),
+    bt=!done&&canBatch(D,id)?batchOf(D.k,id)>1?` <i class="cbx">×${batchOf(D.k,id)} kochen</i>`:coverOf(D.k,id)?' <i class="cbx">vorgekocht</i>':'':'';
+    const pp=/Pre-Workout|Post-Workout/.exec(c||'');   /* Pre/Post hat Vorrang vor der Tageszeit (Marc 19.10.) */
+    return `<div class="slot crow${done?' done':''}" onclick="${open}"><span class="cw">${pp?pp[0]:SL[id][0]}</span><span class="cn">${tt}${bt}</span><span class="ck">${kc?kc+' kcal':''}</span>${right}${pnames&&!done?`<div class="cx" style="color:var(--lime)">teilweise: ${pnames}</div>`:''}${!done&&supOn().length&&id===addonSlot(D)?`<div class="cx">+ ${supNames()}</div>`:''}</div>`;}
   if(done)return `<div class="slot done" onclick="${open}"><div class="body"><span class="l">${lab(id)}</span>${exc?'Ausnahme: '+exc.kind+(exc.note?' · '+esc(exc.note):''):own?'Eigene Zutaten · '+Math.round(ownMac(own).kcal)+' kcal':titleOf(D,id)}</div>${right}</div>`;
   const add=supOn().length&&id===addonSlot(D)?`<div class="addon">+ ${supNames()}</div>`:'';
-  return `<div class="slot" onclick="${open}"><div class="body"><div class="when">${lab(id)}${c?` · <span>${c}</span>`:''}${sl[2]==='work'?' · <span>🎒</span>':''}${canBatch(D,id)?batchOf(D.k,id)>1?` · <span>🍲 ×${batchOf(D.k,id)} kochen</span>`:coverOf(D.k,id)?' · <span>🧊 vorgekocht</span>':'':''}</div><div class="n">${dname(v,i)}</div><div class="d">${X.d(i)} · ${mac(v,i).kcal} kcal</div>${pnames?`<div class="addon" style="color:var(--lime)">teilweise: ${pnames}</div>`:''}${add}</div>${right}</div>`;}
+  return `<div class="slot" onclick="${open}"><div class="body"><div class="when">${lab(id)}${c?` · <span>${c}</span>`:''}${sl[2]==='work'?' · <span>🎒</span>':''}${canBatch(D,id)?batchOf(D.k,id)>1?` · <span>🍲 ×${batchOf(D.k,id)} kochen</span>`:coverOf(D.k,id)?' · <span>🧊 vorgekocht</span>':'':''}</div>${COMPACT?`<div class="n">${dname(v,i)} <span class="nk">${mac(v,i).kcal} kcal</span></div>`:`<div class="n">${dname(v,i)}</div><div class="d">${X.d(i)} · ${mac(v,i).kcal} kcal</div>`}${pnames?`<div class="addon" style="color:var(--lime)">teilweise: ${pnames}</div>`:''}${add}</div>${right}</div>`;}
 const mealList=(D,part,fn)=>mealsOf(D,part).map(sl=>mealRow(D,sl,fn)).join('');
-EN.dayPre=e=>C?mealList(dayOf(e.k),'pre'):'';
+EN.dayPre=e=>C?compact(()=>mealList(dayOf(e.k),'pre')):'';
 /* Übersicht: Intra-Workout steht nicht als eigene Zeile, sondern leise in der Trainingszeile (EN.todayLine) */
-EN.dayPost=e=>{if(!C)return '';const D=dayOf(e.k);return mealsOf(D,'post').filter(s=>s[0]!=='uw').map(sl=>mealRow(D,sl)).join('');};
+EN.dayPost=e=>{if(!C)return '';const D=dayOf(e.k);return compact(()=>mealsOf(D,'post').filter(s=>s[0]!=='uw').map(sl=>mealRow(D,sl)).join(''));};
 /* ---------- Packen für morgen (04.10.): Liste im Sheet; seit 12.10. eine schmale Textzeile im Fuß der Karte „Heute“ (Marc: als Zeile im Ablauf sah es nach Essen/Training aus) ----------
    Steht nur heute und nur, wenn morgen gearbeitet wird. Abgehakt wird pro Punkt (S.food.days[heute].pk),
    „gepackt“ ist der Tag, wenn alles abgehakt ist oder „Alles gepackt“ gedrückt wurde. */
 function packLine(D){if(D.k!==TODAY())return '';const N=nextWorkDay(D);if(!N)return '';const s=NS(D.k),all=[].concat(...packModel(N).map(g=>g[1])),nd=all.filter(x=>s.pk[x[0]]).length;
-  return `<div class="packline${s.packed?' done':''}" onclick="EN.openPack()">🎒 Für ${N.wd} ${s.packed?'gepackt ✓':'packen · '+nd+'/'+all.length+' ›'}</div>`;}
+  return `<div class="packline${s.packed?' done':''}" onclick="EN.openPack()">Für ${N.wd} ${s.packed?'gepackt ✓':'packen · '+nd+'/'+all.length+' ›'}</div>`;}
 /* k = Arbeitstag, für den gepackt wird (Standard: morgen). Abgehakt wird am Abend davor (NS(k−1)),
    deshalb sieht „Packliste heute“ morgens dieselben Haken wie gestern Abend. */
 const packFor=k=>{const N=k?dayOf(k):nextWorkDay(dayOf(TODAY()));return N&&N.work?N:null;};
