@@ -80,6 +80,25 @@
   .hero .txt .k { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 1.4px; font-weight: 600; }
   .hero .txt .v { font-size: 21px; font-weight: 600; margin: 2px 0 6px; letter-spacing: -.3px; }
   .hero .txt .s { font-size: 13px; color: var(--muted); }
+  /* Training | Ernährung (19.10.) */
+  .duo.topc { display: grid; grid-template-columns: 1fr 1fr; padding: 12px 0; margin: 0 0 12px; }
+  .duo > div { cursor: pointer; min-width: 0; }
+  .duo-l { padding: 0 12px 0 14px; border-right: 1px solid var(--line); }
+  .duo-r { padding: 0 14px 0 12px; }
+  .duo .tc-due { grid-column: 1 / -1; margin: 10px 16px -12px; }
+  .duo-h { display: flex; justify-content: space-between; font-size: 15px; font-weight: 600; color: var(--ink); margin-bottom: 8px; }
+  .duo-h span { color: var(--sky); font-weight: 400; }
+  .duo-tr { display: flex; align-items: center; gap: 8px; }
+  .duo-tr .ringwrap { position: relative; width: 52px; height: 52px; flex-shrink: 0; }
+  .duo-tr .ringwrap .mid { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+  .duo-tr .mid b { font-size: 13px; font-weight: 700; }
+  .duo-tx { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
+  .duo-tx b { font-size: 15px; font-weight: 700; white-space: nowrap; }
+  .duo-tx span { font-size: 13px; color: var(--muted); margin-top: 2px; }
+  .duo .tc-t.mini { grid-template-columns: auto auto auto auto; justify-content: space-between; gap: 4px 5px; margin-top: 0; }
+  .duo .tc-t.mini > span { font-size: 11px; }
+  .duo .tc-t.mini b { font-size: 13.5px; }
+  .duo .tc-t.mini i { font-size: 12px; }
   .ring { transform: rotate(-90deg); }
   .ring .bgc { stroke: rgba(255,255,255,.08); }
   .ring .fgc { stroke: var(--lime); stroke-linecap: round; transition: stroke-dashoffset .4s; }
@@ -503,6 +522,16 @@
     font: italic 600 12px/1 Georgia, serif;
   }
   .sheet button.cancel { text-align: center; background: none; border: none; color: var(--muted); margin: 4px 0 0; }
+  /* Tages-Sheet (19.10.) */
+  .psh { display: flex; justify-content: space-between; align-items: baseline; }
+  .psh a { color: var(--sky); font-size: 14px; font-weight: 600; cursor: pointer; }
+  .psheet > p { margin-bottom: 10px; }
+  .prow { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .prow button { text-align: center; }
+  .pmore summary { list-style: none; color: var(--muted); font-size: 13.5px; font-weight: 600; padding: 4px 2px 10px; cursor: pointer; }
+  .pmore summary::-webkit-details-marker { display: none; }
+  .pmore summary::after { content: " ›"; }
+  .pmore[open] summary::after { content: " ▾"; }
 
   /* ---------- Stufenleitern ---------- */
   .pdw { border-bottom: 1px solid var(--line); }
@@ -917,15 +946,15 @@
   <button id="navSet"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 13.5a7.8 7.8 0 0 0 0-3l2-1.5-2-3.4-2.4 1a7.8 7.8 0 0 0-2.6-1.5L14 2.5h-4l-.4 2.6A7.8 7.8 0 0 0 7 6.6l-2.4-1-2 3.4 2 1.5a7.8 7.8 0 0 0 0 3l-2 1.5 2 3.4 2.4-1a7.8 7.8 0 0 0 2.6 1.5l.4 2.6h4l.4-2.6a7.8 7.8 0 0 0 2.6-1.5l2.4 1 2-3.4z"/></svg>Einstellungen</button>
 </nav>
 
-<script src="ernaehrung.js?v=2026-10-17a"></script>
+<script src="ernaehrung.js?v=2026-10-19a"></script>
 <link rel="stylesheet" href="lauf.css?v=2026-10-07a">
 <link rel="stylesheet" href="apple.css?v=2026-10-07a">   <!-- Apple-naher Look, zuletzt geladen -->
-<link rel="stylesheet" href="woche.css?v=2026-10-15a">
-<script src="woche.js?v=2026-10-15a"></script>   <!-- Laufwoche · Anderes Training · Neue Woche -->
-<link rel="stylesheet" href="wettkampf.css?v=2026-10-18b">
-<script src="wettkampf.js?v=2026-10-18d"></script>   <!-- mehrere Wettkämpfe, Lauf-Taper -->
+<link rel="stylesheet" href="woche.css?v=2026-10-18a">
+<script src="woche.js?v=2026-10-19h"></script>   <!-- Laufwoche · Anderes Training · Neue Woche -->
+<link rel="stylesheet" href="wettkampf.css?v=2026-10-19a">
+<script src="wettkampf.js?v=2026-10-19b"></script>   <!-- mehrere Wettkämpfe, Lauf-Taper -->
 <script src="lauf.js?v=2026-10-10a"></script>
-<script src="rennen.js?v=2026-10-04g"></script>   <!-- Rennblock (Part 4) mit Countdown -->
+<script src="rennen.js?v=2026-10-19a"></script>   <!-- Rennblock (Part 4) mit Countdown -->
 <script>
 "use strict";
 /* ============================================================
@@ -1836,8 +1865,11 @@ function projectPlan(n) {
     return { part: rest.length ? rest : ap, cont: false };
   };
   // Wie viele Trainingstage liegen unmittelbar vor heute? (für die Ruhetagsregel)
+  // Ruhetagsregel (19.10.): Anderes Training, Taper-Einheiten und Wettkampf zählen als Trainingstag, nicht als Pause.
+  // Echte Pause bleiben „Geht nicht“, Abwesenheit und die optionalen Taper-Ruhetage.
+  const active = k => { const o = (P.other || {})[k]; if (!o) return false; if (o.tp) { const w = window.WK && WK.tw ? WK.tw(k) : null; return !!(w && (!w.opt || w.o.done)); } return true; };
   let streak = 0, back = addDays(today0(), -1);
-  while (trained.has(dkey(back)) && streak < 14) { streak++; back = addDays(back, -1); }
+  while ((trained.has(dkey(back)) || active(dkey(back))) && streak < 14) { streak++; back = addDays(back, -1); }
   let qi = 0, d = today0();
   const fixed = window.RENNEN && RENNEN.fixedDays(), rws = fixed && RENNEN.weekStart();   // Rennwoche
   const rday = fixed && S.race.date;
@@ -1857,7 +1889,7 @@ function projectPlan(n) {
     }
     else if (fixed && fixed[k]) { out.push({ date: new Date(d), k, kind: "train", d: fixed[k] }); streak++; }
     else if (rws && k >= rws && k <= rday) { out.push({ date: new Date(d), k, kind: "race" }); streak = 0; }
-    else if (off.has(k)) { out.push({ date: new Date(d), k, kind: "off" }); streak = 0; }
+    else if (off.has(k)) { out.push({ date: new Date(d), k, kind: "off" }); streak = active(k) ? streak + 1 : 0; }
     else if (streak >= MAX_STREAK && !force.has(k)) { out.push({ date: new Date(d), k, kind: "rest" }); streak = 0; }
     else if (qi < q.length) {
       const pd = q[qi], po = partOf(pd, k), ent = { date: new Date(d), k, kind: "train", d: pd };
@@ -2044,7 +2076,7 @@ const titleEl = document.getElementById("title");
 const backBtn = document.getElementById("backBtn");
 backBtn.onclick = () => { history.back(); };
 document.getElementById("navHome").onclick = () => { location.hash = ""; };
-document.getElementById("navWeek").onclick = () => { location.hash = "#weeks"; };
+document.getElementById("navWeek").onclick = () => { location.hash = window.KAL ? "#cal" : "#weeks"; };   /* Kalender zuerst (19.10.) */
 document.getElementById("navGo").onclick = () => goContinue();
 document.getElementById("navStats").onclick = () => { location.hash = "#food"; }; /* ERNÄHRUNG: Analyse über die Fortschrittskarte */
 document.getElementById("navSet").onclick = () => { location.hash = "#settings"; };
@@ -2052,7 +2084,7 @@ document.getElementById("navSet").onclick = () => { location.hash = "#settings";
    MAJOR 1 = Trainings-Tracker, 2 = mit Ernährung (ab 01.10.2026). MINOR = Umbau seit MAJOR (UMBAU-….md, 2.0 = Ernährung Phase 1).
    BUILD = laufende Push-Nummer = Anzahl Commits in workout-tracker nach dem Commit (git rev-list --count HEAD), vierstellig.
    Bei JEDEM Push hochzählen. Steht am iPhone die neue Nummer, ist der neue Stand da; sonst ist es noch der Cache. */
-const APP_VERSION = "2.21.0114";
+const APP_VERSION = "2.22.0115";
 let navScroll = false;
 window.addEventListener("hashchange", () => { navScroll = true; if (PROGRAM) render(); });
 
@@ -2073,6 +2105,8 @@ function render() {
   else if (seg[0] === "food") { backBtn.style.display = seg[1] === "pack" ? "" : "none"; titleEl.textContent = seg[1] === "pack" ? "Packliste" : "Ernährung"; setNav("food"); EN.render(main, seg[1]); } /* ERNÄHRUNG */ 
   else if (seg[0] === "stats") renderStats();
   else if (seg[0] === "weeks") renderWeeks();
+  else if (seg[0] === "cal" && window.KAL) KAL.render();   /* Kalender (19.10.) */
+  else if (seg[0] === "tp" && window.WK && WK.renderTaper) WK.renderTaper(seg[1]);   /* Taper-/Renntag als Einheit (19.10.) */
   else if (seg[0] === "t") renderTrack(seg[1]);
   else if (seg[0] === "d") renderDay(+seg[1], +seg[2], +seg[3], seg[4] != null ? +seg[4] : null);
   else if (seg[0] === "w") renderWeek(+seg[1], +seg[2]);
@@ -2103,6 +2137,7 @@ function renderPlan() {
   const days = projectPlan(7);
   const first = days[0];
   const extras = planExtras(days);
+  const sug = WOCHE.sugRuns ? WOCHE.sugRuns(14) : new Map();   // ＋ xx min locker fürs Wochenminimum 3 h (19.10.)
   let html = "";
 
   // Zusatz-Zeile(n) für einen projizierten Tag (optionale Einheiten stehen nur im Tag selbst)
@@ -2148,7 +2183,7 @@ function renderPlan() {
     const unitRow = n => {
       const u = U[n], go = `location.hash='#d/${d.pi}/${d.wi}/${d.di}/${u.si}'`, chk = `<button class="st ${u.done ? "eaten" : ""}" onclick="event.stopPropagation();checkSession(${d.pi},${d.wi},${d.di},${u.si})">${u.done ? "✓" : ""}</button>`;
       if (u.done) return `<div class="slot done" onclick="EN.openEnergy('${esc(dayTitle(d))} · ${u.tag}',${u.si})"><div class="body"><span class="l"><i class='ic'>🏋️</i>${u.tag}</span>${esc(u.txt)}${EN.unitEnergy(u.si)}</div>${chk}</div>`;
-      return `<div class="slot train unit" ${n !== open ? `onclick="${go}"` : ""}><div class="body"><div class="when"><i class='ic'>🏋️</i>${u.tag} · ${EN.tzChip(first, n)} · <span>≈ ${u.min} min</span></div>
+      return `<div class="slot train unit" ${n !== open ? `onclick="${go}"` : ""}><div class="body"><div class="when"><i class='ic'>🏋️</i>${u.tag} · ${EN.tzChip(first, n)} · <span>≈ ${u.min} min</span>${window.FOKUS ? " " + FOKUS.chipSess(d, u.si) : ""}</div>
         <div class="n">${esc(u.txt)}</div>${n === open ? `<div class="d">${esc(dayTitle(d))}</div>` : ""}${EN.todayLine(first, n)}
         ${n === open ? `<button class="cta ${EN.isNext(first, n) || !EN.ready() ? "" : "ghost"}" onclick="${go}">Training starten</button>` : ""}
         ${n === U.length - 1 ? xBtns : ""}</div>${chk}${n === open ? `<span class="dots tdots" onclick="planSheet('${first.k}')">⋯</span>` : ""}</div>`;
@@ -2163,7 +2198,7 @@ function renderPlan() {
       <div class="k">${hk}</div>
       <div class="en tl">${EN.ausgleich ? EN.ausgleich(first.k) : ""}${EN.dayPre(first)}${trRow(`<i class='ic'>🏋️</i>Training · ${EN.tzChip(first)}${EN.minHtml(first)}`,
         `<div class="n">${esc(entTitle(first))}</div>
-        <div class="d">${esc(entSub(first))}</div>${EN.todayLine(first)}
+        <div class="d">${window.FOKUS ? FOKUS.chips(first) : ""}${esc(entSub(first))}</div>${EN.todayLine(first)}
         ${(swapFrom && !istQuelle)
           ? `<button class="cta" onclick="planSwapWith('${first.d.key}')">Hierher tauschen</button>`
           : `<button class="cta ${EN.isNext(first) || !EN.ready() ? "" : "ghost"}" onclick="${go}">Training starten</button>`}
@@ -2191,7 +2226,7 @@ function renderPlan() {
     html += `<div class="today">
       <div class="k">${hk}</div>
       <div class="en tl">${EN.ausgleich ? EN.ausgleich(first.k) : ""}${EN.dayPre(first)}${trRow(`<i class='ic'>🏋️</i>Training${EN.tzChip(first) ? " · " + EN.tzChip(first) : ""}`,
-        (WOCHE.todayOff(first) ? `<div class="n">${esc(WOCHE.todayOff(first).n)}</div><div class="d">${WOCHE.todayOff(first).d}</div><div class="lk tlk" onclick="${WOCHE.todayOff(first).lk}">${WOCHE.todayOff(first).lt}</div>` : `<div class="n">${off ? "Geht nicht" : "Ruhetag"}</div>
+        (WOCHE.todayOff(first) ? `<div class="n">${esc(WOCHE.todayOff(first).n)}</div><div class="d">${WOCHE.todayOff(first).d}</div><div class="lk tlk" onclick="${WOCHE.todayOff(first).lk}">${WOCHE.todayOff(first).lt}</div>${WOCHE.todayOff(first).btn || ""}` : `<div class="n">${off ? "Geht nicht" : "Ruhetag"}</div>
         <div class="d">${off ? "Als Ausfalltag markiert — alles rutscht nach hinten." : MAX_STREAK + " Trainingstage am Stück sind genug."}</div>
         <div class="lk tlk" onclick="${off ? `planOffToggle('${first.k}')` : `planForce('${first.k}')`}">${off ? "Doch, geht ›" : "Trotzdem trainieren ›"}</div>`) + `
         ${xBtns}`, "", "quiet")}${EN.dayPost(first)}</div>${EN.dayFoot(first)}
@@ -2208,7 +2243,7 @@ function renderPlan() {
       const click = swapFrom ? `planSwapWith('${e.d.key}')` : entGo(e);
       const nSess = onePart(e) ? 1 : e.d.day.sessions.filter(s => s.items.some(i => !i.rest)).length;
       html += `<div class="pd ${sel ? "sel" : ""}" onclick="${click}">${wd}
-        <div class="inf"><div class="t">${esc(entTitle(e))}</div><div class="s">${esc(entSub(e))}</div></div>
+        <div class="inf"><div class="t">${esc(entTitle(e))}</div><div class="s">${window.FOKUS ? FOKUS.subHtml(e) : esc(entSub(e))}</div></div>
         ${nSess > 1 ? `<span class="tag">${nSess}×</span>` : ""}
         <span class="dots" onclick="event.stopPropagation();planSheet('${e.k}')">⋯</span>
       </div>`;
@@ -2227,13 +2262,11 @@ function renderPlan() {
       html += `<div class="pd muted">${wd}
         <div class="inf"><div class="t">frei</div><div class="s">Programm durch</div></div></div>`;
     }
-    html += extraRows(e) + `</div>`;
+    html += extraRows(e) + (sug.has(e.k) ? WOCHE.sugRow(e, sug.get(e.k)) : "") + `</div>`;
   });
 
-  // Ruhetag entfällt, wenn ohnehin eine Lücke im Fenster liegt — kurz erklären.
-  if (days.some(e => e.kind === "off") && !days.some(e => e.kind === "rest")) {
-    html += `<div class="planhint">Kein extra Ruhetag nötig — die Lücke zählt bereits als Pause.</div>`;
-  }
+  if (window.FOKUS) html += FOKUS.dropped();   /* 7-Tage-Regel (18.10.): was diese Planwoche wegfällt */
+  if (window.KAL) html += `<div class="calk" onclick="location.hash='#cal'">Kalender ›</div>`;   /* 6 Wochen im Überblick (19.10.) */
 
   const wkNow = dkey(today0());
   const trSum = (TRACKS || []).filter(tr => (tr.sched || {}).mode !== "slots").map(tr =>
@@ -2258,8 +2291,17 @@ function renderHome() {
   const posTxt = next
     ? `${PROGRAM[next.pi].name} · ${PROGRAM[next.pi].weeks[next.wi].name}`
     : "Alles erledigt! 🎉";
-  let html = `
-    <div class="hero" onclick="location.hash='#stats'" style="cursor:pointer">
+  /* Training | Ernährung (19.10.): Fortschritt und „Nach Plan“ in einer zweigeteilten Karte, so hoch wie vorher der Hero allein */
+  const nx = next ? [PROGRAM[next.pi].name, PROGRAM[next.pi].weeks[next.wi].name] : ["Alles", "erledigt"];
+  const duo = `<div class="duo topc">
+      <div class="duo-l" onclick="location.hash='#stats'"><div class="duo-h">Training<span>›</span></div>
+        <div class="duo-tr"><div class="ringwrap">${ring(p, 52, 6)}<div class="mid"><b>${p}%</b></div></div>
+          <div class="duo-tx"><b>${esc(nx[0])}</b><b>${esc(nx[1])}</b><span>${done}/${total}</span></div></div></div>
+      <div class="duo-r" onclick="EN.openScore()">${EN.topFood(true)}</div>
+      ${EN.topDue()}
+    </div>`;
+  let html = duo + `
+    <div class="hero" style="display:none">
       <div class="ringwrap">${ring(p, 108, 10)}
         <div class="mid"><b>${p}%</b><span>gesamt</span></div>
       </div>
@@ -2269,7 +2311,7 @@ function renderHome() {
         <div class="s hs"><b>${done}</b> von ${total} Parts</div><div class="s hs"><b>${nResults}</b> Ergebnisse geloggt</div>
       </div><span class="hero-a">Analyse ›</span>
     </div>
-    <div class="topc">${EN.topFood()}</div>${WOCHE.card(projectPlan(7))} <!-- ERNÄHRUNG 03.10.: Nach Plan -->
+    ${WOCHE.card(projectPlan(7))}
     <div style="margin-top:12px"></div>` + renderPlan();
   html += EN.homeBottom(); /* ERNÄHRUNG */ 
   html += `<div class="foot">privater Tracker · ${mode === "github" ? "Sync: GitHub" : "lokaler Modus"} · V${APP_VERSION}</div>`;
@@ -2281,7 +2323,7 @@ function renderWeeks() {
   backBtn.style.display = "none";
   titleEl.textContent = PLAN_TITLE;
   setNav("week");
-  let html = "";
+  let html = window.KAL ? KAL.seg("plan") : "";   /* Umschalter Kalender | Plan (19.10.) */
   PROGRAM.forEach((part, pi) => {
     html += `<h2 class="section" style="margin-top:${pi ? 24 : 6}px"><em>${esc(part.name)}</em> ${part.opt ? "(optional)" : "of " + PROGRAM.filter(x => !x.opt).length}</h2>`
       + (part.opt && !partOn(part) ? `<div class="planhint" style="margin:-4px 0 10px">Rennblock vor einem Wettkampf. Zählt erst nach dem Wechsel (Einstellungen → Training → Wettkampf), bis dahin nur zum Ansehen.</div>` : "")
@@ -2301,6 +2343,7 @@ function renderWeeks() {
 }
 
 function goContinue() {
+  if (window.WK && WK.goToday && WK.goToday()) return;   // heute Taper- oder Renntag (19.10.)
   // folgt der Planung (Tausche/Streichungen), nicht stur der Plan-Reihenfolge
   const q = planQueue();
   const day = q[0];
@@ -2630,9 +2673,9 @@ function renderDay(pi, wi, di, only) {
     const checkable = sess.items.filter(i => !i.rest && !i.opt);
     if (sess.label || day.sessions.length > 1) {
       html += `<div class="sesshead"><h3>${esc(sess.label || "Session")}${EN.sesMin(pi, wi, di, si) ? ` <span class="smin">${EN.sesMin(pi, wi, di, si)}</span>` : ""}</h3>
-        ${checkable.length > 1 ? `<button onclick="checkSession(${pi},${wi},${di},${si})">alle ✓</button>` : ""}</div>`;
+        ${checkable.length > 1 ? `<button onclick="checkSession(${pi},${wi},${di},${si})">alle ✓</button>` : ""}</div>${window.FOKUS ? FOKUS.sessHead(pi, wi, di, si) : ""}`;
     } else {
-      html += `<div style="margin-top:14px"></div>`;
+      html += `<div style="margin-top:14px"></div>${window.FOKUS ? FOKUS.sessHead(pi, wi, di, si) : ""}`;
     }
     sess.items.forEach(item => {
       if (item.opt && !optShown(item.opt)) return;
@@ -3185,6 +3228,7 @@ function renderSettings() {
         }).join("")}
       </div>
     </details>` : ""}
+    ${window.FOKUS ? FOKUS.settings() : ""}
     ${window.WK ? WK.settings() : (window.RENNEN ? RENNEN.settings() : "")}
     ${Object.keys(DEFAULTS.optional || {}).length ? `<details class="setsec">
       <summary><svg class="secic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>Optionale Einheiten</summary>
@@ -3269,7 +3313,7 @@ function renderSettings() {
    oder zuklappst, merkt sich SET_OPEN, bis die Seite neu lädt (Änderungen rendern neu).
    Ein Bereich, der in keiner Gruppe steht, bleibt unten stehen und geht nicht verloren. */
 const SET_GROUPS = [
-  { k: "training", name: "Training", sub: "1RM, Kniebeuge, Leitern, Paces, Durchlauf", secs: ["1RM-Gewichte", "Kniebeuge", "Stufenleitern", "Optionale Einheiten", "Ziel-Paces", "Maßsystem", "Neuer Durchlauf"],
+  { k: "training", name: "Training", sub: "Trainingswoche, 1RM, Kniebeuge, Leitern, Paces", secs: ["Trainingswoche", "1RM-Gewichte", "Kniebeuge", "Stufenleitern", "Optionale Einheiten", "Ziel-Paces", "Maßsystem", "Neuer Durchlauf"],
     icon: '<rect x="1.5" y="9.2" width="3.2" height="5.6" rx="1.2"/><rect x="19.3" y="9.2" width="3.2" height="5.6" rx="1.2"/><rect x="4.9" y="6.6" width="3.6" height="10.8" rx="1.4"/><rect x="15.5" y="6.6" width="3.6" height="10.8" rx="1.4"/><path d="M8.5 12h7"/>' },
   { k: "race", name: "Wettkämpfe", sub: () => (window.WK && WK.nextLine()) || "HYROX und Läufe, Rennblock und Taper", secs: ["Wettkampf"],
     icon: '<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>' },
@@ -3772,21 +3816,27 @@ window.reDateDay = function (pi, wi, di, dateK) {
 };
 
 /* ---------- Tagesplanung: Aktionen ---------- */
-window.planSheet = function (dateKey) {
-  const e = projectPlan(7).find(x => x.k === dateKey);
+window.planSheet = function (dateKey, fromCal) {
+  const e = projectPlan(Math.max(7, dayGap(dkey(today0()), dateKey) + 1)).find(x => x.k === dateKey);   /* auch aus dem Kalender (19.10.) */
   if (!e || e.kind !== "train") return;
+  /* Aufgeräumt (19.10.): oben Tag + Einheiten als Entwurf mit Vorschau und „Speichern“ (FOKUS.draftBlock), dann Anderes Training,
+     Seltenes (PM verschieben, Tauschen, Streichen) unter „Mehr“. */
+  const td = e.k === dkey(today0()) ? "heute" : "an dem Tag";
+  const pm = e.part && e.part.length === 2 ? `<button onclick="planLater('${e.k}')">PM auf morgen schieben<small>AM ${td}, PM am nächsten Tag, nichts fällt weg.</small></button>` : "";
   const wrap = document.createElement("div");
   wrap.className = "sheetwrap";
   wrap.onclick = ev => { if (ev.target === wrap) closeSheet(); };
-  wrap.innerHTML = `<div class="sheet">
-    <h4>${WD[e.date.getDay()]} ${esc(fmtDay(e.date))}</h4>
-    <p style="white-space:pre-line">${esc(dayTitle(e.d))}\n${esc(daySub(e.d))}</p>
-    ${e.part && e.part.length === 2 ? `<button onclick="planLater('${e.k}')">PM ${e.k === dkey(today0()) ? "heute" : "an dem Tag"} nicht<small>Nur PM rückt auf den nächsten Tag. ${e.k === dkey(today0()) ? "Heute" : "An dem Tag"} zählt nur AM, auch beim Essen.</small></button>` : ""}
-    ${e.cont ? `<button onclick="planLater('${e.k}')">PM doch ${e.k === dkey(today0()) ? "heute" : "an dem Tag"}<small>AM und PM wieder am selben Tag.</small></button>` : ""}
-    <button onclick="planOffToggle('${e.k}')">Geht nicht<small>Der Tag fällt aus, alles rutscht nach hinten.</small></button>
-    <button onclick="WOCHE.otherSheet('${e.k}')">Anderes Training<small>Fitness, Zirkel, Tanzen, Wettkampf … Der Plan rutscht.</small></button>
-    <button onclick="planSwapStart('${e.d.key}')">Tauschen<small>Danach den zweiten Tag antippen.</small></button>
-    <button onclick="planDrop('${e.d.key}')">Einheit streichen<small>Fällt dauerhaft weg, erscheint in der Analyse als gestrichen.</small></button>
+  wrap.innerHTML = `<div class="sheet psheet">
+    <div class="psh"><h4>${WD[e.date.getDay()]} ${esc(fmtDay(e.date))}</h4>${fromCal ? `<a onclick="closeSheet();${entGo(e)}">Ansehen ›</a>` : ""}</div>
+    <p>${esc(dayTitle(e.d))}</p>
+    ${window.FOKUS ? FOKUS.draftBlock(e) : `<p>${esc(daySub(e.d))}</p>`}
+    ${e.cont && !(window.FOKUS && planState().dayMode && planState().dayMode[e.k]) ? `<button onclick="planLater('${e.k}')">PM doch ${td}<small>AM und PM wieder am selben Tag.</small></button>` : ""}
+    ${window.FOKUS ? `<button onclick="WOCHE.otherSheet('${e.k}')">Anderes Training<small>Fitness, Zirkel, Tanzen, Wettkampf … statt Plan.</small></button>`
+      : `<div class="prow"><button onclick="planOffToggle('${e.k}')">Geht nicht</button><button onclick="WOCHE.otherSheet('${e.k}')">Anderes Training</button></div>`}
+    <details class="pmore"><summary>Mehr</summary>${pm}
+      ${window.KAL ? `<button onclick="KAL.rangeStart('${e.k}')">Mehrere Tage ab hier …<small>Urlaub, Reise: im Kalender den letzten Tag antippen.</small></button>` : ""}
+      <button onclick="planSwapStart('${e.d.key}')">Tauschen<small>Danach den zweiten Tag antippen.</small></button>
+      <button onclick="planDrop('${e.d.key}')">Einheit streichen<small>Fällt dauerhaft weg, erscheint in der Analyse als gestrichen.</small></button></details>
     <button class="cancel" onclick="closeSheet()">Abbrechen</button>
   </div>`;
   document.body.appendChild(wrap);
@@ -3964,5 +4014,9 @@ window.doReset = function () {
 })();
 boot();
 </script>
+<link rel="stylesheet" href="fokus.css?v=2026-10-19f">
+<script src="fokus.js?v=2026-10-19k"></script>   <!-- Key · Base · Support, 7-Tage-Planwoche (18.10.) -->
+<link rel="stylesheet" href="kalender.css?v=2026-10-19i">
+<script src="kalender.js?v=2026-10-19q"></script>   <!-- Kalender: 6 Wochen Mo–So, Planwochen-Beginn (19.10.) -->
 </body>
 </html>

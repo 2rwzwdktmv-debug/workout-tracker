@@ -6,7 +6,7 @@
    Die Rennwoche ist an den Renntag gebunden: Tage mit "at" (Tage relativ zum Rennen) stehen fest
    im Kalender, alles andere läuft wie gewohnt davor und endet spätestens am Tag vor der Rennwoche.
    Ab wann gefragt wird, hängt am eigenen Tempo: Abstand der letzten Day-1-Starts (Ø, sonst 10 Tage)
-   × Wochen im Rennblock + Rennwoche.                                                              */
+   × Wochen im Rennblock + Rennwoche. Mit der 7-Tage-Planwoche (fokus.js, 19.10.) sind es fest 7 Tage.       */
 (function () {
 const T = () => dkey(today0());
 const D = k => new Date(k + "T12:00:00");
@@ -22,6 +22,7 @@ function active() {
 }
 /* Tage einer Planwoche im echten Leben: Ø-Abstand der letzten Day-1-Starts, 7–14, sonst 10 */
 function weekLen() {
+  if (window.FOKUS) return 7;                          // 7-Tage-Planwoche: Vorlauf 3 × 7 + Rennwoche
   const starts = [];
   (PROGRAM_ALL || []).forEach(p => { if (p.opt) return; p.weeks.forEach(w => {
     const ts = w.days[0].sessions.flatMap(s => s.items).map(i => S.checked[i.id]).filter(x => typeof x === "string").sort();
@@ -69,7 +70,7 @@ function card() {
   return `<div class="today nw race">
     <div class="k">Rennblock starten?</div>
     <div class="v">${esc(raceName())} in ${left} Tagen</div>
-    <div class="s">Part 4: 3 Wochen Rennblock aus der HYROX Master Class, dann die Rennwoche bis zum Renntag. Bei deinem Tempo (etwa ${wl} Tage pro Planwoche) braucht das rund ${lead} Tage.${q.length ? `\n${q.length} offene Tage ab ${esc(head.part.name + " · " + head.week.name)} werden dafür übersprungen.` : ""}${tight}</div>
+    <div class="s">Part 4: 3 Wochen Rennblock aus der HYROX Master Class, dann die Rennwoche bis zum Renntag. ${window.FOKUS ? `Mit 7 Tagen pro Planwoche` : `Bei deinem Tempo (etwa ${wl} Tage pro Planwoche)`} braucht das rund ${lead} Tage.${q.length ? `\n${q.length} offene Tage ab ${esc(head.part.name + " · " + head.week.name)} werden dafür übersprungen.` : ""}${tight}</div>
     <button class="cta" onclick="RENNEN.start()">Zum Rennblock (Part 4) wechseln</button>
     <button class="cta ghost" onclick="RENNEN.later()">Normal weitermachen · in 3 Trainings nochmal fragen</button>
   </div>`;
@@ -102,7 +103,7 @@ function settings() {
   let st = "";
   if (on) st = `<p class="hint">Rennblock läuft seit dem ${fmtDM(S.plan.race.at)} · Rennwoche ab ${fmtDM(weekStart())}</p>
       <button class="cta ghost" onclick="if(confirm('Rennblock beenden? Part 4 verschwindet, die übersprungenen Tage aus Part 1–3 sind wieder offen.'))RENNEN.stop()">Rennblock beenden</button>`;
-  else if (r.date && between(T(), r.date) >= 0) st = `<p class="hint">Gefragt wird ab ${fmtDM(startBy())}, also ${leadDays()} Tage vorher (bei etwa ${weekLen()} Tagen pro Planwoche).</p>
+  else if (r.date && between(T(), r.date) >= 0) st = `<p class="hint">Gefragt wird ab ${fmtDM(startBy())}, also ${leadDays()} Tage vorher (bei ${window.FOKUS ? "" : "etwa "}${weekLen()} Tagen pro Planwoche).</p>
       <button class="cta ghost" onclick="RENNEN.start()">Jetzt zum Rennblock wechseln</button>`;
   return `<details class="setsec">
     <summary><svg class="secic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg>Wettkampf</summary>

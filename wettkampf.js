@@ -179,6 +179,77 @@ function explain(k) {
   </div>`;
   document.body.appendChild(wrap);
 }
+/* ---------- Taper- und Renntag als eigene Einheit (19.10.) ----------
+   Unsere eigenen Einheiten (nicht Hunter): Teile zum Abhaken, Ergebnis (Zeit, km, Ø-HF), „Einheit abschließen“.
+   Gespeichert: other[k].ck = [true, …] (Teile), other[k].done = ISO; Ergebnis als S.xruns-Eintrag mit tp = Datum,
+   damit es in Laufwoche, Wochenkarte (3 × 2 km Renntempo = „hart“ = Schwelle) und 2-Tage-Regel zählt.
+   s = Stufe für Chips und Kalender (S = Key, B = Base), opt = Ruhetag ist genauso gut, min = Plan-Minuten. */
+const TW_HM = {
+  4: { s: "S", kind: "hart", min: 45, parts: [["Einlaufen", "10 min locker"], ["3 × 2 km Renntempo", "im geplanten Renntempo, dazwischen 2 min traben"], ["Auslaufen", "10 min locker"]], tip: "Fühlt es sich schwer an: abbrechen." },
+  3: { s: "B", kind: "locker", min: 25, opt: 1, parts: [["Ganz locker", "20–30 min, HF unter 142"]], tip: "Ruhetag ist genauso gut." },
+  2: { s: "B", kind: "locker", min: 25, parts: [["Locker", "20 min, HF unter 142"], ["Steigerungen", "4–5 × 80–100 m"]], tip: "Fühlt es sich schwer an: abbrechen." },
+  1: { s: "B", kind: "locker", min: 10, opt: 1, parts: [["Traben", "10 min"]], tip: "Ruhetag ist genauso gut." },
+};
+const TW_K = {
+  3: { s: "B", kind: "locker", min: 35, parts: [["Locker", "30 min, HF unter 142"], ["Steigerungen", "4 × 15–20 s"]] },
+  2: { s: "B", kind: "locker", min: 20, opt: 1, parts: [["Ganz locker", "20 min"]], tip: "Ruhetag ist genauso gut." },
+  1: { s: "B", kind: "locker", min: 20, opt: 1, parts: [["Locker", "15 min"], ["Steigerungen", "3 ×"]], tip: "Ruhetag ist genauso gut." },
+};
+function tw(k) {
+  const o = (P().other || {})[k];
+  if (!o) return null;
+  if (o.tp) { const r = raceOf(o.tp.id); return Object.assign({ k, o, r }, (r && isHM(r) ? TW_HM : TW_K)[o.tp.s] || TW_K[1]); }
+  if (o.race) {
+    const r = raceOf(o.race); if (!r || r.art !== "lauf") return null;
+    const dl = cat(r) === "hm" ? "Halbmarathon" : cat(r) === "m" ? "Marathon" : r.km ? dec(r.km) + " km" : "";
+    return { k, o, r, s: "S", kind: "wettkampf", race: 1, min: 0, parts: [["Einlaufen", "10–15 min locker, 3–4 Steigerungen"], [title(r), [dl, r.time ? "Start " + r.time + " Uhr" : ""].filter(Boolean).join(" · ")]] };
+  }
+  return null;
+}
+const XRS = () => (S.xruns = S.xruns || []);
+const minsOf = v => { const p = String(v || "").trim().split(":").map(Number); if (!p[0] && p[0] !== 0 || p.some(isNaN)) return 0; return p.length === 3 ? p[0] * 60 + p[1] + p[2] / 60 : p.length === 2 ? p[0] + p[1] / 60 : p[0]; };
+const fmtM = t => { if (!t) return ""; const h = Math.floor(t / 60), m = Math.floor(t % 60), s = Math.round((t % 1) * 60); return (h ? h + ":" + String(m).padStart(2, "0") : m) + ":" + String(s).padStart(2, "0"); };
+function renderTaper(k) {
+  const w = tw(k);
+  if (!w) { location.hash = ""; return; }
+  backBtn.style.display = ""; titleEl.textContent = w.race ? "Wettkampf" : "Taper"; setNav("home");
+  const o = w.o, ck = o.ck || [], x = XRS().find(r => r.tp === k) || {}, i = info(k) || { n: "" };
+  const left = w.r ? Math.round((D(w.r.date) - D(k)) / 864e5) : null;
+  let h = `<div class="tphead"><div class="k">${WD[D(k).getDay()]} ${esc(fmtDay(D(k)))}${badge(k)}</div>
+    <h2>${esc(w.race ? i.n : i.n.replace(/^Taper · /, ""))}</h2>
+    <div class="s"><span class="fkc fk${w.s} sm">${w.s === "S" ? "Key" : "Base"}</span>${w.race ? "Renntag" : `Taper · noch ${left} ${left === 1 ? "Tag" : "Tage"} bis ${esc(title(w.r || {}))}`}${o.done ? " · erledigt ✓" : ""}</div></div>`;
+  if (w.opt) h += `<div class="planhint">Optional: ${esc(w.tip)}</div>`;
+  h += w.parts.map((p, n) => `<div class="card item ${ck[n] ? "checked" : ""}"><div class="head"><button class="cb" onclick="WK.tpCk('${k}',${n})" aria-label="abhaken">✓</button>
+    <div><div class="tt">${esc(p[0])}</div><div class="st">${esc(p[1])}</div></div></div></div>`).join("");
+  if (w.tip && !w.opt) h += `<div class="planhint">${esc(w.tip)}</div>`;
+  h += `<div class="card item tpres"><div class="tt">Ergebnis</div><div class="res lauf"><div class="lf">
+      <label>Zeit<input id="tp-t" inputmode="numeric" placeholder="${w.race ? "1:40:00" : w.min + ":00"}" value="${esc(fmtM(x.est ? 0 : x.t))}"></label>
+      <label>km<input id="tp-k" inputmode="decimal" placeholder="${w.race && w.r.km ? dec(w.r.km) : "5,0"}" value="${x.km ? dec(x.km) : ""}"></label>
+      <label>Ø-HF<input id="tp-h" inputmode="numeric" placeholder="${w.kind === "locker" ? "135" : "170"}" value="${x.hf || ""}"></label></div></div></div>
+    <button class="tsave" onclick="WK.tpDone('${k}')">${o.done ? "Ergebnis aktualisieren" : "Einheit abschließen"}</button>
+    ${o.done ? `<div class="lk tlk" style="margin-top:12px" onclick="WK.tpUndo('${k}')">Doch nicht gemacht ›</div>` : ""}
+    <div class="lk tlk" style="margin-top:12px" onclick="WK.explain('${k}')">${w.race ? "Ablauf und Essen" : "Taper-Ernährung"} ›</div>`;
+  main.innerHTML = h;
+}
+function tpCk(k, n) { const o = P().other[k]; if (!o) return; o.ck = o.ck || []; o.ck[n] = !o.ck[n]; markDirty(); render(); }
+function tpDone(k) {
+  const w = tw(k); if (!w) return;
+  const g = id => (document.getElementById(id) || {}).value || "";
+  const t = minsOf(g("tp-t")), km = parseFloat(g("tp-k").replace(",", ".")) || 0, hf = parseInt(g("tp-h"), 10) || null;
+  const list = XRS(), j = list.findIndex(r => r.tp === k); if (j >= 0) list.splice(j, 1);
+  list.push({ d: k, kind: w.kind, t: t ? Math.round(t * 10) / 10 : w.min, km, hf, tp: k, ...(t ? {} : { est: 1 }) });
+  w.o.done = new Date().toISOString(); w.o.ck = w.parts.map(() => true);
+  markDirty(); render();
+}
+function tpUndo(k) {
+  const o = P().other[k]; if (!o) return;
+  delete o.done; delete o.ck;
+  const list = XRS(), j = list.findIndex(r => r.tp === k); if (j >= 0) list.splice(j, 1);
+  markDirty(); render();
+}
+/* Play-Button: heute ein offener Taper- oder Renntag → dorthin */
+function goToday() { const k = T(), w = tw(k); if (!w || w.o.done) return false; location.hash = "#tp/" + k; return true; }
+
 /* Ernährung: Vortag und Renntag mit Kohlenhydraten wie an einem Trainingstag */
 function type(k) {
   const o = (P().other || {})[k];
@@ -260,16 +331,19 @@ function addRace() { const id = "r" + Date.now().toString(36); races().push({ id
 function del(id) { stop(id); S.races = races().filter(r => r.id !== id); syncRace(); markDirty(); render(); }
 
 window.WK = { races, card, start, stop, no, info, badge, type, settings, set, add: addRace, del, explain, dist, nextLine,
+  tw, renderTaper, tpCk, tpDone, tpUndo, goToday,
   tog: (id, on) => { if (on) OPEN.add(id); else OPEN.delete(id); }, done: id => { OPEN.delete(id); render(); } };
 
 /* In woche.js einhängen: Taper-Tage und Renntag zeigen ihre eigenen Texte, Ernährung den eigenen Tagtyp */
 const W = window.WOCHE;
 if (W) {
   const t0 = W.todayOff, o0 = W.offInf, ty0 = W.type;
-  W.todayOff = first => { const i = info(first.k); return i ? { n: i.n, d: i.d, lk: `WK.explain('${first.k}')`, lt: "Ablauf und Essen ›" } : t0(first); };
-  W.offInf = e => { const i = info(e.k); return i ? `<div class="inf"><div class="t ot">${esc(i.n)}</div><div class="s">${i.d}</div></div>` : o0(e); };
+  // Taper-/Renntag als Einheit (19.10.): „Training starten“ unter Heute, Danach-Zeile öffnet die Einheit
+  W.todayOff = first => { const i = info(first.k), w = tw(first.k); return i ? { n: i.n, d: i.d, lk: `WK.explain('${first.k}')`, lt: "Ablauf und Essen ›",
+    btn: w ? `<button class="cta${w.o.done ? " ghost" : ""}" onclick="location.hash='#tp/${first.k}'">${w.o.done ? "Erledigt ✓ · ansehen" : w.race ? "Zum Rennen" : "Training starten"}</button>` : "" } : t0(first); };
+  W.offInf = e => { const i = info(e.k), w = tw(e.k); return i ? `<div class="inf"><div class="t ot">${w ? `<span class="fkc fk${w.s} sm">${w.s === "S" ? "Key" : "Base"}</span>` : ""}${esc(i.n)}${w && w.o.done ? " ✓" : ""}</div><div class="s">${i.d}</div></div>` : o0(e); };
   W.type = k => type(k) || ty0(k);
   const c0 = W.offClick;
-  W.offClick = e => info(e.k) ? `WK.explain('${e.k}')` : c0(e);
+  W.offClick = e => tw(e.k) ? `location.hash='#tp/${e.k}'` : info(e.k) ? `WK.explain('${e.k}')` : c0(e);
 }
 })();

@@ -1,11 +1,12 @@
-/* Laufwoche · Anderes Training · 2-Tage-Regel · Neue Woche starten
+/* Laufwoche · Anderes Training · Wochenminimum Laufen · Neue Woche starten
    Daten (alles in S, synchronisiert wie der Rest):
      S.plan.other  = { "YYYY-MM-DD": { n: "Fitness für Männer", lv: "mittel" } }   (der Tag steht zusätzlich in S.plan.off → Plan rutscht)
      S.xruns       = [ { d: "YYYY-MM-DD", kind: "warmup" | "locker" | "hart" | "wettkampf", t: Minuten, km, hf } ]
      S.plan.nwSkip = "pi.wi"   („Woche erst fertig machen“ für diese Planwoche)
    Regeln (mit Marc am 04.10.2026 abgestimmt):
      Laufwoche   = Kalenderwoche Mo–So; ein Lauf zählt ab 30 min, km zählen immer (auch Warm-up)
-     2-Tage      = nach 2 laufreien Tagen am dritten mind. 30 min locker
+     2-Tage      = (bis 19.10.) nach 2 laufreien Tagen am dritten mind. 30 min locker. Abgelöst durch das Wochenminimum:
+     3 h / Woche = (ab 19.10., Marc) Kalenderwoche mit gelaufenen + geplanten Minuten unter 3 h → „＋ xx min locker“ auf freie Tage
      Neue Woche  = 10 Tage nach dem letzten Day 1: 1–2 offene Tage → springen (Long Run bleibt), 3+ → Woche zurücksetzen;
                    mind. 2 Tage Abstand zur letzten HARTEN LAUFEINHEIT (Day 1, Lauftest, Wettkampf, „＋ Lauf“ Hart/Wettkampf).
                    WICHTIG: nur Laufeinheiten. Harte Nicht-Laufeinheiten (Zirkel, EMOM, Kraft …) zählen hier nie —
@@ -47,6 +48,17 @@ function kmOf(it) {
   const tok = v.split(/[|·]/).map(x => x.trim()).find(x => /km/i.test(x) || /^\d+[.,]\d+$/.test(x));
   return tok ? num(tok.replace(/km/i, "")) || 0 : 0;
 }
+/* Minuten eines Plan-Laufs aus dem Ergebnis (grob, für die Wochenkarte 18.10.); ohne Zeit: Plan-Minuten */
+function minOf(it) {
+  const v = String(S.resultsByItem[it.id] || "");
+  if (it.key === "tempo-8min") return Math.max(1, v.split("·").filter(x => x.trim()).length) * 10 + 20;
+  if (it.key === "mile-tt") return 30;
+  if (it.key === "intervals-1000m") return Math.max(1, v.split("·").filter(x => x.trim()).length) * 6 + 20;
+  if (it.key === "road-test-30min") return 45;
+  const m = v.match(/(?:^|\s)(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  if (m) return m[3] != null ? +m[1] * 60 + +m[2] + +m[3] / 60 : +m[1] + +m[2] / 60;
+  return typeof pvMinutes === "function" ? pvMinutes(it) : 0;
+}
 /* Datum eines Plan-Laufs: das eingetragene Ergebnis (Watch-Datum) vor dem Häkchen */
 function runDate(it) {
   const e = (S.results[it.key] || []).find(x => x.itemId === it.id && (x.run || 1) === (S.run || 1));
@@ -56,17 +68,66 @@ function runDate(it) {
 /* Pro Kalendertag: km und ob ein „Bakken-Lauf“ (≥ 30 min) dabei war */
 function runDays() {
   const out = {};
-  const at = k => (out[k] = out[k] || { km: 0, full: false, any: false });
+  const at = k => (out[k] = out[k] || { km: 0, min: 0, full: false, any: false });
   Object.keys(ITEM_INDEX).forEach(id => {
     const it = ITEM_INDEX[id];
     if (!RUNK[it.key] || !S.checked[id]) return;
     const k = runDate(it); if (!k) return;
-    const r = at(k); r.km += kmOf(it); r.full = r.any = true;
+    const r = at(k); r.km += kmOf(it); r.min += minOf(it); r.full = r.any = true;
   });
-  XR().forEach(x => { const r = at(x.d); r.km += x.km || 0; r.any = true; if ((x.t || 0) >= 30) r.full = true; });
+  XR().forEach(x => { const r = at(x.d); r.km += x.km || 0; r.min += x.t || 0; r.any = true; if ((x.t || 0) >= 30) r.full = true; });
+  // Abgehakte lockere Plan-Läufe ohne key und ohne eingetragene Zeit: mit Plan-Minuten zählen (19.10.), km unbekannt
+  Object.keys(ITEM_INDEX).forEach(id => {
+    const it = ITEM_INDEX[id];
+    if (typeof S.checked[id] !== "string" || runKind(it) !== "locker" || XR().some(x => x.item === id)) return;
+    const r = at(dkey(new Date(S.checked[id]))), m = pvMinutes(it);
+    r.min += m; r.any = true; if (m >= 30) r.full = true;
+  });
   return out;
 }
-const planRunToday = e => e && e.kind === "train" && e.d.items.some(i => RUNK[i.key]);
+// Lockere Läufe im Plan haben oft keinen key („30 minute easy run“) → über runKind erkennen (19.10.)
+const planRunToday = e => e && e.kind === "train" && e.d.items.some(i => RUNK[i.key] || runKind(i) === "locker");
+
+/* ---------- Wochenminimum Laufen (19.10., ersetzt die 2-Tage-Regel) ----------
+   Marc: Nicht „alle 2 Tage laufen“ zählt, sondern mindestens 3 h pro Kalenderwoche (Bakkens Untergrenze, Ziel 4 h).
+   Je Kalenderwoche: gelaufen (Tage vor heute, heute) + geplant (Plan-Läufe, „Nur 30 min“, Taper-Läufe). Liegt das unter 3 h,
+   plant die App die fehlenden Minuten als „＋ xx min locker“ auf freie Trainingstage ohne Lauf (30–60 min je Lauf, verteilt).
+   Nie an Ruhetagen, „Geht nicht“, Abwesenheit, Anderem Training; Taper- und Rennwochen sind ausgenommen. */
+const RUN_MIN = 180;
+const isPlanRun = i => !!RUNK[i.key] || !!runKind(i);         // Plan-Läufe inkl. Warm-up/Cool-down (zählen auch in der Laufwoche)
+function planMin(e) {                                           // noch offene geplante Laufminuten eines projizierten Tages
+  if (!e) return 0;
+  if (e.kind === "train" && e.d) {
+    const idx = e.part && e.part.length ? e.part : e.d.day.sessions.map((s, i) => i);
+    return idx.reduce((a, si) => a + sessReal(e.d.day.sessions[si]).filter(i => isPlanRun(i) && !S.checked[i.id]).reduce((b, i) => b + minOf(i), 0), 0);
+  }
+  const w = window.WK && WK.tw ? WK.tw(e.k) : null;
+  return w && !w.opt && !w.o.done ? w.min : 0;
+}
+const canRun = e => !!e && (e.kind === "train" || e.kind === "donetoday" || e.kind === "empty");
+function sugRuns(n) {
+  const t = T(), rd = runDays(), days = projectPlan(Math.max(14, n || 42)), out = new Map(), byWk = {};
+  days.forEach(e => { const wk = weekKeyOf(e.date); (byWk[wk] = byWk[wk] || []).push(e); });
+  const lastK = days[days.length - 1].k, oth = planState().other || {};
+  Object.keys(byWk).forEach(wk => {
+    const es = byWk[wk], sun = dkey(addDays(D(wk), 6));
+    if (sun > lastK) return;                                    // Woche nicht ganz in der Vorschau
+    if ([0, 1, 2, 3, 4, 5, 6].some(i => { const o = oth[dkey(addDays(D(wk), i))]; return o && (o.tp || o.race); })) return;   // Taper-/Rennwoche
+    let min = 0;
+    for (let i = 0; i < 7; i++) { const k = dkey(addDays(D(wk), i)); if (k <= t) min += (rd[k] || {}).min || 0; }
+    es.forEach(e => { min += planMin(e); });
+    const def = RUN_MIN - min;
+    if (def <= 0) return;
+    const free = es.filter(e => canRun(e) && !planMin(e) && !(rd[e.k] && rd[e.k].full));
+    if (!free.length) return;
+    const cnt = Math.min(free.length, Math.ceil(def / 60)), each = Math.min(60, Math.max(30, Math.ceil(def / cnt / 5) * 5));
+    for (let j = 0; j < cnt; j++) out.set(free[Math.floor((j + 0.5) * free.length / cnt)].k, each);
+  });
+  return out;
+}
+function sugRow(e, m) {
+  return `<div class="xrow" onclick="event.stopPropagation();WOCHE.runSheet()">＋ ${m} min locker laufen <span class="q">· HF unter 142 · für 3 h diese Woche</span></div>`;
+}
 
 /* ---------- Karte „Laufwoche“ (Übersicht, unter „Heute“) ---------- */
 function card(days) {
@@ -81,24 +142,20 @@ function card(days) {
     const r = rd[k], cls = r && r.full ? "on" : r && r.any ? "half" : k > t && planned[k] ? "plan" : "";
     return `<span class="${cls}${k === t ? " now" : ""}"><i></i>${WDS[i]}</span>`;
   }).join("");
-  // 2-Tage-Regel
-  let last = null;
-  for (let i = 0; i <= 14 && !last; i++) { const d = new Date(now); d.setDate(now.getDate() - i); const k = dkey(d); if (rd[k] && rd[k].full) last = k; }
-  const gap = last ? between(last, t) - 1 : 99;        // volle laufreie Tage vor heute
+  // Hinweis: Taper-Text, „Heute gelaufen“ oder der Vorschlag fürs Wochenminimum (19.10., ersetzt die 2-Tage-Regel)
+  const last = rd[t] && rd[t].full ? t : null;
   let hint = "";
-  // Im Taper ersetzt der Taper-Text den Hinweis der 2-Tage-Regel (wettkampf.js)
+  // Im Taper ersetzt der Taper-Text den Hinweis (wettkampf.js)
   const tap = window.WK && (planState().other || {})[t] && planState().other[t].tp ? WK.info(t) : null;
   if (tap && last !== t) hint = `<div class="lwh">${esc(tap.n)}: ${tap.d.split(' · ')[0]}</div>`;
   else if (last === t) hint = `<div class="lwh ok">Heute gelaufen ✓</div>`;
-  else if (gap >= 2) hint = planRunToday(days[0])
-    ? `<div class="lwh">Seit ${gap > 14 ? "über 2 Wochen" : gap + " Tagen"} kein Lauf · heute läufst du mit ${esc(dayTitle(days[0].d))}</div>`
-    : `<div class="lwh due">Heute mind. 30 min locker laufen · seit ${gap > 14 ? "über 2 Wochen" : gap + " Tagen"} kein Lauf</div>`;
-  else if (gap === 1 && !planRunToday(days[0])) hint = `<div class="lwh">Spätestens morgen wieder 30 min laufen</div>`;
+  else { const sg = sugRuns(14); if (sg.has(t)) hint = `<div class="lwh due">Heute ＋ ${sg.get(t)} min locker laufen · damit du diese Woche auf 3 h kommst</div>`; }
   const kw = (() => { const d = new Date(now); d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7)); const j = new Date(d.getFullYear(), 0, 4); return 1 + Math.round(((d - j) / 864e5 - 3 + ((j.getDay() + 6) % 7)) / 7); })();
   return `<div class="lwoche">
-    <div class="lwt"><span>Laufwoche <span class="kw">· KW ${kw}</span></span><span class="lwadd" onclick="WOCHE.runSheet()">＋ Lauf</span></div>
+    <div class="lwt"><span>Running & Key-Sessions <span class="kw">· KW ${kw}</span></span><span class="lwadd" onclick="WOCHE.runSheet()">＋ Lauf</span></div>
     <div class="lwr"><div class="lwv"><b>${nFull}</b> ${nFull === 1 ? "Lauf" : "Läufe"}<br><b class="blue">${dec1(km)}</b><span class="u">KM</span></div>
       <div class="lwd">${dots}</div></div>
+    ${window.FOKUS ? FOKUS.weekBlock() : ""}
     ${hint}
   </div>`;
 }
@@ -113,7 +170,7 @@ function runSheet() {
   wrap.onclick = ev => { if (ev.target === wrap) closeSheet(); };
   wrap.innerHTML = `<div class="sheet wsheet">
     <h4>Lauf eintragen</h4>
-    <p>Werte aus der Watch. Ab 30 min zählt er als Lauf für die 2-Tage-Regel, die km zählen immer. Hart und Wettkampf zählen als harte Laufeinheit.</p>
+    <p>Werte aus der Watch. Die Minuten zählen fürs Wochenminimum (3 h), ab 30 min zählt er als Lauf, die km zählen immer. Hart und Wettkampf zählen als harte Laufeinheit.</p>
     <div class="wch">${[["warmup", "Warm-up"], ["locker", "Locker"], ["hart", "Hart"], ["wettkampf", "Wettkampf"]].map(([k, l]) =>
       `<button class="${RK === k ? "on" : ""}" onclick="WOCHE.rk('${k}')">${l}</button>`).join("")}</div>
     <div class="wch">${[0, 1, 2].map(i => { const d = new Date(today0()); d.setDate(d.getDate() - i);
@@ -140,7 +197,7 @@ function saveRun() {
 let ON = KINDS[0], OL = "mittel";
 function otherSheet(k) {
   closeSheet();
-  const e = projectPlan(14).find(x => x.k === k);
+  const e = k >= T() ? projectPlan(Math.max(14, between(T(), k) + 1)).find(x => x.k === k) : null;   // auch aus dem Kalender
   const cur = P().other[k];
   if (cur) { ON = cur.n; OL = cur.lv; }
   const names = KINDS.concat(Object.values(P().other).map(o => o.n)).filter((n, i, a) => a.indexOf(n) === i);
@@ -173,13 +230,18 @@ function delOther(k) {
   closeSheet(); markDirty(); render();
 }
 /* Anzeige eines „off“-Tags: Anderes Training statt „Geht nicht“ */
+const awayOf = k => (window.FOKUS && FOKUS.awayAt ? FOKUS.awayAt(k) : null);   // Abwesend-Zeitraum (19.10.)
 function offInf(e) {
+  const a = awayOf(e.k);
+  if (a) return `<div class="inf"><div class="t ot">${esc(a.n)}</div><div class="s">${a.pause ? "Pause, der Plan wartet" : "gekürzt, Woche bleibt 7 Tage"} · bis ${esc(fmtDay(D(a.e)))}</div></div>`;
   const o = P().other[e.k];
   return o ? `<div class="inf"><div class="t ot">${esc(o.n)}</div><div class="s">${o.lv} · anderes Training, der Plan rutscht</div></div>`
            : `<div class="inf"><div class="t">Geht nicht</div><div class="s">antippen zum Zurücknehmen</div></div>`;
 }
-function offClick(e) { return P().other[e.k] ? `WOCHE.otherSheet('${e.k}')` : `planOffToggle('${e.k}')`; }
+function offClick(e) { if (awayOf(e.k)) return `KAL.day('${e.k}')`; return P().other[e.k] ? `WOCHE.otherSheet('${e.k}')` : `planOffToggle('${e.k}')`; }
 function todayOff(first) {
+  const a = awayOf(first.k);
+  if (a) return { n: a.n, d: `${a.pause ? "Pause, der Plan wartet" : "gekürzt, Woche bleibt 7 Tage"} · bis ${fmtDay(D(a.e))}`, lk: `KAL.day('${first.k}')`, lt: "ändern ›" };
   const o = P().other[first.k];
   return o ? { n: o.n, d: `${o.lv} · anderes Training statt Plan, der Plan rutscht`, lk: `WOCHE.otherSheet('${first.k}')`, lt: "ändern ›" } : null;
 }
@@ -306,7 +368,7 @@ function saveField(id) {
 }
 
 window.WOCHE = {
-  runField, saveField,
+  runField, saveField, runDays, minOf, RUNK, sugRuns, sugRow, planMin,   /* minOf/RUNK auch für den Kalender (19.10.) */
   card, nwCard, runSheet, saveRun, otherSheet, saveOther, delOther, offInf, offClick, todayOff,
   rk: k => { RK = k; runSheet(); }, rd: i => { RD = i; runSheet(); },
   on: n => { ON = n; if (n === "Wettkampf") OL = "hart"; otherSheet(OK); }, ol: l => { OL = l; otherSheet(OK); },

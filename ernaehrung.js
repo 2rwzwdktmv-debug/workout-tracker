@@ -382,18 +382,25 @@ function periodProtein(from){const st=startDay(),y=addD(TODAY(),-1);let a=0,n=0;
   return n?Math.round(a/n):null;}
 EN.setPmin=v=>{FS().set.pmin=Math.max(100,Math.min(200,v));R();};
 /* Übersicht: Ernährung nach Plan · heute · letzte 7 · letzte 30 Tage (abgeschlossene Tage, ohne heute) */
-EN.topFood=function(){if(!C)return '';const k=TODAY(),t=dayScore(k),st=startDay(),D=dayOf(k),T=TT[D.type];
+/* mini (19.10.): rechte Hälfte der Karte „Training | Ernährung“ — gleiche Zahlen, ohne „ab …“, ohne Messen-Zeile (EN.topDue) */
+EN.topFood=function(mini){if(!C)return '';const k=TODAY(),t=dayScore(k),st=startDay(),D=dayOf(k),T=TT[D.type];
   const tp=t?Math.round(100*t.nd/t.n):null,ph=Math.round(totals(D).p);
   /* 7 und 30 Tage erst, wenn seit dem Start so viele Tage vergangen sind */
-  const ab=n=>`<i>${st?'ab '+D_(addD(st,n)).getDate()+'.'+(D_(addD(st,n)).getMonth()+1)+'.':'–'}</i>`;
+  const ab=n=>mini?'<i>–</i>':`<i>${st?'ab '+D_(addD(st,n)).getDate()+'.'+(D_(addD(st,n)).getMonth()+1)+'.':'–'}</i>`;
   const per=n=>{if(!(st&&diff(k,st)>=n))return ab(n);const p=periodScore(addD(k,-n));return `<b class="${pcls(p&&p.p)}">${pct(p)}</b>`;};
   const prp=n=>{if(!(st&&diff(k,st)>=n))return ab(n);const g=periodProtein(addD(k,-n));return g==null?'<i>–</i>':`<b class="${prcls(g,T.p)}">${g} g</b>`;};
+  if(mini)return `<div class="duo-h">Ernährung<span>›</span></div>
+    <div class="tc-t mini"><span></span><span>heute</span><span>7 T</span><span>30 T</span>
+      <span>Plan</span><b class="${pcls(tp)}">${tp==null?'–':tp+' %'}</b>${per(7)}${per(30)}
+      <span>Protein</span><b class="${prcls(ph,T.p)}">${ph} g</b>${prp(7)}${prp(30)}</div>`;
   const due=['weight','waist'].filter(f=>showMeasure(f,k)&&!NS(k)[f]).concat(monthDue(k)?['month']:[]);
   return `<div class="tc-sec" onclick="EN.openScore()"><div class="tc-h"><span>Ernährung nach Plan</span><span class="tc-l">›</span></div>
     <div class="tc-t"><span></span><span>heute</span><span>7 Tage</span><span>30 Tage</span>
       <span>Plan</span><b class="${pcls(tp)}">${tp==null?'–':tp+' %'}</b>${per(7)}${per(30)}
       <span>Protein</span><b class="${prcls(ph,T.p)}">${ph} g</b>${prp(7)}${prp(30)}</div></div>
     ${due.length?`<div class="tc-due" onclick="${due[0]==='month'?'EN.openMonth()':`EN.openMeasure('${due[0]}')`}"><span>Heute messen: ${due.map(f=>f==='month'?'Monatsmessung':MLAB[f]).join(', ').replace(/, ([^,]*)$/,' und $1')}</span><span>›</span></div>`:''}`;};
+EN.topDue=function(){if(!C)return '';const k=TODAY(),due=['weight','waist'].filter(f=>showMeasure(f,k)&&!NS(k)[f]).concat(monthDue(k)?['month']:[]);
+  return due.length?`<div class="tc-due" onclick="${due[0]==='month'?'EN.openMonth()':`EN.openMeasure('${due[0]}')`}"><span>Heute messen: ${due.map(f=>f==='month'?'Monatsmessung':MLAB[f]).join(', ').replace(/, ([^,]*)$/,' und $1')}</span><span>›</span></div>`:'';};
 EN.openScore=()=>{const st=startDay(),ws=addD(TODAY(),-7);
   const rows=Array.from({length:8},(_,n)=>addD(ws,n)).filter(k=>!st||k>=st).reverse().map(k=>{const s=k>=(st||k)&&(logged(k)||k===TODAY())?dayScore(k):null,p=s?Math.round(100*s.nd/s.n):null;
     return `<div class="it"><div style="flex:1">${dayOf(k).wd} ${OKT(k)}${k===TODAY()?' · heute':''}<small>${s?s.m+' von '+s.mn+' Mahlzeiten'+(s.pt?' · '+s.pt+' teilweise':'')+(s.xn?' · '+s.xn+' Extra'+(s.xn>1?'s':'')+' −'+s.xn*10+' %':''):st&&k<st?'vor dem Start':'nichts eingetragen, zählt nicht'}</small></div><span class="meta"><b class="${pcls(p)}">${p===null?'–':p+' %'}</b>${s?` · <b class="${prcls(totals(dayOf(k)).p,TT[dayOf(k).type].p)}">${Math.round(totals(dayOf(k)).p)} g</b>`:''}</span></div>`;}).join('');
