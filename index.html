@@ -81,7 +81,7 @@
   .hero .txt .v { font-size: 21px; font-weight: 600; margin: 2px 0 6px; letter-spacing: -.3px; }
   .hero .txt .s { font-size: 13px; color: var(--muted); }
   /* Training | Ernährung (19.10.) */
-  .duo.topc { display: grid; grid-template-columns: 2fr 3fr; padding: 12px 0; margin: 0 0 12px; }   /* 40/60: Ernährung braucht Platz für 30 Tage */
+  .duo.topc { display: grid; grid-template-columns: 45fr 55fr; padding: 12px 0; margin: 0 0 12px; }   /* 45/55: Ernährung braucht Platz für 30 Tage */
   .duo > div { cursor: pointer; min-width: 0; }
   .duo-l { padding: 0 10px 0 14px; border-right: 1px solid var(--line); }
   .duo-r { padding: 0 14px 0 12px; }
@@ -2084,7 +2084,7 @@ document.getElementById("navSet").onclick = () => { location.hash = "#settings";
    MAJOR 1 = Trainings-Tracker, 2 = mit Ernährung (ab 01.10.2026). MINOR = Umbau seit MAJOR (UMBAU-….md, 2.0 = Ernährung Phase 1).
    BUILD = laufende Push-Nummer = Anzahl Commits in workout-tracker nach dem Commit (git rev-list --count HEAD), vierstellig.
    Bei JEDEM Push hochzählen. Steht am iPhone die neue Nummer, ist der neue Stand da; sonst ist es noch der Cache. */
-const APP_VERSION = "2.22.0117";
+const APP_VERSION = "2.22.0118";
 let navScroll = false;
 window.addEventListener("hashchange", () => { navScroll = true; if (PROGRAM) render(); });
 
@@ -4014,7 +4014,7 @@ window.doReset = function () {
 })();
 boot();
 </script>
-<link rel="stylesheet" href="fokus.css?v=2026-10-19g">
+<link rel="stylesheet" href="fokus.css?v=2026-10-19h">
 <script src="fokus.js?v=2026-10-19l"></script>   <!-- Key · Base · Support, 7-Tage-Planwoche (18.10.) -->
 <link rel="stylesheet" href="kalender.css?v=2026-10-19j">
 <script src="kalender.js?v=2026-10-19r"></script>   <!-- Kalender: 6 Wochen Mo–So, Planwochen-Beginn (19.10.) -->

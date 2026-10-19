@@ -85,7 +85,7 @@
 .fkweek { cursor: pointer; }
 .fkmin { flex-wrap: wrap; gap: 6px 10px; }
 .fkmin b { font-size: 16px; }
-.fkmin .fklist { margin-top: 0; flex: 1 1 auto; justify-content: flex-end; gap: 4px 9px; font-size: 12.5px; }
+.fkmin .fklist { margin-top: 0; flex: 1 1 100%; justify-content: flex-start; gap: 4px 9px; font-size: 12.5px; }   /* linksbündig (Marc 19.10.) */
 .fkwr { display: flex; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
 .fkwr b { width: 52px; flex: none; color: var(--muted); }
 .fkwr b.ok { color: var(--lime); }
