@@ -9,7 +9,6 @@
 .kar { width: 36px; height: 30px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface2); color: var(--ink); font-size: 15px; }
 .kar.kdown { display: block; margin: 8px auto 4px; width: 100%; }
 .kw { background: var(--surface); border-radius: var(--r-lg); padding: 8px 8px 8px; margin: 0 0 8px; }
-.kw.cur { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--sky) 55%, transparent); }
 .kwh { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 6px; padding: 0 4px 6px; cursor: pointer; font-size: 12.5px; color: var(--muted); }
 .kwh .kwt { white-space: nowrap; }
 .kwh .kwt b { color: var(--ink); font-size: 13.5px; }
@@ -24,10 +23,10 @@
 .kc.past .kn { color: var(--muted); }
 .kc.off { background: repeating-linear-gradient(135deg, var(--surface2) 0 5px, transparent 5px 9px); }
 /* Klammer = 7-Tage-Fenster einer Planwoche: Haken links am ersten, rechts am letzten Tag */
-.kc.bs::before, .kc.be::after { content: ""; position: absolute; top: 0; bottom: 0; width: 7px; border: 2.5px solid var(--lime); pointer-events: none; }
+.kc.bs::before, .kc.be::after { content: ""; position: absolute; top: 0; bottom: 0; width: 7px; border: 2px solid color-mix(in srgb, var(--lime) 30%, transparent); pointer-events: none; }   /* nur angedeutet (Marc 19.10.) */
 .kc.bs::before { left: 0; border-right: none; border-radius: 10px 0 0 10px; }
 .kc.be::after { right: 0; border-left: none; border-radius: 0 10px 10px 0; }
-.kc.bsd::before, .kc.bed::after { border-color: var(--muted); border-style: dashed; }
+.kc.bsd::before, .kc.bed::after { border-color: color-mix(in srgb, var(--muted) 35%, transparent); border-style: dashed; }
 .kds { display: flex; gap: 3px; flex-wrap: wrap; justify-content: center; max-width: 100%; }
 .kd { display: inline-block; width: 8px; height: 8px; border-radius: 50%; flex: none; }
 .kd.kS { background: color-mix(in srgb, var(--lime) 35%, transparent); box-shadow: inset 0 0 0 1.5px var(--lime); }
