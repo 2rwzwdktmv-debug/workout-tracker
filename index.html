@@ -542,6 +542,15 @@
   }
   .xrow.done { color: var(--muted); }
   .xrow .q { color: var(--muted); font-weight: 600; }
+  /* Einmal-Notiz zu einem Tag (24.10.): steht nur an diesem Datum, Tipp entfernt sie */
+  .pnote { margin: 0 0 10px 44px; padding: 7px 10px; font-size: 12px; line-height: 1.4; white-space: pre-line;
+    border-left: 2px solid var(--amber); background: var(--surface2); border-radius: 0 8px 8px 0; color: var(--ink); }
+  .pnote .x { float: right; margin-left: 8px; color: var(--muted); }
+  .today .pnote { margin: 0 0 10px; }
+  .wdsw button { min-width: 0; padding: 7px 0; flex: 1; }
+  .trsw.wdrow { flex-wrap: wrap; row-gap: 8px; }
+  .trsw.wdrow > span { flex: 1 0 100%; }
+  .trsw.wdrow .wdsw { flex: 1 1 100%; margin-top: 0; }
   .today .cta.xcta {
     margin-top: 7px; background: none; border: 1px solid color-mix(in srgb, var(--sky) 55%, transparent);
     color: var(--sky); font-size: 12.5px; padding: 9px;
@@ -1614,6 +1623,7 @@ function planState() {
   if (!Array.isArray(P.dropped)) P.dropped = [];// "pi.wi.di"   — gestrichene Einheit
   if (!Array.isArray(P.swaps)) P.swaps = [];    // [["pi.wi.di","pi.wi.di"], …]
   if (!Array.isArray(P.later)) P.later = [];    // "YYYY-MM-DD" — PM an diesem Tag nicht, rückt auf den nächsten (11.10.)
+  if (!P.notes || typeof P.notes !== "object" || Array.isArray(P.notes)) P.notes = {};   // { "YYYY-MM-DD": Text } — Einmal-Notiz zu einem Kalendertag (24.10.)
   return P;
 }
 function dkey(d) {
@@ -1834,6 +1844,8 @@ function prunePlan() {
   P.later = P.later.filter(k => k >= t);
   const byKey = {};
   planDays().forEach(d => { byKey[d.key] = d; });
+  // Einmal-Notizen: Datum -> gilt nur für diesen Tag; Plan-Tag -> bis die Einheit erledigt (oder gestrichen) ist
+  Object.keys(P.notes).forEach(k => { if (/^\d{4}-/.test(k) ? k < t : !byKey[k] || dayDone(byKey[k])) delete P.notes[k]; });
   const dropped = new Set(P.dropped);
   P.swaps = P.swaps.filter(pair =>
     pair.every(k => byKey[k] && !dropped.has(k) && !dayDone(byKey[k])));
@@ -1964,6 +1976,61 @@ function trDoneInWeek(id, dateK) {
   const wk = weekKeyOf(new Date(dateK + "T12:00:00"));
   return trState(id).log.filter(l => trHasSets(l) && weekKeyOf(new Date(l.d + "T12:00:00")) === wk).length;
 }
+/* Einmal-Notiz (24.10.): S.plan.notes[Schlüssel] = Text. Schlüssel = Plan-Tag ("2.1.0", die Notiz wandert mit der Einheit, wenn sie
+   sich verschiebt) oder Kalendertag ("YYYY-MM-DD", z. B. für Anderes Training). Sie verschwindet, sobald der Plan-Tag erledigt ist
+   bzw. der Kalendertag vorbei ist (prunePlan); Tipp auf die Notiz entfernt sie. */
+function noteHtml(e) {
+  const N = planState().notes || {};
+  return [e.k, e.d && (e.kind === "train" || e.kind === "donetoday") ? e.d.key : null].filter(k => k && N[k])
+    .map(k => `<div class="pnote" onclick="event.stopPropagation();planNoteDel('${k}')">${esc(N[k])}<span class="x">✕</span></div>`).join("");
+}
+window.planNoteDel = function (k) {
+  if (!confirm("Notiz entfernen?")) return;
+  delete planState().notes[k]; markDirty(); render();
+};
+/* Griff im festen Rhythmus (24.10.): sched.mode "rhythm" = feste Wunschtage (Standard Mo + Do, S.trackCfg[id].days überschreibt),
+   unabhängig von Plan, Ruhetag, Anderem Training und Taper. Nicht an Tagen mit Kreuzheben oder Klimmzug-EMOM, am Renntag und an
+   „Geht nicht“-Tagen: dann ein Tag vorher, sonst ein Tag später. Zwischen zwei Einheiten mindestens minGap volle Tage (Standard 2).
+   Verpasst (Wunschtag vorbei, nichts eingetragen): ab dem ersten passenden Tag als fällig, bis eingetragen. */
+function trackDays(tr) {
+  const own = ((S.trackCfg || {})[tr.id] || {}).days, d = Array.isArray(own) && own.length ? own : (tr.sched || {}).days;
+  return (d && d.length ? d : [1, 4]).slice();
+}
+function rhythmBlocked(e) {
+  const o = (planState().other || {})[e.k];
+  if (e.kind === "race" || (o && o.race)) return true;
+  if (e.kind === "off" && !o) return true;                                   // „Geht nicht“, Abwesenheit
+  if (!e.d) return false;
+  const idx = e.part && e.part.length ? e.part : e.d.day.sessions.map((s, i) => i);
+  return idx.some(si => ((e.d.day.sessions[si] || {}).items || []).some(it => !it.opt &&
+    (it.exercises || []).some(x => x.track === "pullup" || x.rm === "deadlift")));
+}
+function rhythmExtras(tr, sc, days, put) {
+  if (!days.length) return;
+  const gap = (sc.minGap || 2) + 1, wish = new Set(trackDays(tr)), byK = {};
+  days.forEach(e => { byK[e.k] = e; });
+  const rel = (k, n) => dkey(addDays(new Date(k + "T12:00:00"), n));
+  const first = days[0].k, last = days[days.length - 1].k;
+  const chosen = trState(tr.id).log.filter(trHasSets).map(l => l.d);
+  days.forEach(e => { if (trLoggedOn(tr.id, e.k)) put(e.k, tr.id); });      // Eingetragenes bleibt als ✓ stehen
+  const free = k => !!byK[k] && !trLoggedOn(tr.id, k) && !rhythmBlocked(byK[k]) && chosen.every(c => dayGap(c, k) >= gap);
+  for (let w = rel(first, -6); w <= last; w = rel(w, 1)) {
+    if (!wish.has(new Date(w + "T12:00:00").getDay())) continue;
+    const served = chosen.some(c => c >= rel(w, -1) && (w < first || c <= rel(w, 2)));
+    if (served) continue;
+    const cand = w < first ? [first, rel(first, 1), rel(first, 2)] : [w, rel(w, -1), rel(w, 1)];   // verpasst: nachholen ab heute
+    const k = cand.find(x => x >= first && x <= last && free(x));
+    if (k) { chosen.push(k); put(k, tr.id); }
+  }
+}
+window.setRhythmDay = function (id, d) {
+  const tr = trackDef(id); if (!tr) return;
+  const cur = trackDays(tr), i = cur.indexOf(d);
+  if (i >= 0) { if (cur.length > 1) cur.splice(i, 1); } else if (cur.length < 3) cur.push(d);
+  cur.sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7));                          // Mo zuerst
+  ((S.trackCfg = S.trackCfg || {})[id] = S.trackCfg[id] || {}).days = cur;
+  markDirty(); render();
+};
 /* Zusatzarbeit auf die projizierten Tage verteilen -> { dateKey: [trackId, …] } */
 function planExtras(days) {
   const out = {};
@@ -1975,6 +2042,7 @@ function planExtras(days) {
     const sc = tr.sched || {}, perWeek = sc.perWeek || 2, minGap = sc.minGap || 1;
     // "slots": die Leiter hängt an festen Programmstellen, nicht am Kalender.
     if (sc.mode === "slots") return;
+    if (sc.mode === "rhythm") { rhythmExtras(tr, sc, days, put); return; }
     const st = trState(tr.id);
     const lastLog = st.log.map(l => l.d).sort().pop() || null;
     const byWeek = {};
@@ -2084,7 +2152,7 @@ document.getElementById("navSet").onclick = () => { location.hash = "#settings";
    MAJOR 1 = Trainings-Tracker, 2 = mit Ernährung (ab 01.10.2026). MINOR = Umbau seit MAJOR (UMBAU-….md, 2.0 = Ernährung Phase 1).
    BUILD = laufende Push-Nummer = Anzahl Commits in workout-tracker nach dem Commit (git rev-list --count HEAD), vierstellig.
    Bei JEDEM Push hochzählen. Steht am iPhone die neue Nummer, ist der neue Stand da; sonst ist es noch der Cache. */
-const APP_VERSION = "2.22.0118";
+const APP_VERSION = "2.23.0119";
 let navScroll = false;
 window.addEventListener("hashchange", () => { navScroll = true; if (PROGRAM) render(); });
 
@@ -2189,13 +2257,13 @@ function renderPlan() {
         ${n === U.length - 1 ? xBtns : ""}</div>${chk}${n === open ? `<span class="dots tdots" onclick="planSheet('${first.k}')">⋯</span>` : ""}</div>`;
     };
     html += `<div class="today">
-      <div class="k">${hk}</div>
+      <div class="k">${hk}</div>${noteHtml(first)}
       <div class="en tl">${EN.dayFlow(first, unitRow)}</div>${EN.dayFoot(first)}
     </div>`;
   } else if (first.kind === "train") {
     const istQuelle = swapFrom === first.d.key, go = entGo(first);
     html += `<div class="today ${istQuelle ? "sel" : ""}">
-      <div class="k">${hk}</div>
+      <div class="k">${hk}</div>${noteHtml(first)}
       <div class="en tl">${EN.ausgleich ? EN.ausgleich(first.k) : ""}${EN.dayPre(first)}${trRow(`<i class='ic'>🏋️</i>Training · ${EN.tzChip(first)}${EN.minHtml(first)}`,
         `<div class="n">${esc(entTitle(first))}</div>
         <div class="d">${window.FOKUS ? FOKUS.chips(first) : ""}${esc(entSub(first))}</div>${EN.todayLine(first)}
@@ -2207,7 +2275,7 @@ function renderPlan() {
   } else if (first.kind === "donetoday") {
     const nx = days.find(x => x.kind === "train");
     html += `<div class="today">
-      <div class="k">${hk}</div>
+      <div class="k">${hk}</div>${noteHtml(first)}
       <div class="en tl">${EN.ausgleich ? EN.ausgleich(first.k) : ""}${EN.dayPre(first)}${trRow("<i class='ic'>🏋️</i>Training · <span>erledigt ✓</span>",
         `<div class="n">${first.d ? esc(entTitle(first)) : "Erledigt"}</div>
         <div class="d">${nx ? "Als Nächstes: " + esc(entTitle(nx)) : "Weiter geht's demnächst."}</div>${EN.energyLine()}
@@ -2217,14 +2285,14 @@ function renderPlan() {
     </div>`;
   } else if (first.kind === "race") {
     html += `<div class="today">
-      <div class="k">${hk}</div>
+      <div class="k">${hk}</div>${noteHtml(first)}
       <div class="en tl">${trRow("<i class='ic'>🏋️</i>Training", `<div class="n">${first.pre ? "Rennblock geschafft" : "Rennwoche"}</div>
         <div class="d">Heute steht nichts an. ${esc((S.race && S.race.name) || "Rennen")} am ${esc(fmtDay(new Date(S.race.date + "T12:00:00")))}.</div>`, "", "quiet")}${EN.dayPost(first)}</div>${EN.dayFoot(first)}
     </div>`;
   } else if (first.kind === "off" || first.kind === "rest") {
     const off = first.kind === "off";
     html += `<div class="today">
-      <div class="k">${hk}</div>
+      <div class="k">${hk}</div>${noteHtml(first)}
       <div class="en tl">${EN.ausgleich ? EN.ausgleich(first.k) : ""}${EN.dayPre(first)}${trRow(`<i class='ic'>🏋️</i>Training${EN.tzChip(first) ? " · " + EN.tzChip(first) : ""}`,
         (WOCHE.todayOff(first) ? `<div class="n">${esc(WOCHE.todayOff(first).n)}</div><div class="d">${WOCHE.todayOff(first).d}</div><div class="lk tlk" onclick="${WOCHE.todayOff(first).lk}">${WOCHE.todayOff(first).lt}</div>${WOCHE.todayOff(first).btn || ""}` : `<div class="n">${off ? "Geht nicht" : "Ruhetag"}</div>
         <div class="d">${off ? "Als Ausfalltag markiert — alles rutscht nach hinten." : MAX_STREAK + " Trainingstage am Stück sind genug."}</div>
@@ -2262,7 +2330,7 @@ function renderPlan() {
       html += `<div class="pd muted">${wd}
         <div class="inf"><div class="t">frei</div><div class="s">Programm durch</div></div></div>`;
     }
-    html += extraRows(e) + (sug.has(e.k) ? WOCHE.sugRow(e, sug.get(e.k)) : "") + `</div>`;
+    html += noteHtml(e) + extraRows(e) + (sug.has(e.k) ? WOCHE.sugRow(e, sug.get(e.k)) : "") + `</div>`;
   });
 
   if (window.FOKUS) html += FOKUS.dropped();   /* 7-Tage-Regel (18.10.): was diese Planwoche wegfällt */
@@ -3224,7 +3292,9 @@ function renderSettings() {
           return `<div class="trsw"><span>${esc(tr.name)}</span><div class="sqsw" role="group" aria-label="${esc(tr.name)}">
             <button class="${on ? "sel" : ""}" aria-pressed="${on}" onclick="setTrackShown('${esc(tr.id)}', true, this)">An</button>
             <button class="${on ? "" : "sel"}" aria-pressed="${!on}" onclick="setTrackShown('${esc(tr.id)}', false, this)">Aus</button>
-          </div></div>`;
+          </div></div>${(tr.sched || {}).mode === "rhythm" && on ? `<div class="trsw wdrow"><span>Wunschtage</span><div class="sqsw wdsw" role="group" aria-label="Wunschtage ${esc(tr.name)}">${[1, 2, 3, 4, 5, 6, 0].map(d =>
+            `<button class="${trackDays(tr).indexOf(d) >= 0 ? "sel" : ""}" aria-pressed="${trackDays(tr).indexOf(d) >= 0}" onclick="setRhythmDay('${esc(tr.id)}', ${d})">${WD[d]}</button>`).join("")}</div></div>
+          <p class="hint">${esc(tr.name)} kommt an diesen Tagen, auch an Ruhetagen und bei Anderem Training. Fällt der Tag auf Kreuzheben oder Klimmzüge, rückt es einen Tag vor oder zurück; zwischen zwei Einheiten bleiben mindestens 2 volle Tage.</p>` : ""}`;
         }).join("")}
       </div>
     </details>` : ""}
@@ -3997,7 +4067,7 @@ window.startNewRun = function () {
 };
 window.doReset = function () {
   if (confirm("Wirklich ALLEN Fortschritt und alle Ergebnisse löschen? (1RM-Gewichte, Trainingslog und Durchläufe bleiben erhalten)")) {
-    S = { checked: {}, resultsByItem: {}, results: {}, oneRM: S.oneRM, rmLog: S.rmLog, log: S.log, runs: S.runs, run: S.run, tracks: S.tracks, paces: S.paces, squat: S.squat, tracksShown: S.tracksShown, optShown: S.optShown, unit: S.unit, race: S.race };
+    S = { checked: {}, resultsByItem: {}, results: {}, oneRM: S.oneRM, rmLog: S.rmLog, log: S.log, runs: S.runs, run: S.run, tracks: S.tracks, paces: S.paces, squat: S.squat, tracksShown: S.tracksShown, trackCfg: S.trackCfg, optShown: S.optShown, unit: S.unit, race: S.race };
     markDirty();
     location.hash = "";
     finishBoot();
